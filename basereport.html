@@ -1,0 +1,207 @@
+<div>
+    <style>
+        /* Add your CSS styles here */
+        * {
+            font-family: Arial, sans-serif;
+        }
+
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .chat-box {
+            margin: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .user-box {
+            align-self: flex-start;
+            background-color: #e2f0d9;
+        }
+
+        .comp-box {
+            align-self: flex-end;
+            background-color: #f0f0f0;
+            text-align: end;
+        }
+
+        .star-rating {
+            color: gold;
+        }
+
+        .chart-container {
+            width: 50%;
+            /* Adjust the width as needed */
+            padding: 20px;
+            margin: auto;
+        }
+
+        .table-container {
+            width: 50%;
+            /* Adjust the width as needed */
+            margin: auto;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+
+        .table-container table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #ddd;
+        }
+
+        .table-container th,
+        .table-container td {
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+
+        .table-container th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+
+        .table-container tr:hover {
+            background-color: #f2f2f2;
+        }
+
+        /* Add more styling as desired */
+    </style>
+    <h1 style="text-align: center;width: 100%;">FINAL REPORT</h1>
+
+    <h2>Score Totals</h2>
+
+    <div style="width:100%">
+        <div class="chart-container">
+            <canvas id="polarChart" width="300" height="300"></canvas>
+        </div>
+        <div id="imageContainer"></div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Score</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Add rows dynamically using JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+
+    <h2>Conversation Thread</h2>
+
+    <div class="chat-container">
+        {% for chat in chat_history %}
+        <div class="chat-box user-box">
+            <p>{{ chat.user }}</p>
+            <p>
+                {% for score in chat.scores %}
+                {% if score.name == 'Final Score' %}
+                Score: <span class="star-rating">{% for _ in range(score.score) %}★{% endfor %}</span>
+                {% break %}
+                {% endif %}
+                {% endfor %}
+            </p>
+        </div>
+        <div class="chat-box comp-box">
+            <p>{{ chat.comp }}</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+
+    <script>
+        var scoreData = {{ score_totals | tojson }};
+        delete scoreData['Final Score'];
+        delete scoreData['Aligned to best practice score'];
+        delete scoreData['Sentiment/Keyword Match Score'];
+
+        var percentageData = {};
+        for (var scoreName in scoreData) {
+            var score = scoreData[scoreName]['score'];
+            var total = scoreData[scoreName]['total'];
+            var percentage = (score / total) * 100;
+            percentageData[scoreName] = percentage;
+        }
+
+        // Sort the data by total score (descending order)
+        var sortedData = Object.keys(scoreData).sort(function (a, b) {
+            return scoreData[b]['total'] - scoreData[a]['total'];
+        });
+
+        // Populate the table dynamically
+        var tableBody = document.querySelector('.table-container table tbody');
+        sortedData.forEach(function (scoreName) {
+            var score = scoreData[scoreName]['score'];
+            var total = scoreData[scoreName]['total'];
+
+            var tableRow = document.createElement('tr');
+            var nameCell = document.createElement('td');
+            var scoreCell = document.createElement('td');
+            var totalCell = document.createElement('td');
+
+            nameCell.textContent = scoreName;
+            scoreCell.textContent = score;
+            totalCell.textContent = total;
+
+            tableRow.appendChild(nameCell);
+            tableRow.appendChild(scoreCell);
+            tableRow.appendChild(totalCell);
+
+            tableBody.appendChild(tableRow);
+        });
+
+
+        // Extract labels and percentages from the percentage data
+        var labels = Object.keys(percentageData);
+        var percentages = labels.map(function (label) {
+            return percentageData[label];
+        });
+
+        // Create a polar area chart using Chart.js
+        var ctx = document.getElementById('polarChart').getContext('2d');
+        var myChart = new Chart(ctx, {
+            type: 'polarArea',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: percentages,
+                    backgroundColor: ['rgba(75, 192, 192, 0.2)', 'rgba(54, 162, 235, 0.2)', 'rgba(255, 99, 132, 0.2)', 'rgba(255, 206, 86, 0.2)', 'rgba(153, 102, 255, 0.2)', 'rgba(255, 159, 64, 0.2)'],
+                    borderColor: ['rgba(75, 192, 192, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 99, 132, 1)', 'rgba(255, 206, 86, 1)', 'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                aspectRatio: 1, // Set aspect ratio for the polar chart
+                scale: {
+                    ticks: {
+                        beginAtZero: true,
+                        max: 100 // Set max value for the polar chart
+                    }
+                },
+                plugins: {
+                    datalabels: {
+                        formatter: function (value, context) {
+                            return value.toFixed(2) + '%'; // Display the percentage on each segment
+                        },
+                        color: 'black'
+                    }
+                }
+            }
+        });
+
+    </script>
+</div>

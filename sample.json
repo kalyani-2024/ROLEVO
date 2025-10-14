@@ -1,0 +1,74 @@
+{
+    "start_time":"2023-10-29 13:24:18",
+    "user_id":1,
+    "conversation":[
+        {
+            "user":"Vijay, you are a very important member of my team and I value your contribution a lot. You know, the team is expanding and, as part of that, we are now hiring an Area Manager from outside the organisation.",
+            "computer":"Sir, despite being a star performer, I am still not being considered for this role. What is the use of my hard work and dedication if it is not recognized?",
+            "score":2,
+            "competencies":[
+                {
+                    "name": "Motivating Level 2",
+                    "score":3
+                },
+                {
+                    "name": "Empathy Level 2",
+                    "score":2
+                },
+                {
+                    "name": "Sentiment/Keyword Match Score",
+                    "score":1
+                }
+            ]
+        },
+        {
+            "user":"I can understand you are upset, and that’s why I have called for this honest discussion so I can clarify my position.",
+            "computer":"Sir, I am fully prepared and capable of taking on this role successfully, just as I have been performing excellently in the past 2 years.",
+            "score":3,
+            "competencies":[
+                {
+                    "name": "Motivating Level 2",
+                    "score":3
+                },
+                {
+                    "name": "Empathy Level 2",
+                    "score":2
+                },
+                {
+                    "name": "Questioning Level 2",
+                    "score":2
+                },
+                {
+                    "name": "Sentiment/Keyword Match Score",
+                    "score":3
+                }
+            ]
+        }
+    ],
+    "overall_score":{
+        "score": 5,
+        "total":6
+    },
+    "competencies":[
+        {
+            "name":"Empathy Level 2",
+            "score":4,
+            "total_possible":6
+        },
+        {
+            "name":"Sentiment/Keyword Match Score",
+            "score":4,
+            "total_possible":6
+        },
+        {
+            "name":"Motivating Level 2",
+            "score":6,
+            "total_possible":6
+        },
+        {
+            "name":"Questioning Level 2",
+            "score":2,
+            "total_possible":3
+        }
+    ]
+}

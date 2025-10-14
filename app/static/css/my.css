@@ -1,0 +1,29 @@
+#mainform{
+    position: relative;
+}
+
+#mainform textarea{
+    border-radius: 20px;
+    border-style: solid;
+    width: 100%;
+    resize: none;
+    padding: 20px;
+}
+
+#mainform button{
+    position: absolute;
+    bottom: 10px;
+    right: 15px;
+    font-size: x-large;
+    background: transparent;
+    border-style: none;
+    color: green;
+}
+
+
+.audiclas{
+    bottom: 0;
+    position: absolute;
+    width: 100%;
+    left: 0;
+}

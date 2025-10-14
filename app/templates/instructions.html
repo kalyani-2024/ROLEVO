@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link href="{{url_for('static', filename='css/bootstrap.css')}}" rel="stylesheet">
+<link href="{{url_for('static', filename='css/site.css')}}" rel="stylesheet">
+<link href="{{url_for('static', filename='css/my.css')}}" rel="stylesheet">
+<script src="{{url_for('static', filename='js/fontawesome.js')}}" crossorigin="anonymous"></script>
+
+<style>
+    body {
+        background: url("{{url_for('static', filename='images/login_page_bg.jpg')}}") no-repeat center center fixed;
+        background-size: cover;
+        min-height: 100vh;
+        margin: 0;
+        font-family: 'Arial', sans-serif;
+    }
+    
+    .container-fluid {
+        padding: 40px 20px;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .instructions-container {
+        max-width: 800px;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        padding: 40px;
+        box-shadow: 0 15px 50px rgba(0, 0, 0, 0.2);
+        text-align: center;
+    }
+    
+    .instructions-header {
+        margin-bottom: 30px;
+    }
+    
+    .instructions-title {
+        color: #158044;
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+    
+    .roleplay-info {
+        background: rgba(21, 128, 68, 0.1);
+        padding: 20px;
+        border-radius: 15px;
+        margin: 30px 0;
+        border-left: 5px solid #158044;
+    }
+    
+    .character-name {
+        color: #158044;
+        font-size: 1.8rem;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+    
+    .scenario-description {
+        color: #333;
+        font-size: 1.1rem;
+        line-height: 1.6;
+        text-align: left;
+        background: rgba(255, 255, 255, 0.8);
+        padding: 20px;
+        border-radius: 10px;
+        margin: 20px 0;
+    }
+    
+    .instructions-list {
+        text-align: left;
+        margin: 30px 0;
+    }
+    
+    .instructions-list h4 {
+        color: #158044;
+        margin-bottom: 15px;
+        font-size: 1.3rem;
+    }
+    
+    .instructions-list ul {
+        list-style: none;
+        padding: 0;
+    }
+    
+    .instructions-list li {
+        background: rgba(21, 128, 68, 0.05);
+        margin: 10px 0;
+        padding: 15px;
+        border-radius: 10px;
+        border-left: 4px solid #158044;
+        font-size: 1rem;
+        line-height: 1.5;
+    }
+    
+    .instructions-list li::before {
+        content: "✓ ";
+        color: #158044;
+        font-weight: bold;
+        margin-right: 10px;
+    }
+    
+    .action-buttons {
+        margin-top: 40px;
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .back-button {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 15px 30px;
+        border-radius: 25px;
+        font-size: 1.1rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .back-button:hover {
+        background: #5a6268;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(108, 117, 125, 0.3);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .start-roleplay-button {
+        background: linear-gradient(135deg, #158044, #0d5d32);
+        color: white;
+        border: none;
+        padding: 15px 40px;
+        border-radius: 25px;
+        font-size: 1.2rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        box-shadow: 0 5px 20px rgba(21, 128, 68, 0.3);
+    }
+    
+    .start-roleplay-button:hover {
+        background: linear-gradient(135deg, #0d5d32, #074924);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 30px rgba(21, 128, 68, 0.4);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .warning-box {
+        background: rgba(255, 193, 7, 0.1);
+        border: 2px solid #ffc107;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 20px 0;
+        color: #856404;
+    }
+    
+    .warning-box h5 {
+        color: #856404;
+        margin-bottom: 10px;
+        font-weight: bold;
+    }
+    
+    @media (max-width: 768px) {
+        .instructions-container {
+            margin: 20px;
+            padding: 30px 20px;
+        }
+        
+        .instructions-title {
+            font-size: 2rem;
+        }
+        
+        .action-buttons {
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .back-button,
+        .start-roleplay-button {
+            width: 100%;
+            max-width: 300px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="instructions-container">
+        <div class="instructions-header">
+            <h1 class="instructions-title">📋 Roleplay Instructions</h1>
+        </div>
+        
+        <div class="roleplay-info">
+            <div class="character-name">{{ roleplay[1] }}</div>
+            <p><strong>Character:</strong> {{ roleplay[2] }}</p>
+        </div>
+        
+        <div class="scenario-description">
+            <h4 style="color: #158044; margin-bottom: 15px;">📖 Scenario</h4>
+            {{ roleplay[3] }}
+        </div>
+        
+        <div class="instructions-list">
+            <h4>📝 How to Proceed</h4>
+            <ul>
+                <li>Read the scenario carefully and understand your role in the conversation</li>
+                <li>Respond naturally and professionally as you would in a real workplace situation</li>
+                <li>Take your time to think through your responses before submitting</li>
+                <li>You can use the microphone button to record your voice responses</li>
+                <li>The AI will evaluate your communication skills and provide feedback</li>
+                <li>Try to demonstrate active listening, empathy, and problem-solving skills</li>
+            </ul>
+        </div>
+        
+        <div class="warning-box">
+            <h5>⚠️ Important Notes</h5>
+            <p>This is a simulated conversation designed to assess your professional communication skills. Treat it as you would a real workplace interaction. Your responses will be evaluated based on appropriateness, clarity, and effectiveness.</p>
+        </div>
+        
+        <div class="action-buttons">
+            <a href="{{ url_for('roleplay_selection', user_id=user_id) }}" class="back-button">
+                ← Back to Selection
+            </a>
+            <a href="{{ url_for('launch', user_id=user_id, roleplay_id=roleplay_id) }}" class="start-roleplay-button">
+                🚀 Start Roleplay
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,377 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link href="{{url_for('static', filename='css/bootstrap.css')}}" rel="stylesheet">
+<link href="{{url_for('static', filename='css/site.css')}}" rel="stylesheet">
+<link href="{{url_for('static', filename='css/slick.css')}}" rel="stylesheet">
+<link href="{{url_for('static', filename='css/style.css')}}" rel="stylesheet">
+<link href="{{url_for('static', filename='css/my.css')}}" rel="stylesheet">
+<link href="{{url_for('static', filename='css/slick-theme.css')}}" rel="stylesheet">
+<script src="{{url_for('static', filename='js/fontawesome.js')}}" crossorigin="anonymous"></script>
+
+<style>     
+    body{background: url("{{url_for('static', filename='images/login_page_bg.jpg')}}");}
+</style>
+<style type="text/css">.jqstooltip { position: absolute;left: 0px;top: 0px;visibility: hidden;background: rgb(0, 0, 0) transparent;background-color: rgba(0,0,0,0.6);filter:progid:DXImageTransform.Microsoft.gradient(startColorstr=#99000000, endColorstr=#99000000);-ms-filter: "progid:DXImageTransform.Microsoft.gradient(startColorstr=#99000000, endColorstr=#99000000)";color: white;font: 10px arial, san serif;text-align: left;white-space: nowrap;padding: 5px;border: 1px solid white;z-index: 10000;}.jqsfield { color: white;font: 10px arial, san serif;text-align: left;}</style>
+<style>
+    .canvasjs-chart-credit{display:none;}
+    .modal-content .col-md-3 img{margin:0 auto;}@media (min-width:769px) and (max-width:1024px){
+    .detail-page-button-leaderboard .leaderboard-icon{width:39px!important;}
+    .detail-page-button-leaderboard .leaderboard-icon img{width:30px!important;}
+    .score-title{font-size:14px!important;}
+    .time-progress-counter{width:90%!important;}
+    .leaderboard-title{font-size:10px!important;}
+    }
+    @media (min-device-width:769px) and (max-device-width:1024px){
+    .detail-page-button-leaderboard .leaderboard-icon{width:39px!important;}
+    .detail-page-button-leaderboard .leaderboard-icon img{width:30px!important;}
+    .score-title{font-size:14px!important;}
+    .time-progress-counter{width:90%!important;}
+    .leaderboard-title{font-size:10px!important;}
+    }
+    input{
+        width: 100%;
+        margin-bottom: 30px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="preloader" id="loading">
+    <div class="lds-ripple">
+        <div class="lds-pos"></div>
+        <div class="lds-pos"></div>
+    </div>
+</div>
+<div id="main-wrapper" data-layout="horizontal" data-navbarbg="skin1" data-sidebartype="full" data-boxed-layout="boxed">
+    <header class="topbar topline" data-navbarbg="skin1"></header>
+    <div class="page-wrapper" style="display: block;">
+        <nav class="navbar top-navbar navbar-expand-md navbar-dark" style="border-bottom:1px solid #e2e3e5;">
+            <div class="navbar-header">
+                <a class="navbar-brand" href="{{ url_for('admin') }}">
+                    <b class="logo-icon">
+                        <img src="{{url_for('static', filename='images/logo-trajectorie-codrive.png')}}" alt="Trajectorie : CODrive" width="130" class="light-logo">
+                    </b>
+                </a>
+                <a class="nav-toggler waves-effect waves-light d-block d-md-none" href="javascript:void(0)" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><i class="ti-menu ti-close"></i></a>
+            </div>
+        </nav>
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-md-9 mx-auto" style="background-color: white;">
+                    {% with messages = get_flashed_messages() %}
+                        {% if messages %}
+                                {% for message in messages %}
+                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    {% if roleplay %}
+                    <h1>Editing Roleplay</h1>
+                    <form method="POST" action="/adminview" enctype="multipart/form-data">
+                        <!-- Basic Information -->
+                        <div class="card mb-4">
+                            <div class="card-header"><h5>Basic Information</h5></div>
+                            <div class="card-body">
+                                <label for="id">Roleplay ID:</label><br>
+                                <input type="text" id="id" name="id" value="{{roleplay[0]}}" required><br>
+                                
+                                <label for="name">Roleplay Name:</label><br>
+                                <input type="text" id="name" name="name" value="{{roleplay[1]}}" required><br>
+                                
+                                <label for="person_name">Person Name:</label><br>
+                                <input type="text" id="person_name" name="person_name" value="{{roleplay[5]}}" required><br>
+                                
+                                <label for="scenario">Scenario:</label><br>
+                                <textarea type="text" id="scenario" name="scenario" style="width:100%;margin-bottom: 30px;" required>{{roleplay[4]}}</textarea><br>
+                            </div>
+                        </div>
+
+                        <!-- File Uploads -->
+                        <div class="card mb-4">
+                            <div class="card-header"><h5>File Uploads</h5></div>
+                            <div class="card-body">
+                                <label for="roleplay_file">Select a <b>new</b> roleplay excel sheet (.xls file):</label><br>
+                                <p><input type="file" name="roleplay_file" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"></p>
+
+                                <label for="image_file">Select a <b>new</b> image file (.xls file):</label><br>
+                                <p><input type="file" name="image_file" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"></p>
+
+                                <label for="comp_file">Select the metacompetency file (.xlsx, add only if needed):</label><br>
+                                <p><input type="file" name="comp_file" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"></p>
+                            </div>
+                        </div>
+
+                        <!-- Input Configuration -->
+                        <div class="card mb-4">
+                            <div class="card-header"><h5>Input Configuration</h5></div>
+                            <div class="card-body">
+                                <label for="input_type">Input Type:</label><br>
+                                <select id="input_type" name="input_type" style="width:100%;margin-bottom: 15px;" onchange="toggleAudioOptions()">
+                                    <option value="text" {% if config and config[2] == 'audio' %}{% else %}selected{% endif %}>Text-based</option>
+                                    <option value="audio" {% if config and config[2] == 'audio' %}selected{% endif %}>Audio-based</option>
+                                </select>
+
+                                <div id="audio_options" style="display: {% if config and config[2] == 'audio' %}block{% else %}none{% endif %};">
+                                    <label for="audio_rerecord_attempts">Audio Re-record Attempts (Max 3):</label><br>
+                                    <input type="number" id="audio_rerecord_attempts" name="audio_rerecord_attempts" min="1" max="3" value="{{config[3] if config and config[3] else 3}}" style="margin-bottom: 15px;"><br>
+
+                                    <label>Available Languages:</label><br>
+                                    {% if config and config[4] %}
+                                        {% set selected_languages = config[4]|safe %}
+                                        {% set lang_list = selected_languages|replace('[', '')|replace(']', '')|replace('"', '')|split(',') %}
+                                    {% else %}
+                                        {% set lang_list = [] %}
+                                    {% endif %}
+                                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px;">
+                                        <label><input type="checkbox" name="lang_english" {% if 'English' in lang_list %}checked{% endif %}> English</label>
+                                        <label><input type="checkbox" name="lang_hindi" {% if 'Hindi' in lang_list %}checked{% endif %}> Hindi</label>
+                                        <label><input type="checkbox" name="lang_tamil" {% if 'Tamil' in lang_list %}checked{% endif %}> Tamil</label>
+                                        <label><input type="checkbox" name="lang_telugu" {% if 'Telugu' in lang_list %}checked{% endif %}> Telugu</label>
+                                        <label><input type="checkbox" name="lang_kannada" {% if 'Kannada' in lang_list %}checked{% endif %}> Kannada</label>
+                                        <label><input type="checkbox" name="lang_malayalam" {% if 'Malayalam' in lang_list %}checked{% endif %}> Malayalam</label>
+                                        <label><input type="checkbox" name="lang_bengali" {% if 'Bengali' in lang_list %}checked{% endif %}> Bengali</label>
+                                        <label><input type="checkbox" name="lang_marathi" {% if 'Marathi' in lang_list %}checked{% endif %}> Marathi</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Time Configuration -->
+                        <div class="card mb-4">
+                            <div class="card-header"><h5>Time Configuration</h5></div>
+                            <div class="card-body">
+                                <label for="max_interaction_time">Max Time for 1 Interaction (seconds):</label><br>
+                                <input type="number" id="max_interaction_time" name="max_interaction_time" min="30" value="{{config[5] if config and config[5] else 300}}" style="margin-bottom: 15px;"><br>
+
+                                <label for="max_total_time">Max Total Roleplay Time (seconds):</label><br>
+                                <input type="number" id="max_total_time" name="max_total_time" min="300" value="{{config[6] if config and config[6] else 1800}}" style="margin-bottom: 15px;"><br>
+
+                                <label for="repeat_attempts_allowed">Number of Repeat Attempts Allowed:</label><br>
+                                <input type="number" id="repeat_attempts_allowed" name="repeat_attempts_allowed" min="1" value="{{config[7] if config and config[7] else 1}}" style="margin-bottom: 15px;"><br>
+                            </div>
+                        </div>
+
+                        <!-- Scoring Configuration -->
+                        <div class="card mb-4">
+                            <div class="card-header"><h5>Scoring Configuration</h5></div>
+                            <div class="card-body">
+                                <label for="score_type">Score to be Used:</label><br>
+                                <select id="score_type" name="score_type" style="width:100%;margin-bottom: 15px;">
+                                    <option value="best" {% if config and config[8] == 'best' %}selected{% endif %}>Best for each competency</option>
+                                    <option value="last" {% if not config or config[8] == 'last' %}selected{% endif %}>Last played result</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Video Configuration -->
+                        <div class="card mb-4">
+                            <div class="card-header"><h5>Ideal Roleplay Video</h5></div>
+                            <div class="card-body">
+                                <label><input type="checkbox" name="show_ideal_video" {% if config and config[9] %}checked{% endif %} onchange="toggleVideoUpload()"> Show Ideal Roleplay Video</label><br><br>
+                                
+                                <div id="video_upload" style="display: {% if config and config[9] %}block{% else %}none{% endif %};">
+                                    <label for="ideal_video">Upload Ideal Roleplay Video:</label><br>
+                                    <p><input type="file" name="ideal_video" accept=".mp4,.avi,.mov,.wmv"></p>
+                                    {% if config and config[10] %}
+                                    <p><em>Current video: {{config[10]}}</em></p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Assessment Configuration -->
+                        <div class="card mb-4">
+                            <div class="card-header"><h5>Assessment Configuration</h5></div>
+                            <div class="card-body">
+                                <label><input type="checkbox" name="voice_assessment_enabled" {% if config and config[11] %}checked{% endif %}> Enable Voice-based Assessment</label><br>
+                            </div>
+                        </div>
+
+                        <p><input type="submit" value="Update Roleplay" class="btn btn-warning"></p>
+                    </form>
+                    {% endif %}
+                    {% if not roleplay %}
+                    <h1>Create New Roleplay</h1>
+                    <form method="POST" action="/adminview" enctype="multipart/form-data">
+                        <!-- Basic Information -->
+                        <div class="card mb-4">
+                            <div class="card-header"><h5>Basic Information</h5></div>
+                            <div class="card-body">
+                                <label for="id">Roleplay ID:</label><br>
+                                <input type="text" id="id" name="id" required><br>
+                                
+                                <label for="name">Roleplay Name:</label><br>
+                                <input type="text" id="name" name="name" required><br>
+                                
+                                <label for="person_name">Person Name:</label><br>
+                                <input type="text" id="person_name" name="person_name" required><br>
+                                
+                                <label for="scenario">Scenario:</label><br>
+                                <textarea type="text" id="scenario" name="scenario" style="width:100%;margin-bottom: 30px;" required></textarea><br>
+                            </div>
+                        </div>
+
+                        <!-- File Uploads -->
+                        <div class="card mb-4">
+                            <div class="card-header"><h5>File Uploads</h5></div>
+                            <div class="card-body">
+                                <label for="roleplay_file">Select the roleplay excel sheet (.xls file):</label><br>
+                                <p><input type="file" name="roleplay_file" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" required></p>
+                                
+                                <label for="image_file">Select the image file (.xls file):</label><br>
+                                <p><input type="file" name="image_file" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" required></p>
+                                
+                                <label for="comp_file">Select the metacompetency file (.xlsx, add only if needed):</label><br>
+                                <p><input type="file" name="comp_file" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"></p>
+                            </div>
+                        </div>
+
+                        <!-- Input Configuration -->
+                        <div class="card mb-4">
+                            <div class="card-header"><h5>Input Configuration</h5></div>
+                            <div class="card-body">
+                                <label for="input_type">Input Type:</label><br>
+                                <select id="input_type" name="input_type" style="width:100%;margin-bottom: 15px;" onchange="toggleAudioOptions()">
+                                    <option value="text" selected>Text-based</option>
+                                    <option value="audio">Audio-based</option>
+                                </select>
+
+                                <div id="audio_options" style="display: none;">
+                                    <label for="audio_rerecord_attempts">Audio Re-record Attempts (Max 3):</label><br>
+                                    <input type="number" id="audio_rerecord_attempts" name="audio_rerecord_attempts" min="1" max="3" value="3" style="margin-bottom: 15px;"><br>
+
+                                    <label>Available Languages:</label><br>
+                                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px;">
+                                        <label><input type="checkbox" name="lang_english" checked> English</label>
+                                        <label><input type="checkbox" name="lang_hindi"> Hindi</label>
+                                        <label><input type="checkbox" name="lang_tamil"> Tamil</label>
+                                        <label><input type="checkbox" name="lang_telugu"> Telugu</label>
+                                        <label><input type="checkbox" name="lang_kannada"> Kannada</label>
+                                        <label><input type="checkbox" name="lang_malayalam"> Malayalam</label>
+                                        <label><input type="checkbox" name="lang_bengali"> Bengali</label>
+                                        <label><input type="checkbox" name="lang_marathi"> Marathi</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Time Configuration -->
+                        <div class="card mb-4">
+                            <div class="card-header"><h5>Time Configuration</h5></div>
+                            <div class="card-body">
+                                <label for="max_interaction_time">Max Time for 1 Interaction (seconds):</label><br>
+                                <input type="number" id="max_interaction_time" name="max_interaction_time" min="30" value="300" style="margin-bottom: 15px;"><br>
+
+                                <label for="max_total_time">Max Total Roleplay Time (seconds):</label><br>
+                                <input type="number" id="max_total_time" name="max_total_time" min="300" value="1800" style="margin-bottom: 15px;"><br>
+
+                                <label for="repeat_attempts_allowed">Number of Repeat Attempts Allowed:</label><br>
+                                <input type="number" id="repeat_attempts_allowed" name="repeat_attempts_allowed" min="1" value="1" style="margin-bottom: 15px;"><br>
+                            </div>
+                        </div>
+
+                        <!-- Scoring Configuration -->
+                        <div class="card mb-4">
+                            <div class="card-header"><h5>Scoring Configuration</h5></div>
+                            <div class="card-body">
+                                <label for="score_type">Score to be Used:</label><br>
+                                <select id="score_type" name="score_type" style="width:100%;margin-bottom: 15px;">
+                                    <option value="best">Best for each competency</option>
+                                    <option value="last" selected>Last played result</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Video Configuration -->
+                        <div class="card mb-4">
+                            <div class="card-header"><h5>Ideal Roleplay Video</h5></div>
+                            <div class="card-body">
+                                <label><input type="checkbox" name="show_ideal_video" onchange="toggleVideoUpload()"> Show Ideal Roleplay Video</label><br><br>
+                                
+                                <div id="video_upload" style="display: none;">
+                                    <label for="ideal_video">Upload Ideal Roleplay Video:</label><br>
+                                    <p><input type="file" name="ideal_video" accept=".mp4,.avi,.mov,.wmv"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Assessment Configuration -->
+                        <div class="card mb-4">
+                            <div class="card-header"><h5>Assessment Configuration</h5></div>
+                            <div class="card-body">
+                                <label><input type="checkbox" name="voice_assessment_enabled"> Enable Voice-based Assessment</label><br>
+                            </div>
+                        </div>
+
+                        <p><input type="submit" value="Create Roleplay" class="btn btn-success"></p>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{url_for('static', filename='js/jquery.js')}}"></script>
+<script src="{{url_for('static', filename='js/jquery.min.js')}}"></script>
+<script src="{{url_for('static', filename='js/popper.min.js')}}"></script>
+<script src="{{url_for('static', filename='js/bootstrap.min.js')}}"></script>
+<script type="text/javascript">
+
+$(document).ready(function () {
+    $('#loading').hide();
+
+    window.setTimeout(function() {
+        $(".alert").fadeTo(1000, 0).slideUp(1000, function(){
+            $(this).remove(); 
+        });
+        }, 5000);
+
+    $('form').submit(function () {
+        $('#loading').show();
+    });
+});
+</script>
+
+<script type="text/javascript">
+    textarea = document.querySelector("#scenario");
+    if (textarea) {
+        textarea.addEventListener('input', autoResize, false);
+        autoResize.call(textarea);
+    }
+
+    function autoResize() {
+        this.style.height = 'auto';
+        this.style.height = this.scrollHeight + 'px';
+    }
+
+    function toggleAudioOptions() {
+        const inputType = document.getElementById('input_type').value;
+        const audioOptions = document.getElementById('audio_options');
+        
+        if (inputType === 'audio') {
+            audioOptions.style.display = 'block';
+        } else {
+            audioOptions.style.display = 'none';
+        }
+    }
+
+    function toggleVideoUpload() {
+        const showVideo = document.querySelector('input[name="show_ideal_video"]').checked;
+        const videoUpload = document.getElementById('video_upload');
+        
+        if (showVideo) {
+            videoUpload.style.display = 'block';
+        } else {
+            videoUpload.style.display = 'none';
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link href="{{url_for('static', filename='css/bootstrap.css')}}" rel="stylesheet">
+<link href="{{url_for('static', filename='css/site.css')}}" rel="stylesheet">
+<link href="{{url_for('static', filename='css/slick.css')}}" rel="stylesheet">
+<link href="{{url_for('static', filename='css/style.css')}}" rel="stylesheet">
+<link href="{{url_for('static', filename='css/my.css')}}" rel="stylesheet">
+<link href="{{url_for('static', filename='css/slick-theme.css')}}" rel="stylesheet">
+<script src="{{url_for('static', filename='js/fontawesome.js')}}" crossorigin="anonymous"></script>
+
+<style>     
+    body{background: url("{{url_for('static', filename='images/login_page_bg.jpg')}}");}
+    .cardcustom{
+        background-color: #f0f0f0 !important;border:black !important;border-radius: 15px !important;border-style: solid !important;cursor:pointer !important;transition: 1s !important;
+    }
+    .cardcustom:hover{
+        transform: scale(1.025) !important;
+    }
+    .cluster-badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: bold;
+        margin-right: 10px;
+    }
+    .cluster-assessment {
+        background-color: #dc3545;
+        color: white;
+    }
+    .cluster-training {
+        background-color: #28a745;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="preloader" id="loading">
+    <div class="lds-ripple">
+        <div class="lds-pos"></div>
+        <div class="lds-pos"></div>
+    </div>
+</div>
+<div id="main-wrapper" data-layout="horizontal" data-navbarbg="skin1" data-sidebartype="full" data-boxed-layout="boxed">
+    <header class="topbar topline" data-navbarbg="skin1"></header>
+    <div class="page-wrapper" style="display: block;">
+        <nav class="navbar top-navbar navbar-expand-md navbar-dark" style="border-bottom:1px solid #e2e3e5;">
+            <div class="navbar-header">
+                <a class="navbar-brand" href="{{ url_for('admin') }}">
+                    <b class="logo-icon">
+                        <img src="{{url_for('static', filename='images/logo-trajectorie-codrive.png')}}" alt="Trajectorie : CODrive" width="130" class="light-logo">
+                    </b>
+                </a>
+                <a class="nav-toggler waves-effect waves-light d-block d-md-none" href="javascript:void(0)" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><i class="ti-menu ti-close"></i></a>
+            </div>
+            <div class="navbar-collapse collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav float-left mr-auto">
+                    <li class="nav-item d-none d-md-block"><a class="nav-link sidebartoggler waves-effect waves-light" href="javascript:void(0)" data-sidebartype="mini-sidebar"><i class="mdi mdi-menu font-24"></i></a></li>
+                    <li class="nav-item search-box"> <a class="nav-link waves-effect waves-dark" href="javascript:void(0)"><i class="ti-search"></i></a>
+                        <form class="app-search position-absolute">
+                            <input type="text" class="form-control" placeholder="Search &amp; enter"> <a class="srh-btn"><i class="ti-close"></i></a>
+                        </form>
+                    </li>
+                </ul>
+                <ul class="navbar-nav float-right">
+                    <li class="nav-item"><a href="/admin" class="btn btn-rounded btn-secondary mr-2">ROLEPLAYS</a></li>
+                    <li class="nav-item"><a href="/admin/clusters/new" class="btn btn-rounded btn-red-trajectorie">NEW CLUSTER</a></li>	                        
+                </ul>
+            </div>
+        </nav>
+
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-md-10 mx-auto">
+                    {% with messages = get_flashed_messages() %}
+                        {% if messages %}
+                                {% for message in messages %}
+                                <div class="alert alert-info alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
+                    <h2 class="mb-4" style="color: white;">Roleplay Clusters</h2>
+                    
+                    {% if clusters %}
+                        {% for cluster in clusters %}
+                        <div class="card cardcustom mb-3" id="cluster{{cluster[0]}}">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h5 class="card-title">
+                                            <span class="cluster-badge cluster-{{cluster[3]}}">{{cluster[3]|upper}}</span>
+                                            {{cluster[1]}}
+                                        </h5>
+                                        <h6 class="card-subtitle mb-2 text-muted">
+                                            Cluster ID: {{cluster[2]}}
+                                        </h6>
+                                        <p class="card-text">
+                                            <small class="text-muted">Created: {{cluster[4].strftime('%Y-%m-%d %H:%M')}}</small>
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <a href="/admin/clusters/{{cluster[0]}}/edit" class="btn btn-primary btn-sm mr-2">Edit</a>
+                                        <a href="/admin/clusters/{{cluster[0]}}/delete" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this cluster?')">Delete</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <h5>No clusters found</h5>
+                                <p>Create your first roleplay cluster to group related roleplays together.</p>
+                                <a href="/admin/clusters/new" class="btn btn-primary">Create First Cluster</a>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{url_for('static', filename='js/jquery.js')}}"></script>
+<script src="{{url_for('static', filename='js/jquery.min.js')}}"></script>
+<script src="{{url_for('static', filename='js/popper.min.js')}}"></script>
+<script src="{{url_for('static', filename='js/bootstrap.min.js')}}"></script>
+<script type="text/javascript">
+
+$(document).ready(function () {
+    $('#loading').hide();
+
+    window.setTimeout(function() {
+        $(".alert").fadeTo(1000, 0).slideUp(1000, function(){
+            $(this).remove(); 
+        });
+    }, 5000);
+
+    $('form').submit(function () {
+        $('#loading').show();
+    });
+
+    $("[id^=cluster]").click(function(e){
+        var id = jQuery(this).attr("id").substr(7);
+        // Only redirect if not clicking on action buttons
+        if (!$(e.target).closest('.btn').length) {
+            window.location.href = "/admin/clusters/"+id+"/edit";
+        }
+    });
+});
+</script>
+{% endblock %}

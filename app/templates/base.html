@@ -1,0 +1,14 @@
+<!doctype html>
+<html>
+    <head>
+        {% if title %}
+        <title>{{ title }} - Trajectorie</title>
+        {% else %}
+        <title>Welcome to Trajectorie Training Chatbot</title>
+        {% endif %}
+        {% block head %}{% endblock %}
+    </head>
+    <body>
+        {% block content %}{% endblock %}
+    </body>
+</html>

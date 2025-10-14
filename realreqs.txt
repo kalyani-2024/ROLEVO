@@ -1,0 +1,11 @@
+flask
+mysql-connector-python
+openai==0.28
+gTTS
+python-dotenv
+xlrd
+pandas
+requests
+WTForms
+Flask-WTF
+openpyxl
