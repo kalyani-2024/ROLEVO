@@ -402,36 +402,99 @@ def upload_files():
             return redirect(request.referrer or url_for('adminview'))
         files['image_file'].save(image_file_path)
 
-    # Validate Excel files if both are uploaded
+    # Validate Excel files with enhanced validator that stores data in arrays
     validation_errors = []
     if roleplay_file_path and image_file_path:
         try:
-            from app.excel_validator import validate_excel_files
-            is_valid, validation_summary = validate_excel_files(roleplay_file_path, image_file_path)
-            
+            from app.enhanced_excel_validator import validate_excel_files_detailed
+            is_valid, detailed_report, validation_data = validate_excel_files_detailed(roleplay_file_path, image_file_path)
+
+            # DEBUG: Print validation results to console
+            print(f"\n🔍 VALIDATION DEBUG:")
+            print(f"   File paths: {roleplay_file_path}, {image_file_path}")
+            print(f"   Is valid: {is_valid}")
+            print(f"   Errors found: {len(validation_data.get('errors', []))}")
+            print(f"   Warnings found: {len(validation_data.get('warnings', []))}")
+            for error in validation_data.get('errors', []):
+                print(f"   ERROR: {error}")
+            print(f"🔍 END DEBUG\n")
+
             if not is_valid:
                 # Delete uploaded files if validation fails
                 if os.path.exists(roleplay_file_path):
                     os.remove(roleplay_file_path)
                 if os.path.exists(image_file_path):
                     os.remove(image_file_path)
-                
-                # Flash detailed validation errors
-                flash("Excel file validation failed:")
-                for line in validation_summary.split('\n'):
-                    if line.strip():
-                        flash(line.strip())
-                return redirect(request.referrer or url_for('adminview'))
-            else:
-                # Flash success message if there are only warnings
-                if "warning" in validation_summary.lower():
-                    flash("Excel files uploaded successfully with some warnings:")
-                    for line in validation_summary.split('\n'):
-                        if line.strip() and "warning" in line.lower():
-                            flash(line.strip())
-                else:
-                    flash("Excel files validated successfully!")
+
+                # Check if this is a structural validation failure
+                if "STRUCTURAL VALIDATION FAILED:" in detailed_report:
+                    # Extract structural errors from detailed_report
+                    structural_errors = detailed_report.split("STRUCTURAL VALIDATION FAILED:\n")[1].strip().split('\n')
                     
+                    print(f"📢 FLASHING STRUCTURAL ERRORS: {len(structural_errors)} errors")
+                    flash("❌ STRUCTURAL VALIDATION FAILED:")
+                    flash("Excel file structure does not match required format.")
+                    
+                    for i, error in enumerate(structural_errors[:10]):  # Show first 10 structural errors
+                        if error.strip():
+                            error_msg = f"   • {error.strip()}"
+                            flash(error_msg)
+                            print(f"📢 FLASHED ERROR {i+1}: {error_msg}")
+                    
+                    if len(structural_errors) > 10:
+                        flash(f"   ... and {len(structural_errors) - 10} more structural issues.")
+                    
+                    # Debug: Check if messages were actually flashed
+                    from flask import session
+                    print(f"🔍 SESSION AFTER FLASHING: {dict(session)}")
+                    print(f"🔍 SESSION FLASH KEY: {session.get('_flashes', 'NOT FOUND')}")
+                    
+                    # Try to get flashed messages to see if they exist
+                    from flask import get_flashed_messages
+                    test_messages = get_flashed_messages(with_categories=True)
+                    print(f"🔍 GET_FLASHED_MESSAGES TEST: {test_messages}")
+                    
+                    # Re-flash them if they were consumed
+                    if test_messages:
+                        for category, message in test_messages:
+                            flash(message, category)
+                        print(f"🔄 RE-FLASHED {len(test_messages)} MESSAGES")
+                    
+                    print(f"📢 TOTAL FLASH MESSAGES SENT: {len(structural_errors[:10]) + 2}")
+                
+                else:
+                    # Handle content validation errors
+                    flash("Excel file validation failed with detailed analysis:")
+                    
+                    # Show only critical errors - no improvement suggestions
+                    errors = validation_data.get('errors', [])
+                    
+                    if errors:
+                        flash(f"❌ Missing Data Found ({len(errors)}) - Must be fixed:")
+                        for error in errors[:15]:  # Show more errors since we removed warnings
+                            flash(f"   • {error}")
+                        if len(errors) > 15:
+                            flash(f"   ... and {len(errors) - 15} more missing data issues. Check console for full report.")
+                
+                # Print full detailed report to console for developer debugging
+                print("\n" + "="*80)
+                print("FULL EXCEL VALIDATION REPORT:")
+                print("="*80)
+                print(detailed_report)
+                print("="*80 + "\n")
+                
+                # Instead of redirect, render template directly to preserve flash messages
+                return render_template('adminview.html', roleplay=None, config=None)
+            else:
+                # Show success message with data summary - no improvement suggestions
+                roleplay_interactions = len(validation_data.get('roleplay_data', []))
+                image_interactions = len(validation_data.get('image_data', []))
+                
+                success_msg = f"✅ Excel files validated successfully! Found {roleplay_interactions} roleplay interactions"
+                if image_interactions > 0:
+                    success_msg += f" and {image_interactions} image interactions"
+                flash(success_msg)
+
         except Exception as e:
             # Delete uploaded files if validation fails
             if os.path.exists(roleplay_file_path):
@@ -439,37 +502,80 @@ def upload_files():
             if os.path.exists(image_file_path):
                 os.remove(image_file_path)
             flash(f"Excel validation error: {str(e)}")
+            print(f"Excel validation exception: {str(e)}")
             return redirect(request.referrer or url_for('adminview'))
     elif roleplay_file_path:
-        # Validate just the roleplay file
+        # Validate just the roleplay file with enhanced validator
         try:
-            from app.excel_validator import validate_excel_files
-            is_valid, validation_summary = validate_excel_files(roleplay_file_path)
-            
+            from app.enhanced_excel_validator import validate_excel_files_detailed
+            is_valid, detailed_report, validation_data = validate_excel_files_detailed(roleplay_file_path)
+
+            # DEBUG: Print validation results to console
+            print(f"\n🔍 ROLEPLAY VALIDATION DEBUG:")
+            print(f"   File path: {roleplay_file_path}")
+            print(f"   Is valid: {is_valid}")
+            print(f"   Errors found: {len(validation_data.get('errors', []))}")
+            for error in validation_data.get('errors', []):
+                print(f"   ERROR: {error}")
+            print(f"🔍 END DEBUG\n")
+
             if not is_valid:
                 if os.path.exists(roleplay_file_path):
                     os.remove(roleplay_file_path)
-                flash("Roleplay Excel file validation failed:")
-                for line in validation_summary.split('\n'):
-                    if line.strip():
-                        flash(line.strip())
-                return redirect(request.referrer or url_for('adminview'))
-            else:
-                if "warning" in validation_summary.lower():
-                    flash("Roleplay Excel file uploaded with some warnings:")
-                    for line in validation_summary.split('\n'):
-                        if line.strip() and "warning" in line.lower():
-                            flash(line.strip())
-                else:
-                    flash("Roleplay Excel file validated successfully!")
+                
+                # Check if this is a structural validation failure
+                if "STRUCTURAL VALIDATION FAILED:" in detailed_report:
+                    # Extract structural errors from detailed_report
+                    structural_errors = detailed_report.split("STRUCTURAL VALIDATION FAILED:\n")[1].strip().split('\n')
                     
+                    print(f"📢 FLASHING ROLEPLAY STRUCTURAL ERRORS: {len(structural_errors)} errors")
+                    flash("❌ STRUCTURAL VALIDATION FAILED:")
+                    flash("Roleplay Excel file structure does not match required format.")
+                    
+                    for i, error in enumerate(structural_errors[:10]):  # Show first 10 structural errors
+                        if error.strip():
+                            error_msg = f"   • {error.strip()}"
+                            flash(error_msg)
+                            print(f"📢 FLASHED ROLEPLAY ERROR {i+1}: {error_msg}")
+                    
+                    if len(structural_errors) > 10:
+                        flash(f"   ... and {len(structural_errors) - 10} more structural issues.")
+                    
+                    print(f"📢 TOTAL ROLEPLAY FLASH MESSAGES SENT: {len(structural_errors[:10]) + 2}")
+                
+                else:
+                    # Handle content validation errors
+                    flash("Roleplay Excel file validation failed with detailed analysis:")
+                    
+                    errors = validation_data.get('errors', [])
+                    if errors:
+                        flash(f"❌ Missing Data Found ({len(errors)}) - Must be fixed:")
+                        for error in errors[:15]:
+                            flash(f"   • {error}")
+                        if len(errors) > 15:
+                            flash(f"   ... and {len(errors) - 15} more missing data issues.")
+                
+                # Print full report for debugging
+                print("\n" + "="*80)
+                print("ROLEPLAY EXCEL VALIDATION REPORT:")
+                print("="*80)
+                print(detailed_report)
+                print("="*80 + "\n")
+                
+                # Instead of redirect, render template directly to preserve flash messages
+                return render_template('adminview.html', roleplay=None, config=None)
+            else:
+                # Success with data summary - no improvement suggestions
+                roleplay_interactions = len(validation_data.get('roleplay_data', []))
+                
+                flash(f"✅ Roleplay Excel validated successfully! Found {roleplay_interactions} interactions")
+
         except Exception as e:
             if os.path.exists(roleplay_file_path):
                 os.remove(roleplay_file_path)
             flash(f"Roleplay Excel validation error: {str(e)}")
-            return redirect(request.referrer or url_for('adminview'))
-
-    # Handle competency file upload
+            print(f"Roleplay Excel validation exception: {str(e)}")
+            return redirect(request.referrer or url_for('adminview'))    # Handle competency file upload
     if files.get("comp_file"):
         comp_file_path = os.path.join(app.config['UPLOAD_PATH_COMP'], 'Competency descriptions.xlsx')
         file_ext = os.path.splitext(files['comp_file'].filename)[1].lower()
@@ -724,7 +830,7 @@ def admin_cluster_create():
         else:  # Create new cluster
             new_cluster_id = create_cluster(
                 name=form_data['name'],
-                cluster_id=form_data['cluster_identifier'],
+                cluster_id=None,  # Auto-generate cluster ID
                 cluster_type=form_data['type']
             )
             
@@ -753,3 +859,18 @@ def admin_cluster_delete(cluster_id):
     else:
         flash('Failed to delete cluster')
     return redirect(url_for('admin_clusters'))
+
+@app.route('/test-validation-modal')
+def test_validation_modal():
+    """Test route to demonstrate the validation modal functionality"""
+    
+    # Simulate only missing data errors - no improvement suggestions
+    flash("❌ Missing Data Found (3) - Must be fixed:")
+    flash("   • [Flow:C5] Missing player response 1 for interaction 2")
+    flash("   • [Flow:D7] Missing competency mapping 2 for interaction 3")
+    flash("   • [Tags:B6] Missing value for 'Meta competencies'")
+    
+    flash("✅ SUCCESS: Found 5 roleplay interactions and 3 image interactions parsed successfully")
+    
+    # Render the adminview template to show the modal
+    return render_template('adminview.html', roleplay=None, config=None)

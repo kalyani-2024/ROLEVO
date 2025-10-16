@@ -18,10 +18,10 @@ database = os.getenv('DB_NAME', 'roleplay')
 def get_roleplay_details(roleplay_id):
     try:
         conn = mysql.connector.connect(
-            host='localhost',
-            user='root',
-            password="Kalkamal2005!",
-            database='roleplay'
+            host=host,
+            user=user,
+            password=password,
+            database=database
         )
         cur = conn.cursor()
         
@@ -391,10 +391,10 @@ def query_create_chat_entry(user_text, response_text):
             raise ValueError("No active play session")
 
         conn = mysql.connector.connect(
-            host='localhost',
-            user='root',
-            password="Kalkamal2005!",
-            database='roleplay'
+            host=host,
+            user=user,
+            password=password,
+            database=database
         )
         cur = conn.cursor()
         

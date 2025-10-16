@@ -15,6 +15,12 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['OPENAI_API_KEY'] = os.getenv('OPENAI_API_KEY')
 
+# Explicit session configuration for flash messages
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_PERMANENT'] = False
+app.config['SESSION_USE_SIGNER'] = True
+app.config['SESSION_KEY_PREFIX'] = 'rolevo:'
+
 from app import routes, models, errors, queries
 
 
