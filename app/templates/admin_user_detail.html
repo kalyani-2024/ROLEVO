@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link href="{{url_for('static', filename='css/bootstrap.css')}}" rel="stylesheet">
+<link href="{{url_for('static', filename='css/site.css')}}" rel="stylesheet">
+<link href="{{url_for('static', filename='css/my.css')}}" rel="stylesheet">
+<script src="{{url_for('static', filename='js/fontawesome.js')}}" crossorigin="anonymous"></script>
+
+<style>     
+    body{background: url("{{url_for('static', filename='images/login_page_bg.jpg')}}");}
+    .cluster-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: bold;
+        margin-right: 10px;
+        color: white;
+    }
+    .cluster-assessment {
+        background-color: #dc3545;
+    }
+    .cluster-training {
+        background-color: #28a745;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="preloader" id="loading">
+    <div class="lds-ripple">
+        <div class="lds-pos"></div>
+        <div class="lds-pos"></div>
+    </div>
+</div>
+<div id="main-wrapper" data-layout="horizontal" data-navbarbg="skin1" data-sidebartype="full" data-boxed-layout="boxed">
+    <header class="topbar topline" data-navbarbg="skin1"></header>
+    <div class="page-wrapper" style="display: block;">
+        <nav class="navbar top-navbar navbar-expand-md navbar-dark" style="border-bottom:1px solid #e2e3e5;">
+            <div class="navbar-header">
+                <a class="navbar-brand" href="{{ url_for('admin') }}">
+                    <b class="logo-icon">
+                        <img src="{{url_for('static', filename='images/logo-trajectorie-codrive.png')}}" alt="Trajectorie : CODrive" width="130" class="light-logo">
+                    </b>
+                </a>
+            </div>
+            <div class="navbar-collapse collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav float-left mr-auto">
+                    <li class="nav-item d-none d-md-block"><a class="nav-link sidebartoggler waves-effect waves-light" href="javascript:void(0)" data-sidebartype="mini-sidebar"><i class="mdi mdi-menu font-24"></i></a></li>
+                </ul>
+                <ul class="navbar-nav float-right">
+                    <li class="nav-item"><a href="/admin/users" class="btn btn-rounded btn-secondary mr-2">BACK TO USERS</a></li>
+                    <li class="nav-item"><a href="{{ url_for('logout') }}" class="btn btn-rounded btn-danger"><i class="fas fa-sign-out-alt"></i> LOGOUT</a></li>
+                </ul>
+            </div>
+        </nav>
+
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-md-10 mx-auto">
+                    {% with messages = get_flashed_messages() %}
+                        {% if messages %}
+                                {% for message in messages %}
+                                <div class="alert alert-info alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
+                    <div class="card mb-4" style="background-color: #f0f0f0;">
+                        <div class="card-body">
+                            <h3>User #{{user[0]}}</h3>
+                            <p class="text-muted">{{user[1]}}</p>
+                            <p>
+                                {% if user[2] == 1 %}
+                                    <span class="badge badge-danger">Admin</span>
+                                {% else %}
+                                    <span class="badge badge-info">User</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Assign New Cluster -->
+                    <div class="card mb-4" style="background-color: white;">
+                        <div class="card-header bg-primary text-white">
+                            <h4>Assign Cluster</h4>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST" action="/admin/users/{{user[0]}}/assign-cluster">
+                                <div class="form-group">
+                                    <label for="cluster_id">Select Cluster to Assign:</label>
+                                    <select name="cluster_id" id="cluster_id" class="form-control" required>
+                                        <option value="">-- Select a Cluster --</option>
+                                        {% for cluster in all_clusters %}
+                                            {% if cluster[0] not in assigned_cluster_ids %}
+                                                <option value="{{cluster[0]}}">
+                                                    [{{cluster[3]|upper}}] {{cluster[1]}} (ID: {{cluster[2]}})
+                                                </option>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-plus"></i> Assign Cluster
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Assigned Clusters -->
+                    <div class="card" style="background-color: white;">
+                        <div class="card-header bg-success text-white">
+                            <h4>Assigned Clusters</h4>
+                        </div>
+                        <div class="card-body">
+                            {% if user_clusters %}
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Type</th>
+                                                <th>Name</th>
+                                                <th>Cluster ID</th>
+                                                <th>Created</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for cluster in user_clusters %}
+                                            <tr>
+                                                <td>
+                                                    <span class="cluster-badge cluster-{{cluster[3]}}">
+                                                        {{cluster[3]|upper}}
+                                                    </span>
+                                                </td>
+                                                <td>{{cluster[1]}}</td>
+                                                <td>{{cluster[2]}}</td>
+                                                <td>{{cluster[4].strftime('%Y-%m-%d')}}</td>
+                                                <td>
+                                                    <a href="/user/{{user[0]}}/cluster/{{cluster[0]}}" class="btn btn-sm btn-info" target="_blank">
+                                                        <i class="fas fa-eye"></i> View
+                                                    </a>
+                                                    <a href="/admin/users/{{user[0]}}/remove-cluster/{{cluster[0]}}" 
+                                                       class="btn btn-sm btn-danger" 
+                                                       onclick="return confirm('Remove this cluster assignment?')">
+                                                        <i class="fas fa-times"></i> Remove
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <p class="text-muted text-center">No clusters assigned yet. Assign a cluster using the form above.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{url_for('static', filename='js/jquery.min.js')}}"></script>
+<script src="{{url_for('static', filename='js/popper.min.js')}}"></script>
+<script src="{{url_for('static', filename='js/bootstrap.min.js')}}"></script>
+<script>
+    $('#loading').fadeOut('fast');
+</script>
+{% endblock %}

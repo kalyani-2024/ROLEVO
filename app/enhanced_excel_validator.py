@@ -241,15 +241,15 @@ class EnhancedExcelValidator:
         try:
             df = pd.read_excel(xls, sheet_name=sheet_name, header=None)
             
-            # Check minimum dimensions
-            if df.shape[0] < 5:
-                issue = ValidationIssue('error', f"Flow sheet has insufficient rows (found: {df.shape[0]}, minimum: 5)", 
+            # Check minimum dimensions - more flexible
+            if df.shape[0] < 2:
+                issue = ValidationIssue('error', f"Flow sheet has insufficient rows (found: {df.shape[0]}, minimum: 2)", 
                                       sheet_name, df.shape[0], 'A', None)
                 self.all_issues.append(issue)
                 return
             
-            if df.shape[1] < 6:
-                issue = ValidationIssue('error', f"Flow sheet has insufficient columns (found: {df.shape[1]}, minimum: 6)", 
+            if df.shape[1] < 3:
+                issue = ValidationIssue('error', f"Flow sheet has insufficient columns (found: {df.shape[1]}, minimum: 3)", 
                                       sheet_name, 1, self._num_to_col(df.shape[1]), None)
                 self.all_issues.append(issue)
                 return
@@ -257,15 +257,12 @@ class EnhancedExcelValidator:
             # Validate and store header row
             self._validate_flow_header(df, sheet_name)
             
-            # Extract system prompt (should be at row 0, column C)
+            # Extract system prompt if it exists (optional - should be at row 0, column C)
             if df.shape[0] > 0 and df.shape[1] > 2:
                 system_prompt = df.iloc[0, 2]  # Row 1, Column C
                 if pd.notna(system_prompt) and str(system_prompt).strip():
                     self.system_prompt_data['scenario_description'] = str(system_prompt).strip()
-                else:
-                    issue = ValidationIssue('error', "Missing scenario description in system prompt", 
-                                          sheet_name, 1, 'C', system_prompt, "Scenario description text")
-                    self.all_issues.append(issue)
+                # Don't error if missing - it's optional
             
             # Parse each interaction row by row
             current_row = 1  # Start after header
@@ -427,16 +424,12 @@ class EnhancedExcelValidator:
         try:
             df = pd.read_excel(xls, sheet_name=sheet_name, header=None)
             
-            # Check system prompt image (row 1, column C)
+            # Check system prompt image (row 1, column C) - optional, don't error if missing
             if df.shape[0] > 0 and df.shape[1] > 2:
                 system_img = df.iloc[0, 2]
                 if pd.notna(system_img) and str(system_img).strip():
                     self.system_prompt_data['system_image'] = str(system_img).strip()
-                    # Skip image path format validation - only report missing paths
-                else:
-                    issue = ValidationIssue('error', "Missing system prompt image", 
-                                          sheet_name, 1, 'C', system_img, "Image path/URL")
-                    self.all_issues.append(issue)
+                # Don't error if missing - it's optional
             
             # Parse image interactions
             current_row = 1
@@ -644,22 +637,33 @@ class EnhancedExcelValidator:
             # Validate roleplay file structure
             roleplay_xls = pd.ExcelFile(roleplay_file_path)
             
-            # Check required sheets exist
-            required_sheets = ['scenario 4 tags', 'scenario 4 flow']
-            for required_sheet in required_sheets:
-                if required_sheet not in roleplay_xls.sheet_names:
-                    structural_errors.append(f"Missing required sheet: '{required_sheet}'")
+            # Check required sheets exist (flexible matching - just need to contain keywords)
+            has_tags_sheet = any('tags' in sheet.lower() for sheet in roleplay_xls.sheet_names)
+            has_flow_sheet = any('flow' in sheet.lower() for sheet in roleplay_xls.sheet_names)
+            
+            if not has_tags_sheet:
+                structural_errors.append(f"Missing required sheet: Sheet name must contain 'tags' (found sheets: {', '.join(roleplay_xls.sheet_names)})")
+            if not has_flow_sheet:
+                structural_errors.append(f"Missing required sheet: Sheet name must contain 'flow' (found sheets: {', '.join(roleplay_xls.sheet_names)})")
+            if not has_tags_sheet:
+                structural_errors.append(f"Missing required sheet: Sheet name must contain 'tags' (found sheets: {', '.join(roleplay_xls.sheet_names)})")
+            if not has_flow_sheet:
+                structural_errors.append(f"Missing required sheet: Sheet name must contain 'flow' (found sheets: {', '.join(roleplay_xls.sheet_names)})")
             
             # If critical sheets are missing, stop here
             if structural_errors:
                 return structural_errors
             
+            # Find the actual sheet names
+            tags_sheet = next((sheet for sheet in roleplay_xls.sheet_names if 'tags' in sheet.lower()), None)
+            flow_sheet = next((sheet for sheet in roleplay_xls.sheet_names if 'flow' in sheet.lower()), None)
+            
             # Validate tags sheet structure
-            tags_errors = self._validate_tags_sheet_structure(roleplay_xls)
+            tags_errors = self._validate_tags_sheet_structure(roleplay_xls, tags_sheet)
             structural_errors.extend(tags_errors)
             
             # Validate flow sheet structure  
-            flow_errors = self._validate_flow_sheet_structure(roleplay_xls)
+            flow_errors = self._validate_flow_sheet_structure(roleplay_xls, flow_sheet)
             structural_errors.extend(flow_errors)
             
             # Validate image file structure if provided
@@ -672,79 +676,146 @@ class EnhancedExcelValidator:
         
         return structural_errors
     
-    def _validate_tags_sheet_structure(self, xls: pd.ExcelFile) -> List[str]:
-        """Validate scenario tags sheet has correct structure"""
+    def _validate_tags_sheet_structure(self, xls: pd.ExcelFile, sheet_name: str) -> List[str]:
+        """Validate scenario tags sheet has correct structure - very flexible"""
         errors = []
         
         try:
-            df = pd.read_excel(xls, sheet_name='scenario 4 tags', header=None)
+            df = pd.read_excel(xls, sheet_name=sheet_name, header=None)
             
-            # Check minimum dimensions
-            if df.shape[0] < 15:  # Based on ideal file having at least 15 rows
-                errors.append(f"Tags sheet too short: {df.shape[0]} rows (minimum: 15)")
+            # Only check bare minimum - need at least some rows and columns
+            if df.shape[0] < 5:  # Need at least 5 rows for basic info (Title, Name, etc.)
+                errors.append(f"Tags sheet too short: {df.shape[0]} rows (minimum: 5 for basic metadata)")
             
-            if df.shape[1] < 4:  # Based on ideal file having 4 columns
-                errors.append(f"Tags sheet too narrow: {df.shape[1]} columns (minimum: 4)")
+            if df.shape[1] < 2:  # Need at least 2 columns (label + value)
+                errors.append(f"Tags sheet too narrow: {df.shape[1]} columns (minimum: 2)")
             
-            # Check required metadata fields exist in column A
-            required_fields = [
-                "Scenario Title", "Name", "Designation", "Industry", "Function",
-                "Meta competencies", "Key Competencies", "Level", "Language"
-            ]
+            # Just check that there's SOME content, don't enforce specific structure
+            if df.shape[0] >= 5 and df.shape[1] >= 2:
+                has_content = False
+                for i in range(min(5, df.shape[0])):
+                    label = df.iloc[i, 0] if not pd.isna(df.iloc[i, 0]) else ""
+                    value = df.iloc[i, 1] if not pd.isna(df.iloc[i, 1]) else ""
+                    
+                    if str(label).strip() and str(value).strip():
+                        has_content = True
+                        break
+                
+                if not has_content:
+                    errors.append("Tags sheet appears to be empty or has no valid metadata rows")
             
-            if df.shape[0] >= 9:  # Enough rows to check
-                for i, field in enumerate(required_fields):
-                    if i < df.shape[0]:
-                        cell_value = df.iloc[i, 0] if not pd.isna(df.iloc[i, 0]) else ""
-                        if str(cell_value).strip() != field:
-                            errors.append(f"Tags sheet row {i+1}: Expected '{field}' in column A, found '{cell_value}'")
+            # Skip all field name validation and competency validation
+            # The content validator will handle checking if required fields exist
                             
         except Exception as e:
             errors.append(f"Error validating tags sheet structure: {str(e)}")
         
         return errors
     
-    def _validate_flow_sheet_structure(self, xls: pd.ExcelFile) -> List[str]:
-        """Validate scenario flow sheet has correct interaction pattern - flexible for any number of interactions"""
+    def _validate_flow_sheet_structure(self, xls: pd.ExcelFile, sheet_name: str) -> List[str]:
+        """Validate scenario flow sheet - check for interaction pattern only"""
         errors = []
         
         try:
-            df = pd.read_excel(xls, sheet_name='scenario 4 flow', header=None)
+            df = pd.read_excel(xls, sheet_name=sheet_name, header=None)
             
-            # Check minimum dimensions - flexible for any number of interactions
-            if df.shape[0] < 4:  # Need at least header + 1 complete interaction (3 rows)
-                errors.append(f"Flow sheet too short: {df.shape[0]} rows (minimum: 4 for 1 interaction)")
+            # Only check bare minimum dimensions
+            if df.shape[0] < 2:  # Need at least header + 1 row
+                errors.append(f"Flow sheet too short: {df.shape[0]} rows (minimum: 2)")
                 return errors
             
-            if df.shape[1] < 6:  # Need columns A-F minimum
-                errors.append(f"Flow sheet too narrow: {df.shape[1]} columns (minimum: 6)")
+            if df.shape[1] < 3:  # Need at least 3 columns (interaction number, label, content)
+                errors.append(f"Flow sheet too narrow: {df.shape[1]} columns (minimum: 3)")
                 return errors
             
-            # Validate header row
-            expected_headers = {
-                0: "Interaction Number",
-                1: ["Situation", "description"],  # Flexible matching
-                5: "Tips"
-            }
+            # Just check that header row has some content
+            if df.shape[0] > 0:
+                has_content = False
+                for col_idx in range(min(3, df.shape[1])):
+                    cell_value = df.iloc[0, col_idx]
+                    if pd.notna(cell_value) and str(cell_value).strip():
+                        has_content = True
+                        break
+                
+                if not has_content:
+                    errors.append("Flow sheet header row (row 1) appears to be empty")
             
-            for col_idx, expected in expected_headers.items():
-                if col_idx < df.shape[1]:
-                    header_cell = df.iloc[0, col_idx] if not pd.isna(df.iloc[0, col_idx]) else ""
-                    header_str = str(header_cell).strip()
-                    
-                    if isinstance(expected, list):
-                        # Flexible matching for situation column
-                        if not any(exp.lower() in header_str.lower() for exp in expected):
-                            errors.append(f"Flow sheet header column {chr(65+col_idx)}: Expected text containing {expected}, found '{header_str}'")
-                    else:
-                        if expected.lower() not in header_str.lower():
-                            errors.append(f"Flow sheet header column {chr(65+col_idx)}: Expected '{expected}', found '{header_str}'")
-            
-            # Validate interaction pattern starting from row 2
-            errors.extend(self._validate_interaction_pattern(df))
+            # Validate that interactions exist with required structure
+            # Each interaction should have: interaction row + player row + competency row + other row
+            errors.extend(self._validate_interaction_pattern_flexible(df))
                             
         except Exception as e:
             errors.append(f"Error validating flow sheet structure: {str(e)}")
+        
+        return errors
+    
+    def _validate_interaction_pattern_flexible(self, df: pd.DataFrame) -> List[str]:
+        """Flexible validation - just check that each interaction has the basic 3-row pattern"""
+        errors = []
+        
+        # Start from row 1 (after header)
+        current_row = 1
+        found_interactions = []
+        
+        while current_row < df.shape[0]:
+            # Check if this row has an interaction number in column A
+            cell_value = df.iloc[current_row, 0] if not pd.isna(df.iloc[current_row, 0]) else ""
+            
+            if str(cell_value).strip().isdigit():
+                interaction_num = int(str(cell_value).strip())
+                found_interactions.append(interaction_num)
+                
+                # Validate this interaction has the required rows
+                errors.extend(self._validate_single_interaction_flexible(df, current_row, interaction_num))
+                
+                # Move past this interaction (typically 4 rows: interaction + player/competency/other)
+                current_row += 4
+            else:
+                current_row += 1
+        
+        if len(found_interactions) == 0:
+            errors.append("No valid interactions found in flow sheet (no interaction numbers in column A)")
+        
+        return errors
+    
+    def _validate_single_interaction_flexible(self, df: pd.DataFrame, start_row: int, interaction_num: int) -> List[str]:
+        """Validate single interaction - check for player, competency, and other rows"""
+        errors = []
+        
+        # Row pattern: 
+        # Row 0: Interaction number | player label | player options...
+        # Row 1: (blank) | competency | competency mappings...
+        # Row 2: (blank) | other | computer responses...
+        
+        # Check interaction row (current row)
+        if start_row >= df.shape[0]:
+            return errors
+        
+        # Check that there are at least 3 more rows after this one
+        if start_row + 2 >= df.shape[0]:
+            errors.append(f"Interaction {interaction_num}: Incomplete interaction (need at least 3 rows: player, competency, other)")
+            return errors
+        
+        # Look for "competency" row in next 3 rows
+        found_competency = False
+        found_other = False
+        
+        for offset in range(1, min(4, df.shape[0] - start_row)):
+            row_idx = start_row + offset
+            if df.shape[1] > 1:
+                label = df.iloc[row_idx, 1] if not pd.isna(df.iloc[row_idx, 1]) else ""
+                label_lower = str(label).strip().lower()
+                
+                if label_lower == "competency":
+                    found_competency = True
+                elif label_lower == "other":
+                    found_other = True
+        
+        if not found_competency:
+            errors.append(f"Interaction {interaction_num}: Missing 'competency' row (should be in column B of one of the next 3 rows)")
+        
+        if not found_other:
+            errors.append(f"Interaction {interaction_num}: Missing 'other' row (should be in column B of one of the next 3 rows)")
         
         return errors
     
@@ -893,24 +964,24 @@ class EnhancedExcelValidator:
         return None
     
     def _validate_image_file_structure(self, image_file_path: str) -> List[str]:
-        """Validate image file has correct structure"""
+        """Validate image file has correct structure - flexible sheet name matching"""
         errors = []
         
         try:
             image_xls = pd.ExcelFile(image_file_path)
             
-            # Should have same sheet as roleplay file  
-            if 'scenario 4 flow' not in image_xls.sheet_names:
-                errors.append("Image file missing required sheet: 'scenario 4 flow'")
+            # Check if there's a sheet containing 'flow' keyword
+            flow_sheet = next((sheet for sheet in image_xls.sheet_names if 'flow' in sheet.lower()), None)
+            
+            if not flow_sheet:
+                errors.append(f"Image file missing required sheet: Sheet name must contain 'flow' (found sheets: {', '.join(image_xls.sheet_names)})")
                 return errors
             
-            df = pd.read_excel(image_xls, sheet_name='scenario 4 flow', header=None)
+            df = pd.read_excel(image_xls, sheet_name=flow_sheet, header=None)
             
-            # Check system prompt image in row 1, column C
-            if df.shape[0] > 0 and df.shape[1] > 2:
-                system_img = df.iloc[0, 2]
-                if pd.isna(system_img) or not str(system_img).strip():
-                    errors.append("Image file: Missing system prompt image in row 1, column C")
+            # Just check that the sheet has some content - don't enforce system prompt image
+            if df.shape[0] < 1 or df.shape[1] < 3:
+                errors.append("Image file: Sheet appears to be empty or too small")
                     
         except Exception as e:
             errors.append(f"Error validating image file structure: {str(e)}")

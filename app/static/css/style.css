@@ -23,20 +23,19 @@ File: scss
 @import url("https://fonts.googleapis.com/css?family=Nunito+Sans:300,400,600,700,800");
 @import url("https://fonts.googleapis.com/css?family=Nunito+Sans:300,400,600,700,800");
 @import url("https://fonts.googleapis.com/css?family=Nunito+Sans:300,400,600,700,800");
-@import url("https://fonts.googleapis.com/css?family=Nunito+Sans:300,400,600,700,800");
-@import url("https://fonts.googleapis.com/css?family=Nunito+Sans:300,400,600,700,800");
-@import url("https://fonts.googleapis.com/css?family=Nunito+Sans:300,400,600,700,800");
-@import url(icons/font-awesome/css/fontawesome-all.css);
-@import url(icons/simple-line-icons/css/simple-line-icons.css);
-@import url(icons/weather-icons/css/weather-icons.min.css);
-@import url(icons/themify-icons/themify-icons.css);
-@import url(icons/flag-icon-css/flag-icon.min.css);
-@import url(icons/material-design-iconic-font/css/materialdesignicons.min.css);
 
+/* Commented out missing icon libraries to prevent 404 errors */
+/* @import url(icons/font-awesome/css/fontawesome-all.css); */
+/* @import url(icons/simple-line-icons/css/simple-line-icons.css); */
+/* @import url(icons/weather-icons/css/weather-icons.min.css); */
+/* @import url(icons/themify-icons/themify-icons.css); */
+/* @import url(icons/flag-icon-css/flag-icon.min.css); */
+/* @import url(icons/material-design-iconic-font/css/materialdesignicons.min.css); */
+/* @import url(icons/crypto-icons/cryptocoins.css); */
 
-
-
-@import url(icons/crypto-icons/cryptocoins.css);
+/* If you need icons, you can use FontAwesome via CDN instead */
+/* Add this to your HTML template head section: */
+/* <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"> */
 
 .search-box .app-search .form-control, .topbar .mega-dropdown .dropdown-menu {
   border-radius: 0px; }
@@ -2138,7 +2137,7 @@ textarea.form-control {
     color: #0086EE;
     text-decoration: none; }
 .btn-dgreen:hover {
-    color: ##198040;
+    color: #198040;
     text-decoration: none; }
 	.btn:hover {
     color: #3e5569;
@@ -8443,7 +8442,7 @@ Card
   -moz-transition: all .25s ease;
   transition: all .25s ease; }
   .card-hover:hover {
-    webkit-transform: translateY(-4px) scale(1.01);
+    -webkit-transform: translateY(-4px) scale(1.01);
     -moz-transform: translateY(-4px) scale(1.01);
     -ms-transform: translateY(-4px) scale(1.01);
     -o-transform: translateY(-4px) scale(1.01);
@@ -11816,7 +11815,7 @@ body .jqstooltip {
   padding: 10px 20px;
   background: #2962FF;
   color: #fff;
-  ext-align: center;
+  text-align: center;
   pointer-events: none;
   z-index: 1;
   -webkit-transition: opacity .2s linear;

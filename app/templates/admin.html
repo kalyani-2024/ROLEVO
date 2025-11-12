@@ -68,8 +68,10 @@
                         </li>
                     </ul>
                     <ul class="navbar-nav float-right">
+                        <li class="nav-item"><a href="/admin/users" class="btn btn-rounded btn-success mr-2">USERS</a></li>
                         <li class="nav-item"><a href="/admin/clusters" class="btn btn-rounded btn-info mr-2">CLUSTERS</a></li>
-                        <li class="nav-item"><a href="/adminview" class="btn  btn-rounded btn-red-trajectorie">NEW ROLEPLAY</a></li>	                        
+                        <li class="nav-item"><a href="/adminview" class="btn  btn-rounded btn-red-trajectorie mr-2">NEW ROLEPLAY</a></li>
+                        <li class="nav-item"><a href="{{ url_for('logout') }}" class="btn btn-rounded btn-danger"><i class="fas fa-sign-out-alt"></i> LOGOUT</a></li>
                     </ul>
                 </div>
             </nav>

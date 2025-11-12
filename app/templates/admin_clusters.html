@@ -67,7 +67,9 @@
                 </ul>
                 <ul class="navbar-nav float-right">
                     <li class="nav-item"><a href="/admin" class="btn btn-rounded btn-secondary mr-2">ROLEPLAYS</a></li>
-                    <li class="nav-item"><a href="/admin/clusters/new" class="btn btn-rounded btn-red-trajectorie">NEW CLUSTER</a></li>	                        
+                    <li class="nav-item"><a href="/admin/users" class="btn btn-rounded btn-success mr-2">USERS</a></li>
+                    <li class="nav-item"><a href="/admin/clusters/new" class="btn btn-rounded btn-red-trajectorie mr-2">NEW CLUSTER</a></li>
+                    <li class="nav-item"><a href="{{ url_for('logout') }}" class="btn btn-rounded btn-danger"><i class="fas fa-sign-out-alt"></i> LOGOUT</a></li>
                 </ul>
             </div>
         </nav>

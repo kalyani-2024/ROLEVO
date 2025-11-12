@@ -1,0 +1,1436 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link href="{{url_for('static', filename='css/bootstrap.css')}}" rel="stylesheet">
+<script src="{{url_for('static', filename='js/fontawesome.js')}}" crossorigin="anonymous"></script>
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Arial', sans-serif;
+        background: url("{{url_for('static', filename='images/login_page_bg.jpg')}}") no-repeat center center fixed;
+        background-size: cover;
+        min-height: 100vh;
+    }
+    
+    /* Header Navbar */
+    .top-navbar {
+        background: white !important;
+        border-bottom: 1px solid #e2e3e5;
+        padding: 10px 20px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+        z-index: 1000;
+        width: 100%;
+    }
+    
+    .navbar-brand {
+        display: flex;
+        align-items: center;
+    }
+    
+    .navbar-brand img {
+        max-height: 40px;
+        width: auto;
+    }
+    
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        margin-left: auto;
+    }
+    
+    .user-email {
+        font-size: 14px;
+        color: #666;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .user-email i {
+        font-size: 18px;
+        color: #158044;
+    }
+    
+    .btn-logout {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .btn-logout:hover {
+        background: #c82333;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+    }
+    
+    .btn-home {
+        background: #158044;
+        color: white;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .btn-home:hover {
+        background: #0f5c30;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(21, 128, 68, 0.3);
+    }
+    
+    .dashboard-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 40px 20px;
+    }
+    
+    .header-section {
+        text-align: center;
+        margin-bottom: 40px;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 30px 40px;
+        border-radius: 15px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+        position: relative;
+        z-index: 9998;
+    }
+    
+    .main-title {
+        color: #16a34a;
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 25px;
+    }
+    
+    .cluster-info {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 30px;
+        margin: 20px 0;
+        flex-wrap: nowrap;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .info-badge {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .info-icon {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+    }
+    
+    .clock-icon {
+        color: #16a34a;
+    }
+    
+    .users-icon {
+        color: #16a34a;
+    }
+    
+    .info-text {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .info-text strong {
+        font-size: 0.75rem;
+        color: #6b7280;
+        font-weight: 500;
+        margin-bottom: 2px;
+    }
+    
+    .info-text span {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1f2937;
+    }
+    
+    .cluster-subtitle {
+        color: #6b7280;
+        font-size: 0.9rem;
+        margin: 15px 0;
+    }
+    
+    .click-before-btn {
+        background: linear-gradient(135deg, #ff6b9d 0%, #c9184a 100%);
+        color: white;
+        border: none;
+        padding: 14px 32px;
+        border-radius: 25px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(255, 107, 157, 0.3);
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        position: relative;
+        z-index: 9998;
+    }
+    
+    .click-before-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(255, 107, 157, 0.4);
+        background: linear-gradient(135deg, #ff5286 0%, #b01139 100%);
+    }
+    
+    /* Tooltip for Click Before Starting */
+    .btn-tooltip {
+        position: absolute;
+        top: calc(100% + 15px);
+        right: 0;
+        background: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 15px 20px;
+        border-radius: 12px;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        width: 280px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        z-index: 9998;
+        animation: fadeInDown 0.4s ease;
+    }
+    
+    .btn-tooltip::before {
+        content: '';
+        position: absolute;
+        bottom: 100%;
+        right: 80px;
+        border: 10px solid transparent;
+        border-bottom-color: rgba(0, 0, 0, 0.9);
+    }
+    
+    .btn-tooltip.hidden {
+        display: none;
+    }
+    
+    .logout-btn {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: #e53e3e;
+        color: white;
+        border: none;
+        padding: 10px 25px;
+        border-radius: 9999px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        z-index: 50;
+    }
+
+    .logout-btn:hover {
+        background: #c53030;
+        color: white;
+        transform: translateY(-2px) scale(1.05);
+        box-shadow: 0 10px 15px rgba(229, 62, 62, 0.3);
+    }
+    
+    @keyframes fadeInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .roleplay-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        margin-top: 30px;
+        max-width: 1400px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    @media (max-width: 1200px) {
+        .roleplay-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+    
+    @media (max-width: 900px) {
+        .roleplay-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
+    @media (max-width: 600px) {
+        .roleplay-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .roleplay-card {
+        background: white;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+        border: 2px solid #f3f4f6;
+        padding: 20px 15px;
+        min-height: 380px;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .roleplay-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+        border-color: #16a34a;
+    }
+    
+    .roleplay-card.disabled {
+        opacity: 0.6;
+        pointer-events: none;
+        cursor: not-allowed;
+    }
+    
+    .roleplay-card.disabled:hover {
+        transform: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border-color: #f3f4f6;
+    }
+    
+    .card-header {
+        text-align: center;
+        margin-bottom: 15px;
+    }
+    
+    .avatar-circle {
+        width: 70px;
+        height: 70px;
+        background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+        border-radius: 50%;
+        margin: 0 auto 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.2rem;
+        color: #9ca3af;
+    }
+    
+    .character-name {
+        color: #16a34a;
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-bottom: 4px;
+    }
+    
+    .character-role {
+        color: #6b7280;
+        font-size: 0.85rem;
+    }
+    
+    .difficulty-section {
+        padding: 15px 0;
+        border-top: 1px solid #f3f4f6;
+        margin-bottom: 15px;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    
+    .difficulty-label {
+        text-align: center;
+        color: #16a34a;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-bottom: 12px;
+    }
+    
+    .difficulty-meter {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        margin-bottom: 8px;
+    }
+    
+    /* Semicircle Gauge */
+    .difficulty-gauge {
+        width: 75px;
+        height: 42px;
+        position: relative;
+    }
+    
+    .difficulty-gauge svg {
+        width: 100%;
+        height: 100%;
+    }
+    
+    .difficulty-badge {
+        background: #22c55e;
+        color: white;
+        padding: 4px 14px;
+        border-radius: 16px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: capitalize;
+        display: inline-block;
+    }
+    
+    .card-actions {
+        text-align: center;
+        margin-top: auto;
+    }
+    
+    .start-btn {
+        width: 100%;
+        background: #16a34a;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 25px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+    
+    .start-btn:hover:not(:disabled) {
+        background: #15803d;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+    }
+    
+    .start-btn:disabled {
+        background: #d1d5db;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    
+    .start-btn.retry {
+        background: #f59e0b;
+    }
+    
+    .start-btn.retry:hover {
+        background: #d97706;
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    }
+    
+    .attempts-info {
+        text-align: center;
+        margin-top: 10px;
+        color: #6b7280;
+        font-size: 0.85rem;
+    }
+    
+    .attempts-info.warning {
+        color: #ef4444;
+        font-weight: 600;
+    }
+    
+    /* Page Overlay - Black shadow over existing page */
+    .page-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.85);
+        z-index: 9997;
+        pointer-events: all;
+    }
+    
+    .page-overlay.show {
+        display: block;
+    }
+    
+    /* Make instructions modal appear above overlay */
+    .instructions-modal {
+        z-index: 10000 !important;
+    }
+    
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        animation: fadeIn 0.3s ease;
+    }
+    
+    .modal.show {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .modal-content {
+        background: white;
+        border-radius: 20px;
+        max-width: 900px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        animation: slideUp 0.3s ease;
+    }
+    
+    .modal-header {
+        background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 20px 20px 0 0;
+        position: relative;
+    }
+    
+    .modal-title {
+        font-size: 1.8rem;
+        font-weight: bold;
+        margin: 0;
+    }
+    
+    .modal-close {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .modal-close:hover {
+        background: rgba(255,255,255,0.3);
+        transform: rotate(90deg);
+    }
+    
+    .modal-body {
+        padding: 35px;
+    }
+    
+    .scenario-box {
+        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+        border-left: 4px solid #16a34a;
+        padding: 25px;
+        border-radius: 12px;
+        margin-bottom: 25px;
+    }
+    
+    .scenario-text {
+        color: #374151;
+        font-size: 1.05rem;
+        line-height: 1.7;
+        margin: 0;
+    }
+    
+    .scenario-text ul {
+        margin: 10px 0;
+        padding-left: 25px;
+    }
+    
+    .scenario-text li {
+        margin: 5px 0;
+    }
+    
+    .scenario-text strong {
+        color: #1f2937;
+        font-weight: 600;
+    }
+    
+    .scenario-text p {
+        margin: 10px 0;
+    }
+    
+    /* Language Dropdown Styling */
+    .language-selection {
+        background: #f9fafb;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 20px;
+        transition: all 0.3s ease;
+    }
+    
+    .language-dropdown {
+        width: 100%;
+        padding: 12px 16px;
+        font-size: 1rem;
+        color: #1f2937;
+        background: white;
+        border: 2px solid #d1d5db;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        outline: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2316a34a' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+    }
+    
+    .language-dropdown:hover:not(:disabled) {
+        border-color: #16a34a;
+        box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+    }
+    
+    .language-dropdown:focus:not(:disabled) {
+        border-color: #16a34a;
+        box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2);
+    }
+    
+    .language-dropdown:disabled {
+        background-color: #f3f4f6;
+        color: #9ca3af;
+        cursor: not-allowed;
+        opacity: 0.6;
+        border-color: #e5e7eb;
+    }
+    
+    .language-dropdown option {
+        padding: 10px;
+        color: #1f2937;
+        background: white;
+    }
+    
+    .modal-actions {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+    }
+    
+    .modal-btn {
+        padding: 14px 35px;
+        border: none;
+        border-radius: 30px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .modal-btn-primary {
+        background: #16a34a;
+        color: white;
+    }
+    
+    .modal-btn-primary:hover {
+        background: #15803d;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(22, 163, 74, 0.3);
+    }
+    
+    .modal-btn-secondary {
+        background: #e5e7eb;
+        color: #374151;
+    }
+    
+    .modal-btn-secondary:hover {
+        background: #d1d5db;
+    }
+    
+    /* Instructions Modal */
+    .instructions-modal .modal-content {
+        max-width: 900px;
+        border-radius: 20px;
+        overflow: hidden;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .instructions-grid {
+        display: flex;
+        gap: 0;
+        flex: 1;
+        overflow: hidden;
+    }
+    
+    .instructions-sidebar {
+        background: #16a34a;
+        color: white;
+        padding: 60px 40px;
+        min-width: 220px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        flex-shrink: 0;
+    }
+    
+    .instructions-icon {
+        font-size: 5rem;
+        margin-bottom: 25px;
+        filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+    }
+    
+    .instructions-title {
+        font-size: 1.6rem;
+        font-weight: 700;
+        margin: 0;
+        letter-spacing: 0.5px;
+    }
+    
+    .instructions-content {
+        flex: 1;
+        padding: 45px;
+        background: white;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .instructions-header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .instructions-header h3 {
+        color: #1f2937;
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin: 0 0 10px 0;
+    }
+    
+    .instructions-header p {
+        color: #6b7280;
+        font-size: 0.95rem;
+        margin: 0;
+        line-height: 1.6;
+    }
+    
+    .instructions-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 30px 0;
+        flex: 1;
+    }
+    
+    .instructions-list li {
+        padding: 15px 0;
+        border-bottom: 1px solid #e5e7eb;
+        color: #374151;
+        font-size: 0.95rem;
+        line-height: 1.6;
+    }
+    
+    .instructions-list li:last-child {
+        border-bottom: none;
+    }
+    
+    .instructions-list li::before {
+        content: "•";
+        color: #16a34a;
+        font-weight: bold;
+        font-size: 1.5rem;
+        margin-right: 10px;
+    }
+    
+    /* Warning Modal */
+    .warning-modal .modal-header {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+    
+    .warning-icon {
+        font-size: 3rem;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    
+    .warning-text {
+        text-align: center;
+        color: #374151;
+        font-size: 1.1rem;
+        line-height: 1.6;
+        margin-bottom: 25px;
+    }
+    
+    .warning-question {
+        text-align: center;
+        color: #111827;
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: 25px;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .roleplay-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .cluster-info {
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .instructions-grid {
+            flex-direction: column;
+        }
+        
+        .instructions-sidebar {
+            border-radius: 20px 20px 0 0;
+            padding: 30px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header Navbar with Trajectorie Logo -->
+<div class="top-navbar">
+    <a class="navbar-brand" href="#">
+        <img src="{{url_for('static', filename='images/logo-trajectorie-codrive.png')}}" alt="Trajectorie : CODrive">
+    </a>
+    <div class="user-info">
+        <span class="user-email">
+            <i class="fas fa-user-circle"></i> {{ session.get('user_email', 'User') }}
+        </span>
+        <button class="btn-home" onclick="location.href='{{ url_for('user_dashboard', user_id=user_id) }}'">
+            <i class="fas fa-home"></i> Home
+        </button>
+        <button class="btn-logout" onclick="location.href='{{ url_for('logout') }}'">
+            <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+    </div>
+</div>
+
+<div class="dashboard-container">
+    <!-- Header Section -->
+    <div class="header-section" id="headerSection">
+        <h1 class="main-title">{{ cluster[1] if cluster else 'Test Roleplay' }}</h1>
+        
+        <div class="cluster-info">
+            <div class="info-badge">
+                <div class="info-icon clock-icon">🕐</div>
+                <div class="info-text">
+                    <strong>Duration</strong>
+                    <span>60:00 mins</span>
+                </div>
+            </div>
+            
+            <div style="height: 40px; width: 1px; background: #e5e7eb;"></div>
+            
+            <div class="info-badge">
+                <div class="info-icon users-icon">💬</div>
+                <div class="info-text">
+                    <strong>No. of Conversations</strong>
+                    <span>{{ roleplays|length }}</span>
+                </div>
+            </div>
+            
+            <div style="height: 40px; width: 1px; background: #e5e7eb;"></div>
+            
+            <div style="position: relative;">
+                <button class="click-before-btn" onclick="showInstructions()">
+                    ✋ Click Before Starting
+                </button>
+                <div id="clickTooltip" class="btn-tooltip">
+                    Please click on this button to read the instructions before starting any conversation
+                </div>
+            </div>
+        </div>
+        
+       
+    </div>
+    
+    <!-- Roleplay Cards Grid -->
+    <div class="roleplay-grid">
+        {% for roleplay in roleplays %}
+        <div class="roleplay-card">
+            <div class="card-header">
+                <div class="avatar-circle">👤</div>
+                <div class="character-name">{{ roleplay.person_name }}</div>
+                <div class="character-role">{{ roleplay.name }}</div>
+            </div>
+            
+            <div class="difficulty-section">
+                <div class="difficulty-label">Difficulty Level</div>
+                
+                <!-- Semicircle Gauge and Badge -->
+                <div class="difficulty-meter">
+                    <!-- Semicircle Gauge SVG -->
+                    <div class="difficulty-gauge">
+                        <svg viewBox="0 0 100 55" style="overflow: visible;">
+                            <!-- Green section (Easy) -->
+                            <path d="M 10 50 A 40 40 0 0 1 35 18" 
+                                  fill="none" 
+                                  stroke="#22c55e" 
+                                  stroke-width="10"
+                                  stroke-linecap="round"/>
+                            <!-- Yellow section (Medium) -->
+                            <path d="M 38 16 A 40 40 0 0 1 62 16" 
+                                  fill="none" 
+                                  stroke="#eab308" 
+                                  stroke-width="10"
+                                  stroke-linecap="round"/>
+                            <!-- Red section (Hard) -->
+                            <path d="M 65 18 A 40 40 0 0 1 90 50" 
+                                  fill="none" 
+                                  stroke="#ef4444" 
+                                  stroke-width="10"
+                                  stroke-linecap="round"/>
+                            <!-- Needle - will be positioned dynamically -->
+                            <line class="difficulty-needle" 
+                                  data-difficulty="{{ roleplay.difficulty|lower }}"
+                                  x1="50" y1="50" x2="28" y2="28" 
+                                  stroke="#374151" 
+                                  stroke-width="3"
+                                  stroke-linecap="round"/>
+                            <!-- Center circle -->
+                            <circle cx="50" cy="50" r="4" fill="#374151"/>
+                        </svg>
+                    </div>
+                    
+                    <!-- Badge -->
+                    <span class="difficulty-badge">{{ roleplay.difficulty }}</span>
+                </div>
+            </div>
+            
+            <div class="card-actions">
+                {% if roleplay.status == 'not_started' %}
+                <button class="start-btn" 
+                        data-roleplay-id="{{ roleplay.id }}" 
+                        data-person-name="{{ roleplay.person_name }}" 
+                        data-scenario="{{ roleplay.scenario }}"
+                        data-scenario-file="{{ roleplay.scenario_file_path or '' }}"
+                        data-input-type="{{ roleplay.input_type }}"
+                        onclick="showSituationFromButton(this)">
+                    <i class="fas fa-play"></i> START
+                </button>
+                {% elif roleplay.status == 'attempted' and roleplay.attempts_remaining > 0 %}
+                <button class="start-btn retry" 
+                        data-roleplay-id="{{ roleplay.id }}" 
+                        data-person-name="{{ roleplay.person_name }}" 
+                        data-scenario="{{ roleplay.scenario }}"
+                        data-scenario-file="{{ roleplay.scenario_file_path or '' }}"
+                        data-input-type="{{ roleplay.input_type }}"
+                        onclick="showSituationFromButton(this)">
+                    <i class="fas fa-redo"></i> REATTEMPT
+                </button>
+                <div class="attempts-info">
+                    {{ roleplay.attempts_remaining }} attempt(s) remaining
+                </div>
+                {% else %}
+                <button class="start-btn" disabled>
+                    <i class="fas fa-check"></i> COMPLETED
+                </button>
+                <div class="attempts-info warning">
+                    No attempts remaining
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Simple Black Overlay - Dims existing page until instructions are read -->
+<div id="pageOverlay" class="page-overlay"></div>
+
+<!-- Instructions Modal -->
+<div id="instructionsModal" class="modal instructions-modal">
+    <div class="modal-content">
+        <div class="instructions-grid">
+            <div class="instructions-sidebar">
+                <div class="instructions-icon">✋</div>
+                <h2 class="instructions-title">Information</h2>
+            </div>
+            <div class="instructions-content">
+                <!-- Header with notification -->
+                <div class="instructions-header">
+                    <h3>Please click on this button before starting any conversation</h3>
+                </div>
+                
+                <!-- No close button - user must read and click START -->
+                <ul class="instructions-list">
+                    <li>Please put on your headphone and if audio recording responses, please ensure you are in a silent area and speak clearly into the microphone</li>
+                    <li>When you click "Accept" you'll begin your roleplay. You're encouraged to treat it like a real conversation.</li>
+                    <li><strong>It is OKAY to pause or to take your time</strong> between your responses (we all know that can happen in real life, but do not abuse this with intent).</li>
+                    <li>Once you start the timer will start running for that particular roleplay and will not stop even if you close or exit the browser.</li>
+                    <li><strong>Avoid overlaps</strong>. For optimal user experience, it's recommended you allow your response time appropriately.</li>
+                    <li>If the other-party (in this roleplay) doesn't respond immediately, don't worry. Just wait, hear what they say, and only then give your response.</li>
+                    <li>There is a time limit for the overall roleplays, <strong>and</strong> a time limit for each response. This ensures the conversation is realistic. In case you don't complete a response in the given time, the other person in the roleplay will simply respond to whatever has been your response till then.</li>
+                    <li>Once you finish the response, you can review it and save it (in case there is still some time left).</li>
+                </ul>
+                <div class="modal-actions" style="margin-top: 20px; text-align: center;">
+                    <button class="modal-btn modal-btn-primary" onclick="closeInstructions()">
+                        START <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Situation Modal -->
+<div id="situationModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title" id="situationTitle">Situation</h2>
+            <button class="modal-close" onclick="closeSituation()">×</button>
+        </div>
+        <div class="modal-body">
+            <!-- Instructions Section -->
+            <div class="instructions-box" style="background: rgba(255, 255, 255, 0.9); border: 2px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <i class="fas fa-info-circle" style="color: #dc2626; font-size: 24px;"></i>
+                    <h3 style="margin: 0; color: #111827; font-size: 1.1rem; font-weight: 600;">Instructions</h3>
+                </div>
+                <ul style="list-style: none; padding: 0; margin: 0;">
+                    <li style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; font-size: 0.95rem; color: #374151; line-height: 1.5;">
+                        <i class="fas fa-arrow-right" style="color: #dc2626; margin-top: 3px; flex-shrink: 0;"></i>
+                        <span>Read each context, imagine you really are meeting and talking to them</span>
+                    </li>
+                    <li style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; font-size: 0.95rem; color: #374151; line-height: 1.5;">
+                        <i class="fas fa-arrow-right" style="color: #dc2626; margin-top: 3px; flex-shrink: 0;"></i>
+                        <span>Then, put on your headphones before you "Start" a conversation with any of them</span>
+                    </li>
+                    <li style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; font-size: 0.95rem; color: #374151; line-height: 1.5;">
+                        <i class="fas fa-arrow-right" style="color: #dc2626; margin-top: 3px; flex-shrink: 0;"></i>
+                        <span>Then, listen carefully to what the virtual stakeholder says, and respond by choosing between 2 response options</span>
+                    </li>
+                    <li style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; font-size: 0.95rem; color: #374151; line-height: 1.5;">
+                        <i class="fas fa-arrow-right" style="color: #dc2626; margin-top: 3px; flex-shrink: 0;"></i>
+                        <span>Continue the conversation... listening, selecting as if you are really talking to them</span>
+                    </li>
+                    <li style="display: flex; align-items: flex-start; gap: 10px; font-size: 0.95rem; color: #374151; line-height: 1.5;">
+                        <i class="fas fa-arrow-right" style="color: #dc2626; margin-top: 3px; flex-shrink: 0;"></i>
+                        <span>Of course, remember to be yourself and carry on the conversation as you would</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Scenario Section -->
+            <div class="scenario-box">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <i class="fas fa-file-alt" style="color: #16a34a; font-size: 20px;"></i>
+                    <h3 style="margin: 0; color: #dc2626; font-size: 1.05rem; font-weight: 600;">Scenario</h3>
+                </div>
+                <div class="scenario-text" id="situationText"></div>
+                <div id="scenarioFileDownload" style="margin-top: 15px; display: none;">
+                    <a href="#" id="scenarioFileLink" class="btn btn-sm" style="background: #16a34a; color: white; padding: 8px 16px; text-decoration: none; border-radius: 6px; display: inline-flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-download"></i> Download Scenario Document
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Language Selection -->
+            <div class="language-selection" style="margin: 20px 0;">
+                <label for="languageDropdown" style="display: flex; align-items: center; gap: 8px; font-size: 0.95rem; color: #374151; font-weight: 600; margin-bottom: 10px;">
+                    <i class="fas fa-language" style="color: #16a34a;"></i>
+                    Choose Language You Wish to Respond In
+                </label>
+                <select id="languageDropdown" class="language-dropdown">
+                    <option value="English">English</option>
+                    <option value="Hindi">Hindi</option>
+                    <option value="Tamil">Tamil</option>
+                    <option value="Telugu">Telugu</option>
+                    <option value="Kannada">Kannada</option>
+                    <option value="Marathi">Marathi</option>
+                    <option value="Bengali">Bengali</option>
+                    <option value="French">French</option>
+                    <option value="Arabic">Arabic</option>
+                    <option value="Gujarati">Gujarati</option>
+                    <option value="Malayalam">Malayalam</option>
+                </select>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-secondary" onclick="closeSituation()">
+                    Cancel
+                </button>
+                <button class="modal-btn modal-btn-primary" onclick="startInteracting()">
+                    Start Interacting <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Warning Modal -->
+<div id="warningModal" class="modal warning-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">⚠️ Warning</h2>
+            <button class="modal-close" onclick="closeWarning()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="warning-icon">⚠️</div>
+            <p class="warning-text" id="warningText"></p>
+            <p class="warning-question">Do you want to go ahead?</p>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-secondary" onclick="closeWarning()">
+                    No, Go Back
+                </button>
+                <button class="modal-btn modal-btn-primary" style="background: #ef4444;" onclick="confirmWarning()">
+                    Yes, Continue
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Position difficulty needles based on difficulty level
+document.addEventListener('DOMContentLoaded', function() {
+    const needles = document.querySelectorAll('.difficulty-needle');
+    needles.forEach(needle => {
+        const difficulty = needle.getAttribute('data-difficulty');
+        let x2, y2;
+        
+        // Calculate needle endpoint based on difficulty
+        // Easy: points to left (green section)
+        // Medium: points to top (yellow section)
+        // Hard: points to right (red section)
+        if (difficulty === 'easy') {
+            x2 = 28;
+            y2 = 28;
+        } else if (difficulty === 'medium') {
+            x2 = 50;
+            y2 = 10;
+        } else if (difficulty === 'hard') {
+            x2 = 72;
+            y2 = 28;
+        } else {
+            // Default to easy
+            x2 = 28;
+            y2 = 28;
+        }
+        
+        needle.setAttribute('x2', x2);
+        needle.setAttribute('y2', y2);
+    });
+});
+
+// Show black overlay on page load to force reading instructions
+window.addEventListener('load', function() {
+    // Check if user has read instructions in this session
+    const hasReadInstructions = sessionStorage.getItem('hasReadInstructions');
+    if (!hasReadInstructions) {
+        // Show the black overlay - but DON'T auto-open instructions
+        document.getElementById('pageOverlay').classList.add('show');
+    }
+});
+
+let currentRoleplayId = null;
+let instructionsViewed = false;
+let previousRoleplayId = null;
+let pendingRoleplayData = null; // Store data for roleplay to start after warning
+
+// Track roleplays with in-progress attempts
+const roleplayStatuses = {
+    {% for roleplay in roleplays %}
+    '{{ roleplay.id }}': {
+        status: '{{ roleplay.status }}',
+        hasInProgress: {{ 'true' if roleplay.has_in_progress else 'false' }},
+        canReattempt: {{ 'true' if roleplay.can_reattempt else 'false' }},
+        maxAttempts: {{ roleplay.max_attempts }},
+        attemptsRemaining: {{ roleplay.attempts_remaining }}
+    }{{ ',' if not loop.last else '' }}
+    {% endfor %}
+};
+
+// Do NOT show instructions automatically - wait for user to click the button
+// Tooltip is shown by default in HTML
+
+function showSituationFromButton(button) {
+    const roleplayId = button.getAttribute('data-roleplay-id');
+    const personName = button.getAttribute('data-person-name');
+    const scenario = button.getAttribute('data-scenario');
+    const scenarioFile = button.getAttribute('data-scenario-file');
+    const inputType = button.getAttribute('data-input-type');
+    
+    showSituation(roleplayId, personName, scenario, inputType, scenarioFile);
+}
+
+function showInstructions() {
+    instructionsViewed = true;
+    // Mark instructions as read and remove the overlay
+    sessionStorage.setItem('hasReadInstructions', 'true');
+    document.getElementById('pageOverlay').classList.remove('show');
+    // Send header section to back (lower z-index)
+    document.getElementById('headerSection').style.zIndex = '1';
+    // Hide the tooltip
+    document.getElementById('clickTooltip').classList.add('hidden');
+    // Show the instructions modal
+    document.getElementById('instructionsModal').classList.add('show');
+}
+
+function closeInstructions() {
+    instructionsViewed = true;
+    document.getElementById('instructionsModal').classList.remove('show');
+}
+
+function showSituation(roleplayId, personName, scenario, inputType, scenarioFile = '') {
+    console.log('showSituation called with:', { roleplayId, personName, scenario, inputType, scenarioFile });
+    
+    // Hide the page overlay when showing situation modal
+    document.getElementById('pageOverlay').classList.remove('show');
+    
+    if (!instructionsViewed) {
+        // Show a more prominent modal instead of alert
+        document.getElementById('warningText').textContent = 
+            'Please click on "Click Before Starting" button to read the instructions before starting any conversation.';
+        document.getElementById('warningModal').classList.add('show');
+        
+        // Override confirm to show instructions
+        window.tempConfirmAction = function() {
+            closeWarning();
+            showInstructions();
+        };
+        return;
+    }
+    
+    // Check if moving to next roleplay with in-progress attempt on previous
+    if (previousRoleplayId && previousRoleplayId !== roleplayId) {
+        const prevStatus = roleplayStatuses[previousRoleplayId];
+        
+        // Only show warning if previous roleplay has in-progress attempt with remaining attempts
+        if (prevStatus && prevStatus.hasInProgress && prevStatus.maxAttempts > 1 && prevStatus.attemptsRemaining > 0) {
+            currentRoleplayId = roleplayId;
+            document.getElementById('warningText').textContent = 
+                'Moving to the next roleplay will SUBMIT your scores for the previous roleplay and you cannot reattempt it.';
+            document.getElementById('warningModal').classList.add('show');
+            
+            // Reset confirm action to submit scores
+            window.tempConfirmAction = function() {
+                submitPreviousScores(previousRoleplayId, roleplayId, personName, scenario, inputType);
+            };
+            return;
+        }
+    }
+    
+    currentRoleplayId = roleplayId;
+    console.log('Setting currentRoleplayId to:', currentRoleplayId);
+    
+    // Set modal content
+    document.getElementById('situationTitle').textContent = personName;
+    
+    // Convert newlines to <br> and render as HTML to support formatting
+    const formattedScenario = scenario.replace(/\n/g, '<br>');
+    document.getElementById('situationText').innerHTML = formattedScenario;
+    
+    // Handle scenario file download link
+    const fileDownloadDiv = document.getElementById('scenarioFileDownload');
+    const fileLink = document.getElementById('scenarioFileLink');
+    
+    if (scenarioFile && scenarioFile.trim() !== '') {
+        // Extract just the filename from the path
+        const fileName = scenarioFile.split(/[/\\]/).pop();
+        fileLink.href = `/static/images/${fileName}`;
+        fileLink.download = fileName;
+        fileDownloadDiv.style.display = 'block';
+    } else {
+        fileDownloadDiv.style.display = 'none';
+    }
+    
+    // Enable/disable language dropdown based on input type
+    const languageDropdown = document.getElementById('languageDropdown');
+    if (inputType === 'audio') {
+        languageDropdown.disabled = false;
+        languageDropdown.style.cursor = 'pointer';
+    } else {
+        languageDropdown.disabled = true;
+        languageDropdown.style.cursor = 'not-allowed';
+    }
+    
+    document.getElementById('situationModal').classList.add('show');
+}
+
+function closeSituation() {
+    document.getElementById('situationModal').classList.remove('show');
+}
+
+function startInteracting() {
+    console.log('startInteracting called with roleplayId:', currentRoleplayId);
+    if (currentRoleplayId) {
+        previousRoleplayId = currentRoleplayId;
+        
+        // Get selected language
+        const selectedLanguage = document.getElementById('languageDropdown').value;
+        console.log('Selected language:', selectedLanguage);
+        
+        // Build URL with language and cluster_id parameters
+        const launchUrl = '/launch/{{ user_id }}/' + String(currentRoleplayId) + 
+                         '?language=' + encodeURIComponent(selectedLanguage) + 
+                         '&cluster_id={{ cluster_id }}';
+        console.log('Redirecting to:', launchUrl);
+        
+        // Close the modal first
+        closeSituation();
+        
+        // Small delay to ensure modal closes, then redirect
+        setTimeout(function() {
+            window.location.href = launchUrl;
+        }, 100);
+    } else {
+        console.error('No currentRoleplayId set');
+        alert('Error: No roleplay selected');
+    }
+}
+
+function closeWarning() {
+    document.getElementById('warningModal').classList.remove('show');
+}
+
+function confirmWarning() {
+    if (window.tempConfirmAction) {
+        window.tempConfirmAction();
+        window.tempConfirmAction = null;
+    } else {
+        // Submit previous roleplay and continue
+        window.location.href = `/user/{{ user_id }}/cluster/{{ cluster[0] }}/roleplay/${previousRoleplayId}/submit?next=${currentRoleplayId}`;
+    }
+}
+
+function submitPreviousScores(prevRoleplayId, nextRoleplayId, personName, scenario, inputType) {
+    // Close warning modal
+    closeWarning();
+    
+    // Submit scores for previous roleplay via AJAX
+    fetch(`/user/{{ user_id }}/cluster/{{ cluster[0] }}/roleplay/${prevRoleplayId}/submit_scores`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            action: 'submit_and_continue'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Find and disable the previous roleplay card
+            const prevCard = document.querySelector(`[data-roleplay-id="${prevRoleplayId}"]`);
+            if (prevCard) {
+                const card = prevCard.closest('.roleplay-card');
+                if (card) {
+                    card.classList.add('disabled');
+                }
+                
+                // Update button text and disable it
+                prevCard.innerHTML = '<i class="fas fa-check"></i> COMPLETED';
+                prevCard.disabled = true;
+            }
+            
+            // Update roleplay status in our tracking object
+            roleplayStatuses[prevRoleplayId].hasInProgress = false;
+            roleplayStatuses[prevRoleplayId].attemptsRemaining = 0;
+            
+            // Mark previous roleplay as submitted
+            previousRoleplayId = nextRoleplayId;
+            
+            // Continue with showing the new roleplay
+            currentRoleplayId = nextRoleplayId;
+            document.getElementById('situationTitle').textContent = personName;
+            
+            // Convert newlines to <br> and render as HTML
+            const formattedScenario = scenario.replace(/\n/g, '<br>');
+            document.getElementById('situationText').innerHTML = formattedScenario;
+            
+            // Enable/disable language dropdown based on input type
+            const languageDropdown = document.getElementById('languageDropdown');
+            if (inputType === 'audio') {
+                languageDropdown.disabled = false;
+                languageDropdown.style.cursor = 'pointer';
+            } else {
+                languageDropdown.disabled = true;
+                languageDropdown.style.cursor = 'not-allowed';
+            }
+            
+            document.getElementById('situationModal').classList.add('show');
+        } else {
+            alert('Error submitting scores: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to submit scores. Please try again.');
+    });
+}
+
+// Close modals when clicking outside (except instructions modal which must be read)
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal') && !instructionsViewed) {
+        // Prevent closing instructions modal by clicking outside
+        if (event.target.id === 'instructionsModal') {
+            return;
+        }
+    }
+    if (event.target.classList.contains('modal') && event.target.id !== 'instructionsModal') {
+        event.target.classList.remove('show');
+    }
+}
+</script>
+{% endblock %}

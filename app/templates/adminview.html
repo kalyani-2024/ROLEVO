@@ -93,6 +93,14 @@
                 </a>
                 <a class="nav-toggler waves-effect waves-light d-block d-md-none" href="javascript:void(0)" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><i class="ti-menu ti-close"></i></a>
             </div>
+            <div class="navbar-collapse collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav ml-auto">
+                    <li class="nav-item"><a href="{{ url_for('admin') }}" class="btn btn-rounded btn-primary mr-2">HOME</a></li>
+                    <li class="nav-item"><a href="/admin/users" class="btn btn-rounded btn-success mr-2">USERS</a></li>
+                    <li class="nav-item"><a href="/admin/clusters" class="btn btn-rounded btn-info mr-2">CLUSTERS</a></li>
+                    <li class="nav-item"><a href="{{ url_for('logout') }}" class="btn btn-rounded btn-danger"><i class="fas fa-sign-out-alt"></i> LOGOUT</a></li>
+                </ul>
+            </div>
         </nav>
         <div class="container-fluid">
             <div class="row">
@@ -189,6 +197,20 @@
                                 
                                 <label for="scenario">Scenario:</label><br>
                                 <textarea type="text" id="scenario" name="scenario" style="width:100%;margin-bottom: 30px;" required>{{roleplay[4]}}</textarea><br>
+
+                                <label for="scenario_file">Optional Scenario File (for users to download):</label><br>
+                                <input type="file" name="scenario_file" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx">
+                                {% if roleplay and roleplay[8] %}
+                                    <p class="text-success">Current file: {{ roleplay[8].split('/')[-1].split('\\')[-1] }}</p>
+                                {% endif %}
+                                <br>
+
+                                <label for="roleplay_logo">Roleplay Logo (displayed on tile):</label><br>
+                                <input type="file" name="roleplay_logo" accept="image/*">
+                                {% if roleplay and roleplay[9] %}
+                                    <p class="text-success">Current logo: <img src="/static/{{ roleplay[9].split('static/')[-1] if 'static/' in roleplay[9] else 'images/' + roleplay[9].split('/')[-1].split('\\')[-1] }}" alt="Logo" style="width: 40px; height: 40px; border-radius: 50%; vertical-align: middle;"></p>
+                                {% endif %}
+                                <br>
                             </div>
                         </div>
 
@@ -228,15 +250,39 @@
                                     {% else %}
                                         {% set lang_list = [] %}
                                     {% endif %}
-                                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px;">
-                                        <label><input type="checkbox" name="lang_english" {% if 'English' in lang_list %}checked{% endif %}> English</label>
-                                        <label><input type="checkbox" name="lang_hindi" {% if 'Hindi' in lang_list %}checked{% endif %}> Hindi</label>
-                                        <label><input type="checkbox" name="lang_tamil" {% if 'Tamil' in lang_list %}checked{% endif %}> Tamil</label>
-                                        <label><input type="checkbox" name="lang_telugu" {% if 'Telugu' in lang_list %}checked{% endif %}> Telugu</label>
-                                        <label><input type="checkbox" name="lang_kannada" {% if 'Kannada' in lang_list %}checked{% endif %}> Kannada</label>
-                                        <label><input type="checkbox" name="lang_malayalam" {% if 'Malayalam' in lang_list %}checked{% endif %}> Malayalam</label>
-                                        <label><input type="checkbox" name="lang_bengali" {% if 'Bengali' in lang_list %}checked{% endif %}> Bengali</label>
-                                        <label><input type="checkbox" name="lang_marathi" {% if 'Marathi' in lang_list %}checked{% endif %}> Marathi</label>
+                                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 20px; margin-bottom: 15px;">
+                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                            <input type="checkbox" name="lang_english" {% if 'English' in lang_list %}checked{% endif %} style="margin: 0;">
+                                            <span>English</span>
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                            <input type="checkbox" name="lang_hindi" {% if 'Hindi' in lang_list %}checked{% endif %} style="margin: 0;">
+                                            <span>Hindi</span>
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                            <input type="checkbox" name="lang_tamil" {% if 'Tamil' in lang_list %}checked{% endif %} style="margin: 0;">
+                                            <span>Tamil</span>
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                            <input type="checkbox" name="lang_telugu" {% if 'Telugu' in lang_list %}checked{% endif %} style="margin: 0;">
+                                            <span>Telugu</span>
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                            <input type="checkbox" name="lang_kannada" {% if 'Kannada' in lang_list %}checked{% endif %} style="margin: 0;">
+                                            <span>Kannada</span>
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                            <input type="checkbox" name="lang_malayalam" {% if 'Malayalam' in lang_list %}checked{% endif %} style="margin: 0;">
+                                            <span>Malayalam</span>
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                            <input type="checkbox" name="lang_bengali" {% if 'Bengali' in lang_list %}checked{% endif %} style="margin: 0;">
+                                            <span>Bengali</span>
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                            <input type="checkbox" name="lang_marathi" {% if 'Marathi' in lang_list %}checked{% endif %} style="margin: 0;">
+                                            <span>Marathi</span>
+                                        </label>
                                     </div>
                                 </div>
                             </div>
@@ -246,11 +292,11 @@
                         <div class="card mb-4">
                             <div class="card-header"><h5>Time Configuration</h5></div>
                             <div class="card-body">
-                                <label for="max_interaction_time">Max Time for 1 Interaction (seconds):</label><br>
-                                <input type="number" id="max_interaction_time" name="max_interaction_time" min="30" value="{{config[5] if config and config[5] else 300}}" style="margin-bottom: 15px;"><br>
+                                <label for="max_interaction_time">Max Time for 1 Interaction (minutes):</label><br>
+                                <input type="number" id="max_interaction_time" name="max_interaction_time" min="1" step="0.5" value="{{(config[5] / 60)|round(1) if config and config[5] else 5}}" style="margin-bottom: 15px;"><br>
 
-                                <label for="max_total_time">Max Total Roleplay Time (seconds):</label><br>
-                                <input type="number" id="max_total_time" name="max_total_time" min="300" value="{{config[6] if config and config[6] else 1800}}" style="margin-bottom: 15px;"><br>
+                                <label for="max_total_time">Max Total Roleplay Time (minutes):</label><br>
+                                <input type="number" id="max_total_time" name="max_total_time" min="1" step="0.5" value="{{(config[6] / 60)|round(1) if config and config[6] else 30}}" style="margin-bottom: 15px;"><br>
 
                                 <label for="repeat_attempts_allowed">Number of Repeat Attempts Allowed:</label><br>
                                 <input type="number" id="repeat_attempts_allowed" name="repeat_attempts_allowed" min="1" value="{{config[7] if config and config[7] else 1}}" style="margin-bottom: 15px;"><br>
@@ -290,6 +336,13 @@
                             <div class="card-header"><h5>Assessment Configuration</h5></div>
                             <div class="card-body">
                                 <label><input type="checkbox" name="voice_assessment_enabled" {% if config and config[11] %}checked{% endif %}> Enable Voice-based Assessment</label><br>
+                                
+                                <label for="difficulty_level" style="margin-top: 15px;">Difficulty Level:</label><br>
+                                <select id="difficulty_level" name="difficulty_level" style="width:100%;margin-bottom: 15px;">
+                                    <option value="easy" {% if config and config[12] == 'easy' %}selected{% endif %}>Easy</option>
+                                    <option value="medium" {% if config and config[12] == 'medium' %}selected{% endif %}>Medium</option>
+                                    <option value="hard" {% if config and config[12] == 'hard' %}selected{% endif %}>Hard</option>
+                                </select>
                             </div>
                         </div>
 
@@ -303,8 +356,8 @@
                         <div class="card mb-4">
                             <div class="card-header"><h5>Basic Information</h5></div>
                             <div class="card-body">
-                                <label for="id">Roleplay ID:</label><br>
-                                <input type="text" id="id" name="id" required><br>
+                                <!-- Roleplay ID is auto-generated -->
+                                <input type="hidden" id="id" name="id" value="">
                                 
                                 <label for="name">Roleplay Name:</label><br>
                                 <input type="text" id="name" name="name" required><br>
@@ -314,6 +367,12 @@
                                 
                                 <label for="scenario">Scenario:</label><br>
                                 <textarea type="text" id="scenario" name="scenario" style="width:100%;margin-bottom: 30px;" required></textarea><br>
+
+                                <label for="scenario_file">Optional Scenario File (for users to download):</label><br>
+                                <input type="file" name="scenario_file" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx"><br>
+
+                                <label for="roleplay_logo">Roleplay Logo (displayed on tile):</label><br>
+                                <input type="file" name="roleplay_logo" accept="image/*"><br>
                             </div>
                         </div>
 
@@ -347,15 +406,39 @@
                                     <input type="number" id="audio_rerecord_attempts" name="audio_rerecord_attempts" min="1" max="3" value="3" style="margin-bottom: 15px;"><br>
 
                                     <label>Available Languages:</label><br>
-                                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px;">
-                                        <label><input type="checkbox" name="lang_english" checked> English</label>
-                                        <label><input type="checkbox" name="lang_hindi"> Hindi</label>
-                                        <label><input type="checkbox" name="lang_tamil"> Tamil</label>
-                                        <label><input type="checkbox" name="lang_telugu"> Telugu</label>
-                                        <label><input type="checkbox" name="lang_kannada"> Kannada</label>
-                                        <label><input type="checkbox" name="lang_malayalam"> Malayalam</label>
-                                        <label><input type="checkbox" name="lang_bengali"> Bengali</label>
-                                        <label><input type="checkbox" name="lang_marathi"> Marathi</label>
+                                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 20px; margin-bottom: 15px;">
+                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                            <input type="checkbox" name="lang_english" checked style="margin: 0;">
+                                            <span>English</span>
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                            <input type="checkbox" name="lang_hindi" style="margin: 0;">
+                                            <span>Hindi</span>
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                            <input type="checkbox" name="lang_tamil" style="margin: 0;">
+                                            <span>Tamil</span>
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                            <input type="checkbox" name="lang_telugu" style="margin: 0;">
+                                            <span>Telugu</span>
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                            <input type="checkbox" name="lang_kannada" style="margin: 0;">
+                                            <span>Kannada</span>
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                            <input type="checkbox" name="lang_malayalam" style="margin: 0;">
+                                            <span>Malayalam</span>
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                            <input type="checkbox" name="lang_bengali" style="margin: 0;">
+                                            <span>Bengali</span>
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                            <input type="checkbox" name="lang_marathi" style="margin: 0;">
+                                            <span>Marathi</span>
+                                        </label>
                                     </div>
                                 </div>
                             </div>
@@ -365,11 +448,11 @@
                         <div class="card mb-4">
                             <div class="card-header"><h5>Time Configuration</h5></div>
                             <div class="card-body">
-                                <label for="max_interaction_time">Max Time for 1 Interaction (seconds):</label><br>
-                                <input type="number" id="max_interaction_time" name="max_interaction_time" min="30" value="300" style="margin-bottom: 15px;"><br>
+                                <label for="max_interaction_time">Max Time for 1 Interaction (minutes):</label><br>
+                                <input type="number" id="max_interaction_time" name="max_interaction_time" min="1" step="0.5" value="5" style="margin-bottom: 15px;"><br>
 
-                                <label for="max_total_time">Max Total Roleplay Time (seconds):</label><br>
-                                <input type="number" id="max_total_time" name="max_total_time" min="300" value="1800" style="margin-bottom: 15px;"><br>
+                                <label for="max_total_time">Max Total Roleplay Time (minutes):</label><br>
+                                <input type="number" id="max_total_time" name="max_total_time" min="1" step="0.5" value="30" style="margin-bottom: 15px;"><br>
 
                                 <label for="repeat_attempts_allowed">Number of Repeat Attempts Allowed:</label><br>
                                 <input type="number" id="repeat_attempts_allowed" name="repeat_attempts_allowed" min="1" value="1" style="margin-bottom: 15px;"><br>
@@ -406,6 +489,13 @@
                             <div class="card-header"><h5>Assessment Configuration</h5></div>
                             <div class="card-body">
                                 <label><input type="checkbox" name="voice_assessment_enabled"> Enable Voice-based Assessment</label><br>
+                                
+                                <label for="difficulty_level" style="margin-top: 15px;">Difficulty Level:</label><br>
+                                <select id="difficulty_level" name="difficulty_level" style="width:100%;margin-bottom: 15px;">
+                                    <option value="easy" selected>Easy</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="hard">Hard</option>
+                                </select>
                             </div>
                         </div>
 
@@ -433,7 +523,21 @@ $(document).ready(function () {
         });
         }, 5000);
 
-    $('form').submit(function () {
+    $('form').submit(function (e) {
+        // Convert minutes to seconds before submitting
+        // Use 'this' to target the specific form being submitted
+        const form = this;
+        const maxInteractionTimeInput = form.querySelector('[name="max_interaction_time"]');
+        const maxTotalTimeInput = form.querySelector('[name="max_total_time"]');
+        
+        if (maxInteractionTimeInput && maxInteractionTimeInput.value) {
+            maxInteractionTimeInput.value = Math.round(parseFloat(maxInteractionTimeInput.value) * 60);
+        }
+        
+        if (maxTotalTimeInput && maxTotalTimeInput.value) {
+            maxTotalTimeInput.value = Math.round(parseFloat(maxTotalTimeInput.value) * 60);
+        }
+        
         $('#loading').show();
     });
 });

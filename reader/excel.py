@@ -13,15 +13,25 @@ class ExcelReader:
         self.path = path
         self.master = master
         xls = pd.ExcelFile(self.path)
-        if len(xls.sheet_names) > 2:
-            raise ValueError("Excel File must have only two sheets required for the roleplay")
+        
+        # Find tags and flow sheets - allow any number of sheets, just find the ones we need
         self.tags_sheet = None
         self.flow_sheet = None
         for sheet in xls.sheet_names:
             if "tags" in sheet.lower():
                 self.tags_sheet = sheet
-            elif "flow" in sheet.lower():
-                self.flow_sheet = sheet
+            elif "flow" in sheet.lower() and self.flow_sheet is None:
+                # Use the first flow sheet found (skip ones with "do not use" in name)
+                if "do not use" not in sheet.lower():
+                    self.flow_sheet = sheet
+        
+        # If no valid flow sheet found (all had "do not use"), use the first flow sheet anyway
+        if self.flow_sheet is None:
+            for sheet in xls.sheet_names:
+                if "flow" in sheet.lower():
+                    self.flow_sheet = sheet
+                    break
+        
         if self.tags_sheet == None or self.flow_sheet == None:
             raise ValueError("Cannot find tags or flow sheet in Excel File provided")
         
@@ -30,12 +40,22 @@ class ExcelReader:
 
         self.image_path = image_path
         image_xls = pd.ExcelFile(self.image_path)
-        if len(image_xls.sheet_names) > 2:
-            raise ValueError("Image Excel File must have only two sheets required for the roleplay")
+        
+        # Find flow sheet in image file - allow any number of sheets
         self.image_flow_sheet = None
         for sheet in image_xls.sheet_names:
-            if "flow" in sheet.lower():
-                self.image_flow_sheet = sheet
+            if "flow" in sheet.lower() and self.image_flow_sheet is None:
+                # Use the first flow sheet found (skip ones with "do not use" in name)
+                if "do not use" not in sheet.lower():
+                    self.image_flow_sheet = sheet
+        
+        # If no valid flow sheet found, use the first flow sheet anyway
+        if self.image_flow_sheet is None:
+            for sheet in image_xls.sheet_names:
+                if "flow" in sheet.lower():
+                    self.image_flow_sheet = sheet
+                    break
+        
         if self.image_flow_sheet == None:
             raise ValueError("Cannot find flow sheet in Excel File provided")
         self.image_data = image_xls.parse(self.image_flow_sheet, header=None)

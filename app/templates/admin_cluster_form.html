@@ -58,6 +58,13 @@
                         <img src="{{url_for('static', filename='images/logo-trajectorie-codrive.png')}}" alt="Trajectorie : CODrive" width="130" class="light-logo">
                     </b>
                 </a>
+                <a class="nav-toggler waves-effect waves-light d-block d-md-none" href="javascript:void(0)" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><i class="ti-menu ti-close"></i></a>
+            </div>
+            <div class="navbar-collapse collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav ml-auto">
+                    <li class="nav-item"><a href="/admin/clusters" class="btn btn-rounded btn-secondary mr-2">BACK TO CLUSTERS</a></li>
+                    <li class="nav-item"><a href="{{ url_for('logout') }}" class="btn btn-rounded btn-danger"><i class="fas fa-sign-out-alt"></i> LOGOUT</a></li>
+                </ul>
             </div>
         </nav>
         
@@ -146,6 +153,44 @@
                                 {% else %}
                                 <div class="alert alert-warning">
                                     No roleplays available. Please create some roleplays first.
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- User Assignment -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5>Assign Users to this Cluster</h5>
+                                <small class="text-muted">Select which users can access this cluster</small>
+                            </div>
+                            <div class="card-body">
+                                {% if users %}
+                                <div class="roleplay-list">
+                                    {% for user in users %}
+                                    <div class="roleplay-item">
+                                        <input type="checkbox" name="selected_users" value="{{user[0]}}" id="user_{{user[0]}}"
+                                               {% if cluster_users %}
+                                                   {% for cu in cluster_users %}
+                                                       {% if cu[0] == user[0] %}checked{% endif %}
+                                                   {% endfor %}
+                                               {% endif %}>
+                                        <label for="user_{{user[0]}}" style="margin-bottom: 0; cursor: pointer;">
+                                            <strong>{{user[1]}}</strong>
+                                            {% if user[2] == 1 %}
+                                                <span class="badge badge-danger ml-2">Admin</span>
+                                            {% else %}
+                                                <span class="badge badge-info ml-2">User</span>
+                                            {% endif %}
+                                            <br>
+                                            <small class="text-muted">User ID: {{user[0]}}</small>
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <div class="alert alert-warning">
+                                    No users available. Users will appear here after they register.
                                 </div>
                                 {% endif %}
                             </div>

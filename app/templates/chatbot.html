@@ -450,6 +450,34 @@
                             </form>
                         </li>
                     </ul>
+                    
+                    <!-- NEW: Timer Display - Positioned separately -->
+                    <div style="position: absolute; left: 50%; transform: translateX(-50%); top: 10px; z-index: 1000;">
+                        <div style="background: rgba(255,255,255,0.95); padding: 12px 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+                            <div style="display: flex; gap: 25px; align-items: center;">
+                                <!-- Total Roleplay Time Left -->
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="color: #555; font-size: 13px; font-weight: 600;">⏳ Total Roleplay Time Left:</span>
+                                    <span id="totalTimer" style="color: #ef4444; font-weight: bold; font-size: 17px;">30:00</span>
+                                </div>
+                                
+                                <!-- Vertical Divider -->
+                                <div style="width: 1px; height: 45px; background: rgba(0,0,0,0.15);"></div>
+                                
+                                <!-- Current Interaction Time with Progress Bar -->
+                                <div style="display: flex; flex-direction: column; gap: 5px; min-width: 320px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="color: #555; font-size: 13px; font-weight: 600;">🕐 Current Interaction Time Left:</span>
+                                        <span id="interactionTimer" style="color: #10b981; font-weight: bold; font-size: 17px; margin-left: auto;">5:00</span>
+                                    </div>
+                                    <div style="background: rgba(0,0,0,0.1); height: 10px; border-radius: 5px; overflow: hidden;">
+                                        <div id="interactionProgressBar" style="background: linear-gradient(90deg, #10b981 0%, #34d399 100%); height: 100%; width: 100%; transition: width 1s linear, background 0.3s ease; border-radius: 5px;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <ul class="navbar-nav float-right">
                          <li class="nav-item trajectorie_text_green_color" style="margin-right:10px;line-height: 40px;">
                             {{username}} &nbsp;
@@ -460,9 +488,14 @@
                     </ul>
                 </div>
             </nav>
-            <div class="container-fluid">
+            <div class="container-fluid" style="padding-left: 5px; padding-right: 5px;">
                 <div class="row">
+                    {% if context.cluster_type == 'assessment' %}
+                    <div class="col-md-1"></div>
+                    <div class="col-md-10">
+                    {% else %}
                     <div class="col-md-9">
+                    {% endif %}
                         <div class="row">
 				            <div class="col-md-12">
                                 <div style="margin:0 auto;">
@@ -591,6 +624,7 @@
                         </div>  
                     </div>
                 
+                    {% if context.cluster_type and context.cluster_type != 'assessment' %}
                     <div class="col-md-3">
                         <div class="card bg-white text-dark marginadjust-detail-page" style="border-radius:15px;border:1px solid #074924;height: 14%;margin-bottom: 5%;">
 		                    <div class="card-body" style="padding: 10px;">
@@ -628,6 +662,7 @@
 					            </div>
 		                    </div>
 		                </div>
+                        {% if context.cluster_type and context.cluster_type != 'assessment' %}
                         <div class="card bg-white text-dark marginadjust-detail-page" style="border-radius:15px;border:1px solid #074924;height: 38%;margin-bottom: 5%;">
 		                    <div class="card-body" style="padding: 10px;overflow-y: scroll;">
 		    		            <div class="row">
@@ -656,6 +691,8 @@
 					            </div>
 		                    </div>
 		                </div>
+		                {% endif %}
+		                {% if context.cluster_type and context.cluster_type != 'assessment' %}
                         <div class="card bg-white text-dark marginadjust-detail-page" style="border-radius:15px;border:1px solid #074924;height: 42%;">
 		                    <div class="card-body" style="padding: 10px;overflow-y: scroll;">
 		    		            <div class="row">
@@ -676,7 +713,9 @@
 					            </div>
 		                    </div>
 		                </div>
+		                {% endif %}
                     </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -801,16 +840,58 @@ $(document).ready(function () {
     // Ensure overlay is hidden initially
     $('#loadingOverlay').removeClass('active');
 
-    // Your existing audio handling code...
+    // Enhanced audio handling with aggressive autoplay
     const audioElement = document.getElementById('spkr');
+    let audioPlayAttempted = false;
+    
     if (audioElement) {
+        // Set autoplay attribute
+        audioElement.setAttribute('autoplay', '');
         audioElement.load();
         
-        audioElement.addEventListener('canplaythrough', function() {
-            audioElement.play().catch(function(error) {
-                console.error('Audio playback failed:', error);
-            });
-        });
+        // Try to play immediately
+        const playAudio = function() {
+            if (!audioPlayAttempted) {
+                audioPlayAttempted = true;
+                const playPromise = audioElement.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.then(function() {
+                        console.log('Audio autoplay succeeded');
+                    }).catch(function(error) {
+                        console.log('Audio autoplay failed, will retry on user interaction:', error);
+                        audioPlayAttempted = false; // Reset to try again
+                    });
+                }
+            }
+        };
+        
+        // Try multiple methods to autoplay
+        audioElement.addEventListener('canplaythrough', playAudio, { once: true });
+        audioElement.addEventListener('loadeddata', playAudio, { once: true });
+        
+        // Also try immediately
+        setTimeout(playAudio, 100);
+        
+        // Retry on any user interaction
+        const retryPlay = function() {
+            if (audioElement.paused) {
+                audioElement.play().catch(e => console.log('Retry play failed:', e));
+                // Remove listener after successful play
+                audioElement.removeEventListener('playing', removeListeners);
+            }
+        };
+        
+        const removeListeners = function() {
+            document.removeEventListener('click', retryPlay);
+            document.removeEventListener('touchstart', retryPlay);
+            document.removeEventListener('keydown', retryPlay);
+        };
+        
+        document.addEventListener('click', retryPlay, { once: true });
+        document.addEventListener('touchstart', retryPlay, { once: true });
+        document.addEventListener('keydown', retryPlay, { once: true });
+        audioElement.addEventListener('playing', removeListeners, { once: true });
 
         audioElement.addEventListener('error', function(e) {
             console.error('Audio loading error:', e);
@@ -823,7 +904,15 @@ $(document).ready(function () {
     let finalTranscript = '';
     let originalText = '';
     let voiceConfig = null;
-    let isVoiceEnabled = false;
+    
+    // Get voice configuration from backend (default to true for backward compatibility)
+    let isVoiceEnabled = {% if context.voice_enabled is defined %}{{ 'true' if context.voice_enabled else 'false' }}{% else %}true{% endif %};
+    
+    console.log('Voice input enabled:', isVoiceEnabled);
+    
+    // Get selected language from backend
+    let selectedLanguage = '{{ context.selected_language if context.selected_language is defined else "English" }}';
+    console.log('Selected language from backend:', selectedLanguage);
     
     // Language mapping for speech recognition
     const languageMap = {
@@ -833,17 +922,23 @@ $(document).ready(function () {
         'kannada': 'kn-IN',
         'marathi': 'mr-IN',
         'bengali': 'bn-IN',
-        'english': 'en-IN'
+        'english': 'en-IN',
+        'malayalam': 'ml-IN',
+        'french': 'fr-FR',
+        'arabic': 'ar-SA',
+        'gujarati': 'gu-IN'
     };
 
-
+    // Get the language code for speech recognition
+    const initialLangCode = languageMap[selectedLanguage.toLowerCase()] || 'en-IN';
+    console.log('Initial speech recognition language:', initialLangCode);
 
     // Initialize speech recognition
     if ('webkitSpeechRecognition' in window) {
         recognition = new webkitSpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
-        recognition.lang = 'en-US';
+        recognition.lang = initialLangCode;
 
         recognition.onstart = function() {
             console.log('Speech recognition started');
@@ -870,12 +965,22 @@ $(document).ready(function () {
         };
 
         recognition.onend = function() {
+            console.log('Speech recognition ended. isRecording:', isRecording);
             $('#voiceStatus').removeClass('listening');
+            
             if (isRecording) {
                 console.log('Restarting speech recognition...');
                 setTimeout(() => {
                     if (isRecording) {
-                        recognition.start();
+                        try {
+                            recognition.start();
+                            console.log('Speech recognition restarted successfully');
+                        } catch (e) {
+                            console.error('Failed to restart recognition:', e);
+                            // If restart fails, reset the UI
+                            isRecording = false;
+                            updateRecordingUI(false);
+                        }
                     }
                 }, 100);
             }
@@ -883,19 +988,47 @@ $(document).ready(function () {
 
         recognition.onerror = function(event) {
             console.error('Speech recognition error:', event.error);
-            $('#voiceStatus').removeClass('listening');
             
+            // Handle different types of errors
             if (event.error === 'no-speech') {
+                // Temporary error - don't stop recording, just show message
                 $('#voiceStatusText').text('कुछ नहीं सुना। फिर कोशिश करें।');
-                setTimeout(() => {
-                    $('#voiceStatus').removeClass('listening');
-                }, 2000);
+                console.log('No speech detected, but continuing to listen...');
+                // Don't set isRecording = false, let it continue
             } else if (event.error === 'not-allowed') {
+                // Permission denied - stop recording
                 alert('माइक्रोफोन की अनुमति दें। Microphone access denied.');
+                isRecording = false;
+                updateRecordingUI(false);
+                $('#voiceStatus').removeClass('listening');
+            } else if (event.error === 'aborted') {
+                // Aborted (usually from page navigation or manual stop) - this is expected
+                console.log('Speech recognition aborted (expected behavior)');
+                // Only reset UI if we're actually trying to stop
+                if (!isRecording) {
+                    $('#voiceStatus').removeClass('listening');
+                }
+            } else if (event.error === 'network') {
+                // Network error - try to restart if still recording
+                console.log('Network error, will retry...');
+                if (isRecording) {
+                    setTimeout(() => {
+                        if (isRecording) {
+                            try {
+                                recognition.start();
+                            } catch (e) {
+                                console.error('Failed to restart recognition:', e);
+                            }
+                        }
+                    }, 1000);
+                }
+            } else {
+                // Other errors - stop recording
+                console.error('Unhandled speech recognition error:', event.error);
+                isRecording = false;
+                updateRecordingUI(false);
+                $('#voiceStatus').removeClass('listening');
             }
-            
-            isRecording = false;
-            updateRecordingUI(false);
         };
     } else {
         console.log('Speech recognition not supported in this browser');
@@ -929,11 +1062,6 @@ $(document).ready(function () {
 
     // Enhanced record button click handler
     $('#recordBtn').click(function() {
-        if (!isVoiceEnabled) {
-            alert('Voice input is not enabled for this roleplay. Please contact your administrator.');
-            return;
-        }
-        
         if (!isRecording) {
             startRecording();
         } else {
@@ -953,9 +1081,7 @@ $(document).ready(function () {
         }
         
         setTimeout(function() {
-            if (isVoiceEnabled) {
-                startRecording();
-            }
+            startRecording();
         }, 300);
     });
 
@@ -963,11 +1089,6 @@ $(document).ready(function () {
     function startRecording() {
         if (!recognition) {
             alert('Speech recognition is not supported in your browser. Please use Chrome or Edge.');
-            return;
-        }
-        
-        if (!isVoiceEnabled) {
-            alert('Voice input is not enabled for this roleplay.');
             return;
         }
 
@@ -983,15 +1104,28 @@ $(document).ready(function () {
             originalText = $('#maintextarea').val();
             finalTranscript = originalText;
             
-            // Start recognition
-            recognition.start();
+            // Set flag first to prevent race conditions
             isRecording = true;
-            updateRecordingUI(true);
             
-            console.log('Started recording in language:', selectedLang, langCode);
+            // Start recognition with error handling
+            try {
+                recognition.start();
+                updateRecordingUI(true);
+                console.log('Started recording in language:', selectedLang, langCode);
+            } catch (err) {
+                // If already started, that's okay - it might have auto-restarted
+                if (err.message && err.message.includes('already started')) {
+                    console.log('Recognition already running, continuing...');
+                    updateRecordingUI(true);
+                } else {
+                    throw err;
+                }
+            }
             
         } catch (err) {
             console.error('Speech recognition error:', err);
+            isRecording = false;
+            updateRecordingUI(false);
             alert('Could not start speech recognition. Please try again.');
         }
     }
@@ -1015,9 +1149,7 @@ $(document).ready(function () {
             $('#recordBtn').removeClass('recording');
             $('#recordBtn i').removeClass('fa-stop').addClass('fa-microphone');
             $('#recordBtn').attr('title', 'Start Recording');
-            if (isVoiceEnabled) {
-                $('#voiceLanguageSelector').addClass('show');
-            }
+            $('#voiceLanguageSelector').addClass('show');
         }
     }
     
@@ -1047,6 +1179,21 @@ $(document).ready(function () {
     // UPDATED: Form submission with new loading overlay
     $('form').submit(function () {
         
+        // Stop speech recognition before form submission
+        if (isRecording && recognition) {
+            console.log('Stopping speech recognition before form submission');
+            isRecording = false;
+            try {
+                recognition.stop();
+            } catch (e) {
+                console.log('Recognition already stopped or not active');
+            }
+            updateRecordingUI(false);
+            $('#voiceStatus').removeClass('listening');
+        }
+        
+        // Disable navigation warning when form is submitted
+        roleplayInProgress = false;
         
         if (audioElement) {
             audioElement.pause();
@@ -1197,5 +1344,159 @@ $(document).ready(function () {
         }
     });
 });
+
+// Timer functionality
+let interactionTime = {{ context.max_interaction_time if context.max_interaction_time is defined else 300 }}; // Get from config
+const maxInteractionTime = {{ context.max_interaction_time if context.max_interaction_time is defined else 300 }}; // Store initial value for progress bar calculation
+const maxTotalTime = {{ context.max_total_time if context.max_total_time is defined else 1800 }}; // Get from config
+const elapsedTime = {{ context.elapsed_time if context.elapsed_time is defined else 0 }}; // Get elapsed time from server
+let totalTime = Math.max(0, maxTotalTime - elapsedTime); // Calculate remaining time
+let interactionInterval;
+let totalInterval;
+
+console.log('Timer Configuration:', {
+    interactionTime: interactionTime,
+    maxInteractionTime: maxInteractionTime,
+    maxTotalTime: maxTotalTime,
+    elapsedTime: elapsedTime,
+    totalTime: totalTime
+});
+
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function updateProgressBar() {
+    const progressBar = document.getElementById('interactionProgressBar');
+    const percentage = (interactionTime / maxInteractionTime) * 100;
+    progressBar.style.width = percentage + '%';
+    
+    // Change color based on time remaining
+    if (interactionTime <= 30) {
+        progressBar.style.background = 'linear-gradient(90deg, #ef4444 0%, #f87171 100%)'; // Red
+        document.getElementById('interactionTimer').style.color = '#ef4444';
+    } else if (interactionTime <= 60) {
+        progressBar.style.background = 'linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)'; // Orange
+        document.getElementById('interactionTimer').style.color = '#f59e0b';
+    } else {
+        progressBar.style.background = 'linear-gradient(90deg, #10b981 0%, #34d399 100%)'; // Green
+        document.getElementById('interactionTimer').style.color = '#10b981';
+    }
+}
+
+function startTimers() {
+    console.log('Starting timers...', {
+        interactionTime: interactionTime,
+        totalTime: totalTime
+    });
+    
+    // Clear any existing intervals first
+    if (interactionInterval) {
+        clearInterval(interactionInterval);
+    }
+    if (totalInterval) {
+        clearInterval(totalInterval);
+    }
+    
+    // Initial progress bar update
+    updateProgressBar();
+    
+    interactionInterval = setInterval(() => {
+        if (interactionTime > 0) {
+            interactionTime--;
+            document.getElementById('interactionTimer').textContent = formatTime(interactionTime);
+            updateProgressBar();
+            
+            if (interactionTime === 0) {
+                alert('Interaction time expired! Please submit your response.');
+            }
+        }
+    }, 1000);
+    
+    totalInterval = setInterval(() => {
+        if (totalTime > 0) {
+            totalTime--;
+            document.getElementById('totalTimer').textContent = formatTime(totalTime);
+            
+            if (totalTime <= 60) {
+                document.getElementById('totalTimer').style.color = '#dc2626';
+            }
+            
+            if (totalTime === 0) {
+                roleplayInProgress = false; // Disable navigation warning before auto-submit
+                alert('Total roleplay time expired! Your session will be submitted.');
+                window.location.href = '/user/{{ session.user_id|e }}/cluster/{{ session.cluster_id|e }}/roleplay/{{ session.roleplay_id|e }}/submit';
+            }
+        }
+    }, 1000);
+    
+    console.log('Timers started. Intervals:', {
+        interactionInterval: interactionInterval,
+        totalInterval: totalInterval
+    });
+}
+
+// Start timers when page loads
+window.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, initializing timers...');
+    
+    // Check if timer elements exist
+    const totalTimerEl = document.getElementById('totalTimer');
+    const interactionTimerEl = document.getElementById('interactionTimer');
+    
+    if (!totalTimerEl || !interactionTimerEl) {
+        console.error('Timer elements not found!', {
+            totalTimer: totalTimerEl,
+            interactionTimer: interactionTimerEl
+        });
+        return;
+    }
+    
+    // Set initial display values
+    totalTimerEl.textContent = formatTime(totalTime);
+    interactionTimerEl.textContent = formatTime(interactionTime);
+    
+    console.log('Timer elements initialized, starting countdown...');
+    startTimers();
+});
+
+// Reset interaction timer on new interaction
+function resetInteractionTimer() {
+    interactionTime = maxInteractionTime; // Reset to configured max interaction time
+    document.getElementById('interactionTimer').textContent = formatTime(interactionTime);
+    document.getElementById('interactionTimer').style.color = '#10b981';
+    updateProgressBar();
+}
+
+// Prevent back button and window close with warning
+let roleplayInProgress = true;
+const warningMessage = "This action will cause all your roleplay inputs to be lost and you will need to restart the roleplay again. Restarting roleplays multiple times can lead to your ID being disabled.\n\nDo you want to go ahead?";
+
+// Prevent browser back button
+window.history.pushState(null, null, window.location.href);
+window.addEventListener('popstate', function(event) {
+    if (roleplayInProgress) {
+        if (confirm(warningMessage)) {
+            // User confirmed, allow navigation
+            roleplayInProgress = false;
+            window.history.back();
+        } else {
+            // User cancelled, prevent navigation
+            window.history.pushState(null, null, window.location.href);
+        }
+    }
+});
+
+// Prevent window close/refresh
+window.addEventListener('beforeunload', function(event) {
+    if (roleplayInProgress) {
+        event.preventDefault();
+        event.returnValue = warningMessage;
+        return warningMessage;
+    }
+});
+
 </script>
 {% endblock %}

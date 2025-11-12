@@ -1,0 +1,466 @@
+{% extends "base.html" %}
+
+{% block title %}My Dashboard{% endblock %}
+
+{% block content %}
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        background: linear-gradient(135deg, #f0fdf4 0%, #ccfbf1 100%);
+        min-height: 100vh;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .dashboard-container {
+        max-width: 1300px;
+        margin: 0 auto;
+        padding: 40px 20px;
+    }
+
+    .logout-btn {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: #e53e3e;
+        color: white;
+        border: none;
+        padding: 10px 25px;
+        border-radius: 9999px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .logout-btn:hover {
+        background: #c53030;
+        color: white;
+        transform: translateY(-2px) scale(1.05);
+        box-shadow: 0 10px 15px rgba(229, 62, 62, 0.3);
+    }
+
+    /* Cluster Title */
+    .cluster-title-main {
+        text-align: center;
+        color: #15803d;
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 32px;
+    }
+
+    /* Info Bar Container */
+    .info-bar-container {
+        background: white;
+        border-radius: 16px;
+        padding: 24px 40px;
+        margin-bottom: 40px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .info-bar-wrapper {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: nowrap;
+        gap: 40px;
+    }
+
+    @media (max-width: 992px) {
+        .info-bar-wrapper {
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+    }
+
+    /* Info Items */
+    .info-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .info-icon-wrapper {
+        background: #dcfce7;
+        padding: 12px;
+        border-radius: 9999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .info-icon {
+        font-size: 1.5rem;
+        color: #16a34a;
+    }
+
+    .info-content {
+        text-align: left;
+    }
+
+    .info-label {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-bottom: 2px;
+    }
+
+    .info-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1f2937;
+    }
+
+    .batch-info {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-top: 2px;
+        text-align: center;
+    }
+
+    .conversations-wrapper {
+        text-align: center;
+    }
+
+    /* Click Before Button */
+    .click-before-btn {
+        background: linear-gradient(to right, #ef4444, #ec4899);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 9999px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.4);
+        transition: all 0.3s ease;
+    }
+
+    .click-before-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 20px 25px -5px rgba(239, 68, 68, 0.4);
+    }
+
+    .hand-emoji {
+        font-size: 1.5rem;
+    }
+
+    /* Roleplays Grid */
+    .roleplays-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 30px;
+        margin-top: 30px;
+        justify-content: center;
+        max-width: 1000px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    @media (max-width: 768px) {
+        .roleplays-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Roleplay Card */
+    .roleplay-card {
+        background: white;
+        border-radius: 20px;
+        padding: 35px 25px;
+        text-align: center;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        border: 2px solid transparent;
+        width: 200px;
+    }
+
+    .roleplay-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        border-color: #22c55e;
+    }
+
+    /* Avatar */
+    .roleplay-avatar {
+        width: 120px;
+        height: 120px;
+        background: #e5e7eb;
+        border-radius: 9999px;
+        margin: 0 auto 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+
+    .roleplay-avatar::after {
+        content: '';
+        position: absolute;
+        width: 70px;
+        height: 70px;
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        border-radius: 9999px;
+    }
+
+    /* Name and Role */
+    .roleplay-name {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #15803d;
+        margin-bottom: 4px;
+    }
+
+    .roleplay-role {
+        font-size: 0.95rem;
+        color: #6b7280;
+        margin-bottom: 24px;
+    }
+
+    /* Difficulty Section */
+    .difficulty-section {
+        margin-bottom: 24px;
+        padding-top: 20px;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .difficulty-label {
+        font-size: 0.85rem;
+        color: #16a34a;
+        margin-bottom: 15px;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .difficulty-meter {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+        margin-bottom: 10px;
+    }
+
+    /* Semicircle Gauge */
+    .difficulty-gauge {
+        width: 90px;
+        height: 50px;
+        position: relative;
+    }
+
+    .difficulty-gauge svg {
+        width: 100%;
+        height: 100%;
+    }
+
+    /* Badge */
+    .difficulty-badge {
+        background: #16a34a;
+        color: white;
+        padding: 4px 24px;
+        border-radius: 9999px;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+
+    .difficulty-badge.easy {
+        background: #16a34a;
+    }
+
+    .difficulty-badge.medium {
+        background: #ca8a04;
+    }
+
+    .difficulty-badge.hard {
+        background: #dc2626;
+    }
+
+    /* Start Button */
+    .start-button {
+        width: 100%;
+        background: #22c55e;
+        color: white;
+        border: none;
+        padding: 14px 24px;
+        border-radius: 25px;
+        font-weight: 700;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        text-decoration: none;
+        box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.3);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .start-button:hover {
+        background: #16a34a;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(34, 197, 94, 0.4);
+    }
+
+    .start-button i {
+        font-size: 1.1rem;
+    }
+
+    /* No Content States */
+    .no-clusters {
+        text-align: center;
+        padding: 60px 20px;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    .no-clusters i {
+        font-size: 4rem;
+        color: #cbd5e0;
+        margin-bottom: 20px;
+    }
+
+    .no-clusters h3 {
+        color: #4a5568;
+        font-size: 1.5rem;
+        margin-bottom: 10px;
+    }
+
+    .no-clusters p {
+        color: #718096;
+    }
+</style>
+
+<div class="dashboard-container">
+    <a href="{{ url_for('logout') }}" class="logout-btn">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+
+    {% if clusters %}
+        {% for cluster in clusters %}
+        <!-- Cluster Title -->
+        <h1 class="cluster-title-main">{{ cluster.name }}</h1>
+
+        <!-- Info Bar with white background -->
+        <div class="info-bar-container">
+            <div class="info-bar-wrapper">
+                <!-- Duration -->
+                <div class="info-item">
+                    <div class="info-icon-wrapper">
+                        <i class="far fa-clock info-icon"></i>
+                    </div>
+                    <div class="info-content">
+                        <div class="info-label">Duration</div>
+                        <div class="info-value">60:00</div>
+                    </div>
+                </div>
+                
+                <!-- Conversations -->
+                <div class="conversations-wrapper">
+                    <div class="info-item">
+                        <div class="info-icon-wrapper">
+                            <i class="fas fa-comments info-icon"></i>
+                        </div>
+                        <div class="info-content">
+                            <div class="info-label">No. of Conversations</div>
+                            <div class="info-value">{{ cluster.roleplays|length }}</div>
+                        </div>
+                    </div>
+                    <div class="batch-info">{{ cluster.type if cluster.type else 'Managerial & Sales batch' }}</div>
+                </div>
+
+                <!-- Click Before Starting Button - Links to detailed cluster view -->
+                <a href="{{ url_for('user_cluster_view', user_id=user[0], cluster_id=cluster.id) }}" class="click-before-btn" style="text-decoration: none;">
+                    <span class="hand-emoji">👆</span>
+                    Click Before Starting
+                </a>
+            </div>
+        </div>
+
+        <!-- Roleplays Grid -->
+        {% if cluster.roleplays %}
+        <div class="roleplays-grid">
+            {% for roleplay in cluster.roleplays %}
+            <div class="roleplay-card">
+                <!-- Avatar with concentric circles -->
+                <div class="roleplay-avatar"></div>
+
+                <!-- Name -->
+                <div class="roleplay-name">{{ roleplay[1] }}</div>
+                
+                <!-- Role -->
+                <div class="roleplay-role">{{ roleplay[2] if roleplay[2] else 'Role Player' }}</div>
+                
+                <!-- Difficulty Section -->
+                <div class="difficulty-section">
+                    <div class="difficulty-label">Difficulty Level</div>
+                    
+                    <!-- Semicircle Gauge and Badge -->
+                    <div class="difficulty-meter">
+                        <!-- Semicircle Gauge SVG -->
+                        <div class="difficulty-gauge">
+                            <svg viewBox="0 0 100 55" style="overflow: visible;">
+                                <!-- Green section (Easy) -->
+                                <path d="M 10 50 A 40 40 0 0 1 35 18" 
+                                      fill="none" 
+                                      stroke="#22c55e" 
+                                      stroke-width="10"
+                                      stroke-linecap="round"/>
+                                <!-- Yellow section (Medium) -->
+                                <path d="M 38 16 A 40 40 0 0 1 62 16" 
+                                      fill="none" 
+                                      stroke="#eab308" 
+                                      stroke-width="10"
+                                      stroke-linecap="round"/>
+                                <!-- Red section (Hard) -->
+                                <path d="M 65 18 A 40 40 0 0 1 90 50" 
+                                      fill="none" 
+                                      stroke="#ef4444" 
+                                      stroke-width="10"
+                                      stroke-linecap="round"/>
+                                <!-- Needle pointing to green (easy) -->
+                                <line x1="50" y1="50" x2="28" y2="28" 
+                                      stroke="#374151" 
+                                      stroke-width="3"
+                                      stroke-linecap="round"/>
+                                <!-- Center circle -->
+                                <circle cx="50" cy="50" r="4" fill="#374151"/>
+                            </svg>
+                        </div>
+                        
+                        <!-- Easy Badge -->
+                        <span class="difficulty-badge easy">Easy</span>
+                    </div>
+                </div>
+
+                <!-- Start Button -->
+                <a href="{{ url_for('roleplay_selection', roleplay_id=roleplay[0]) }}" class="start-button">
+                    START
+                    <i class="fas fa-play-circle"></i>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-clusters">
+            <i class="fas fa-folder-open"></i>
+            <h3>No Roleplays</h3>
+            <p>This cluster doesn't have any roleplays yet.</p>
+        </div>
+        {% endif %}
+        {% endfor %}
+    {% else %}
+    <div class="no-clusters">
+        <i class="fas fa-inbox"></i>
+        <h3>No Clusters Assigned</h3>
+        <p>You don't have any clusters assigned yet. Please contact your administrator.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

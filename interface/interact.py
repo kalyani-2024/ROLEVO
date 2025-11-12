@@ -55,30 +55,60 @@ This information has been given to the trainee, using this the trainee must hold
 
             # strip words level2 as it is confusing gpt
         prompt = f"""
-The user has now input a response : {user_input}
+The user has now input a response: "{user_input}"
 
 The above is a response that the user has said to {self.person_name}. The user has given the final response, as a Response Examiner you need to evaluate the response.
+
 You need to judge purely based on user input's competency tagged as: {competency['name'].strip("Level 2")}
 {competency['name'].strip("Level 2")} is defined as "{competency['description']}"
 
-Below are some examples for how this competency would be evaluated and scored:
+IMPORTANT SCORING RULES:
+1. Compare the user's response STRICTLY against the example responses below
+2. The user must demonstrate the competency level to earn that score
+3. DO NOT give high scores just because the response sounds good
+4. Look for SPECIFIC behaviors and elements described in the scoring examples
+5. If the user simply copies tips or gives a generic response, score based on actual competency demonstration
+
+Below are SPECIFIC examples for how this competency would be evaluated and scored:
 
 ---
 
-These example dialogues would get a score of 1
+SCORE 1 - Poor/Basic Response:
+Example characteristics that get score 1:
 {competency['examples'][0]}
 
-These would get a score of 2
+These responses show MINIMAL competency. Only give score 1 if the user's response matches this level.
+
+SCORE 2 - Average/Acceptable Response:
+Example characteristics that get score 2:
 {competency['examples'][1]}
 
-These would get a score of 3
+These responses show MODERATE competency. Only give score 2 if the user's response clearly demonstrates these behaviors.
+
+SCORE 3 - Excellent/Ideal Response:
+Example characteristics that get score 3:
 {competency['examples'][2]}
+
+These responses show STRONG competency. Only give score 3 if the user's response demonstrates clear mastery at this level.
 
 ---
 
-If the user's response has no criteria for {competency['name']} then give it a score of 0
+SCORE 0 - No Competency Demonstrated:
+If the user's response:
+- Shows NO evidence of {competency['name']}
+- Is completely off-topic
+- Is just copying tips without actual application
+- Does not address the situation appropriately
+Then give it a score of 0
 
-You can only return a value of 0,1,2 or 3.
+STRICT EVALUATION CRITERIA:
+- Match the user's response against the SPECIFIC behaviors described in each score level
+- The user must DEMONSTRATE the competency, not just mention it
+- Generic or vague responses should get lower scores
+- Responses that copy tips verbatim without demonstrating competency should score based on actual demonstration
+- Be CRITICAL and PRECISE in your evaluation
+
+You can only return a value of 0, 1, 2, or 3.
 
 {self.normal_output_format}
         """
@@ -111,17 +141,32 @@ You can only return a value of 0,1,2 or 3.
             part_prompt += "\n---\n"
         
         prompt = f"""        
-Your task is to perform an analysis on an input sentence and return a score of 0,1,2 or 3, the score must be 0 if the input sentence does not have the same information as the example sentences. If the intent and information are the same, then you can check for sentiment and keywords to decide a score of 1,2 or 3. 
-The score should be 1 if the sentiment analysis matches the sentiment from input closest to sentence 1.
-The score should be 2 if the sentiment analysis matches the sentiment from input closest to sentence 2. 
-The score should be 3 if the sentiment analysis matches the sentiment from input closest to sentence 3. 
-The score should be 0 if the sentiment analysis is unable to match the input to any sentence at all.  
-In some sentences parts of the sentence are highlighted to give a better indication of the keywords associated corresponding to the expected sentiment.
+Your task is to perform STRICT sentiment and keyword analysis on the user's input and return a score of 0, 1, 2, or 3.
 
-The input is "{user_input}"
+CRITICAL RULES:
+1. The user's response MUST match BOTH the meaning/intent AND sentiment of one of the example sentences
+2. If keywords are specified for an example, the user MUST use similar keywords or concepts
+3. Simply copying the tip or giving a generic response does NOT automatically match any example
+4. The user must ACTUALLY demonstrate the behavior described in the example
+
+SCORING:
+- Score 1: User's response matches the intent, sentiment, AND keywords of sentence 1
+- Score 2: User's response matches the intent, sentiment, AND keywords of sentence 2  
+- Score 3: User's response matches the intent, sentiment, AND keywords of sentence 3
+- Score 0: User's response does NOT match any example sentence, or is off-topic, or just copying tips without proper context
+
+The example sentences with their keywords are:
 {part_prompt}
-Provide a score only as 1,2 or 3 or 0.
-Ensure that the input matches with the example with the respective score, if the action, sentiment and keywords do not match you must return a score of 0
+
+The user's input is: "{user_input}"
+
+EVALUATE STRICTLY:
+- Does the user's input have the SAME core message as one of the examples?
+- Does it use the SAME tone and sentiment?
+- If keywords are specified, does the user express similar concepts?
+- Is the user just copying tips or actually responding to the situation?
+
+Provide a score only as 0, 1, 2, or 3.
 
 {self.normal_output_format}
         """
@@ -142,18 +187,32 @@ Ensure that the input matches with the example with the respective score, if the
         """
         
         prompt = f"""        
-There is a player who is being trained for conversation skills. The player is provided with an instruction which they have to follow in the conversaton.
-You have to judge how accurately is the player following the instruction while carrying out the conersation and assign the player a score from 0 to 3 appropriately.
-The instruction provided to the player on how their input should be is:
+There is a player who is being trained for conversation skills. The player is provided with an instruction/tip which they should follow in the conversation.
+You have to judge how accurately is the player following the instruction while carrying out the conversation and assign the player a score from 0 to 3 appropriately.
+
+IMPORTANT: Simply copying the tip word-for-word does NOT mean they are following it correctly. They must APPLY the tip appropriately to the situation.
+
+The instruction/tip provided to the player is:
 "{tip}"
+
 The player input you have to judge is:
 "{user_input}"
-You have to judge how closely does it follow what is instructed to the player and assign score which can be: 
-0 (instruction not followed at all) 
-1 (instruction followed remotely) 
-2 (instruction followed but not to perfection)
-3 (instruction followed perfectly)
-Provide a score only as 0,1,2 or 3.
+
+You have to judge STRICTLY based on:
+- Did they UNDERSTAND and APPLY the tip (not just copy it)?
+- Did they demonstrate the behavior/approach suggested by the tip?
+- Is their response appropriate for the roleplay context?
+- Did they integrate the tip naturally into their response?
+
+SCORING:
+0 - Instruction NOT followed at all, or just blindly copied without proper application, or completely inappropriate
+1 - Instruction followed remotely/partially, weak application, barely demonstrates the tip
+2 - Instruction followed reasonably well but not perfectly, shows good understanding but could be better
+3 - Instruction followed excellently, demonstrates clear understanding and proper application in context
+
+BE CRITICAL: If the user just copied the tip text without actually demonstrating it in a natural, contextual way, give a LOW score (0 or 1).
+
+Provide a score only as 0, 1, 2, or 3.
 
 {self.normal_output_format}
         """
@@ -273,15 +332,35 @@ Rephrased Ideal Response: Put the rephrased response here
 
         return arr
 
-    def transcribe_audio(self, audio_file_path: str) -> str:
+    def transcribe_audio(self, audio_file_path: str, language: str = "en") -> str:
         """
-        Transcribe audio using OpenAI Whisper
+        Transcribe audio using OpenAI Whisper with language support
+        Supported languages: en, hi, ta, te, kn, mr, bn, ml, fr, ar, gu
         """
+        # Map full language names to ISO 639-1 codes
+        language_map = {
+            'English': 'en',
+            'Hindi': 'hi',
+            'Tamil': 'ta',
+            'Telugu': 'te',
+            'Kannada': 'kn',
+            'Marathi': 'mr',
+            'Bengali': 'bn',
+            'Malayalam': 'ml',
+            'French': 'fr',
+            'Arabic': 'ar',
+            'Gujarati': 'gu'
+        }
+        
+        # Get language code
+        lang_code = language_map.get(language, 'en')
+        
         try:
             with open(audio_file_path, "rb") as audio_file:
                 transcript = openai.Audio.transcribe(
                     "whisper-1",
-                    audio_file
+                    audio_file,
+                    language=lang_code  # Specify language for better accuracy
                 )
                 return transcript.text
         except Exception as e:

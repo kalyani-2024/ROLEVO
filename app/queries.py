@@ -2,11 +2,18 @@ import os
 import mysql.connector as ms
 import traceback
 import pandas as pd
+import warnings
 from app import app
 from flask import session
+import bcrypt
+import secrets
+import string
 
 import os
 from dotenv import load_dotenv
+
+# Suppress pandas SQLAlchemy warnings for mysql.connector usage
+warnings.filterwarnings('ignore', message='.*pandas only supports SQLAlchemy.*')
 
 load_dotenv()
 
@@ -14,6 +21,24 @@ host = os.getenv('DB_HOST', 'localhost')
 user = os.getenv('DB_USER', 'root')
 password = os.getenv('DB_PASSWORD')
 database = os.getenv('DB_NAME', 'roleplay')
+
+def generate_unique_roleplay_id():
+    """Generate a unique alphanumeric ID for roleplay"""
+    while True:
+        # Generate a random alphanumeric ID (e.g., RP_A7B9C2D4)
+        random_part = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+        new_id = f"RP_{random_part}"
+        
+        # Check if this ID already exists
+        try:
+            with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
+                cursor = dbconn.cursor()
+                cursor.execute("SELECT id FROM roleplay WHERE id = %s", (new_id,))
+                if cursor.fetchone() is None:
+                    return new_id
+        except:
+            # If there's an error, generate a new ID
+            continue
 
 def get_roleplay_details(roleplay_id):
     try:
@@ -42,12 +67,12 @@ def get_roleplay_details(roleplay_id):
             conn.close()
         return None
 
-def create_or_update(id, name, person_name, scenario, roleplay_file_path, image_file_path):
+def create_or_update(id, name, person_name, scenario, roleplay_file_path, image_file_path, scenario_file_path='', logo_path=''):
     try:
         with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
             cursor = dbconn.cursor()
 
-            query = "SELECT file_path, image_file_path FROM roleplay WHERE id = %s"
+            query = "SELECT file_path, image_file_path, scenario_file_path, logo_path FROM roleplay WHERE id = %s"
             roleplay_id = id
             cursor.execute(query, (roleplay_id,))
             result = cursor.fetchone()
@@ -58,30 +83,29 @@ def create_or_update(id, name, person_name, scenario, roleplay_file_path, image_
                     roleplay_file_path = result[0]
                 if image_file_path == '':
                     image_file_path = result[1]
+                if scenario_file_path == '':
+                    scenario_file_path = result[2] if result[2] else ''
+                if logo_path == '':
+                    logo_path = result[3] if result[3] else ''
 
                 update_query = (
-                    "UPDATE roleplay SET name = %s, person_name = %s, scenario = %s, file_path = %s, image_file_path = %s WHERE id = %s"
+                    "UPDATE roleplay SET name = %s, person_name = %s, scenario = %s, file_path = %s, image_file_path = %s, scenario_file_path = %s, logo_path = %s WHERE id = %s"
                 )
-                cursor.execute(update_query, (name, person_name, scenario, roleplay_file_path, image_file_path, id))
+                cursor.execute(update_query, (name, person_name, scenario, roleplay_file_path, image_file_path, scenario_file_path, logo_path, id))
                 dbconn.commit()
                 return id
             else:
-                # Insert new row. If caller provided an id (alphanumeric), use it.
-                if id:
-                    insert_query = (
-                        "INSERT INTO roleplay (id, name, person_name, scenario, file_path, image_file_path) VALUES (%s, %s, %s, %s, %s, %s)"
-                    )
-                    cursor.execute(insert_query, (id, name, person_name, scenario, roleplay_file_path, image_file_path))
-                    dbconn.commit()
-                    return id
-                else:
-                    insert_query = (
-                        "INSERT INTO roleplay (name, person_name, scenario, file_path, image_file_path) VALUES (%s, %s, %s, %s, %s)"
-                    )
-                    cursor.execute(insert_query, (name, person_name, scenario, roleplay_file_path, image_file_path))
-                    dbconn.commit()
-                    new_id = cursor.lastrowid
-                    return str(new_id)
+                # Insert new row
+                # Generate alphanumeric ID if not provided
+                if not id:
+                    id = generate_unique_roleplay_id()
+                
+                insert_query = (
+                    "INSERT INTO roleplay (id, name, person_name, scenario, file_path, image_file_path, scenario_file_path, logo_path) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+                )
+                cursor.execute(insert_query, (id, name, person_name, scenario, roleplay_file_path, image_file_path, scenario_file_path, logo_path))
+                dbconn.commit()
+                return id
 
     except Exception as e:
         print("Error in create_or_update:", str(e))
@@ -161,7 +185,7 @@ def get_roleplays():
     except Exception as e:
         return None
 
-def get_user_id(email, password):
+def get_user_id(email, user_password):
     try:
         with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
             cursor = dbconn.cursor()
@@ -177,11 +201,15 @@ def get_user_id(email, password):
                 'password': row[2],
                 'is_admin': row[3]
             }
-            if hash.bcrypt.verify(password, str(row_dict['password'])):
+            # Verify password using bcrypt directly
+            password_bytes = user_password.encode('utf-8')
+            hashed_password = row_dict['password'].encode('utf-8')
+            if bcrypt.checkpw(password_bytes, hashed_password):
                 return {'id': row_dict['id'], 'is_admin': row_dict['is_admin']}
 
         return None
-    except:
+    except Exception as e:
+        print(f"Login error: {str(e)}")
         return None
 
 def query_update(roleplay_id):
@@ -583,6 +611,7 @@ def create_or_update_roleplay_config(roleplay_id, config_data):
                     show_ideal_video = %s,
                     ideal_video_path = %s,
                     voice_assessment_enabled = %s,
+                    difficulty_level = %s,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE roleplay_id = %s
                 """
@@ -597,6 +626,7 @@ def create_or_update_roleplay_config(roleplay_id, config_data):
                     config_data['show_ideal_video'],
                     config_data.get('ideal_video_path', ''),
                     config_data['voice_assessment_enabled'],
+                    config_data.get('difficulty_level', 'easy'),
                     roleplay_id
                 ))
             else:
@@ -605,8 +635,9 @@ def create_or_update_roleplay_config(roleplay_id, config_data):
                 INSERT INTO roleplay_config (
                     roleplay_id, input_type, audio_rerecord_attempts, available_languages,
                     max_interaction_time, max_total_time, repeat_attempts_allowed,
-                    score_type, show_ideal_video, ideal_video_path, voice_assessment_enabled
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    score_type, show_ideal_video, ideal_video_path, voice_assessment_enabled,
+                    difficulty_level
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """
                 cursor.execute(insert_query, (
                     roleplay_id,
@@ -619,7 +650,8 @@ def create_or_update_roleplay_config(roleplay_id, config_data):
                     config_data['score_type'],
                     config_data['show_ideal_video'],
                     config_data.get('ideal_video_path', ''),
-                    config_data['voice_assessment_enabled']
+                    config_data['voice_assessment_enabled'],
+                    config_data.get('difficulty_level', 'easy')
                 ))
             
             dbconn.commit()
@@ -678,6 +710,23 @@ def create_cluster(name, cluster_id=None, cluster_type='assessment'):
     except Exception as e:
         print(f"Error creating cluster: {str(e)}")
         return None
+
+def update_cluster(id, name, cluster_type='assessment'):
+    """Update an existing roleplay cluster's name and type"""
+    try:
+        with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
+            cursor = dbconn.cursor()
+            update_query = """
+            UPDATE roleplay_cluster 
+            SET name = %s, type = %s
+            WHERE id = %s
+            """
+            cursor.execute(update_query, (name, cluster_type, id))
+            dbconn.commit()
+            return True
+    except Exception as e:
+        print(f"Error updating cluster: {str(e)}")
+        return False
 
 def get_clusters():
     """Get all clusters"""
@@ -761,3 +810,131 @@ def delete_cluster(cluster_id):
     except Exception as e:
         print(f"Error deleting cluster: {str(e)}")
         return False
+
+# User Management Functions
+
+def get_all_users():
+    """Get all users from the database"""
+    try:
+        with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
+            cursor = dbconn.cursor()
+            cursor.execute("""
+                SELECT id, email, is_admin 
+                FROM user 
+                ORDER BY id DESC
+            """)
+            return cursor.fetchall()
+    except Exception as e:
+        print(f"Error getting users: {str(e)}")
+        return []
+
+def get_user(user_id):
+    """Get a single user by ID"""
+    try:
+        with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
+            cursor = dbconn.cursor()
+            cursor.execute("SELECT id, email, is_admin FROM user WHERE id = %s", (user_id,))
+            return cursor.fetchone()
+    except Exception as e:
+        print(f"Error getting user: {str(e)}")
+        return None
+
+def create_user_account(email, password_plain):
+    """Create a new user account"""
+    try:
+        # Hash the password using bcrypt
+        password_bytes = password_plain.encode('utf-8')
+        salt = bcrypt.gensalt(rounds=12)
+        password_hash = bcrypt.hashpw(password_bytes, salt)
+        
+        with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
+            cursor = dbconn.cursor()
+            
+            # Check if email already exists
+            cursor.execute("SELECT id FROM user WHERE email = %s", (email,))
+            if cursor.fetchone():
+                return None, "Email already registered"
+            
+            # Insert new user (bcrypt hash is bytes, MySQL expects string)
+            cursor.execute("""
+                INSERT INTO user (email, password, is_admin) 
+                VALUES (%s, %s, 0)
+            """, (email, password_hash.decode('utf-8')))
+            dbconn.commit()
+            
+            return cursor.lastrowid, "Success"
+    except Exception as e:
+        print(f"Error creating user: {str(e)}")
+        return None, str(e)
+
+def assign_cluster_to_user(user_id, cluster_id):
+    """Assign a cluster to a user"""
+    try:
+        with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
+            cursor = dbconn.cursor()
+            # Check if assignment already exists
+            cursor.execute("""
+                SELECT id FROM user_cluster 
+                WHERE user_id = %s AND cluster_id = %s
+            """, (user_id, cluster_id))
+            if cursor.fetchone():
+                return True  # Already assigned
+            
+            cursor.execute("""
+                INSERT INTO user_cluster (user_id, cluster_id) 
+                VALUES (%s, %s)
+            """, (user_id, cluster_id))
+            dbconn.commit()
+            return True
+    except Exception as e:
+        print(f"Error assigning cluster to user: {str(e)}")
+        return False
+
+def remove_cluster_from_user(user_id, cluster_id):
+    """Remove a cluster assignment from a user"""
+    try:
+        with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
+            cursor = dbconn.cursor()
+            cursor.execute("""
+                DELETE FROM user_cluster 
+                WHERE user_id = %s AND cluster_id = %s
+            """, (user_id, cluster_id))
+            dbconn.commit()
+            return True
+    except Exception as e:
+        print(f"Error removing cluster from user: {str(e)}")
+        return False
+
+def get_user_clusters(user_id):
+    """Get all clusters assigned to a user"""
+    try:
+        with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
+            cursor = dbconn.cursor()
+            cursor.execute("""
+                SELECT rc.id, rc.name, rc.cluster_id, rc.type, rc.created_at
+                FROM roleplay_cluster rc
+                INNER JOIN user_cluster uc ON rc.id = uc.cluster_id
+                WHERE uc.user_id = %s
+                ORDER BY rc.created_at DESC
+            """, (user_id,))
+            return cursor.fetchall()
+    except Exception as e:
+        print(f"Error getting user clusters: {str(e)}")
+        return []
+
+def get_cluster_users(cluster_id):
+    """Get all users assigned to a cluster"""
+    try:
+        with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
+            cursor = dbconn.cursor()
+            cursor.execute("""
+                SELECT u.id, u.email, u.name, u.created_at
+                FROM user u
+                INNER JOIN user_cluster uc ON u.id = uc.user_id
+                WHERE uc.cluster_id = %s
+                ORDER BY u.name
+            """, (cluster_id,))
+            return cursor.fetchall()
+    except Exception as e:
+        print(f"Error getting cluster users: {str(e)}")
+        return []
