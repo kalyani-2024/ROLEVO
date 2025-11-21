@@ -1,7 +1,17 @@
 import pandas as pd
 import re
 from typing import List
-import xlrd
+try:
+    from openpyxl import load_workbook
+    OPENPYXL_AVAILABLE = True
+except ImportError:
+    OPENPYXL_AVAILABLE = False
+
+try:
+    import xlrd
+    XLRD_AVAILABLE = True
+except ImportError:
+    XLRD_AVAILABLE = False
 
 class ExcelReader:
     """
@@ -78,22 +88,70 @@ class ExcelReader:
     
     def _get_bold_words(self, row: int, col: int) -> List[str]:
         """
-        Returns bold words frm given cell
+        Returns bold words from given cell
+        Supports both .xls (xlrd) and .xlsx (openpyxl) formats
         """
-        workbook = xlrd.open_workbook(self.path, formatting_info=True)
-        sheet = workbook.sheet_by_name(self.flow_sheet)
-        cell_value = sheet.cell_value(row, col)
-        rich_text_runlist = sheet.rich_text_runlist_map.get((row, col))
-        if rich_text_runlist is None:
+        try:
+            # Check if file is .xls or .xlsx
+            if self.path.endswith('.xls'):
+                # Use xlrd for .xls files
+                if not XLRD_AVAILABLE:
+                    print(f"Warning: xlrd not available for .xls file: {self.path}")
+                    return []
+                    
+                workbook = xlrd.open_workbook(self.path, formatting_info=True)
+                sheet = workbook.sheet_by_name(self.flow_sheet)
+                cell_value = sheet.cell_value(row, col)
+                rich_text_runlist = sheet.rich_text_runlist_map.get((row, col))
+                
+                if rich_text_runlist is None:
+                    return []
+                    
+                bold_phrases = []
+                if rich_text_runlist:
+                    rich_text_runlist.append((len(cell_value), None))
+                    for i in range(len(rich_text_runlist)-1):
+                        font = workbook.font_list[rich_text_runlist[i][1]]
+                        if font.bold:
+                            bold_phrases.append(cell_value[rich_text_runlist[i][0]: rich_text_runlist[i+1][0]].strip())
+                return bold_phrases
+                
+            elif self.path.endswith('.xlsx'):
+                # Use openpyxl for .xlsx files
+                if not OPENPYXL_AVAILABLE:
+                    print(f"Warning: openpyxl not available for .xlsx file: {self.path}")
+                    return []
+                    
+                workbook = load_workbook(self.path, data_only=False)
+                sheet = workbook[self.flow_sheet]
+                
+                # openpyxl uses 1-based indexing
+                cell = sheet.cell(row=row+1, column=col+1)
+                cell_value = str(cell.value) if cell.value else ""
+                
+                bold_phrases = []
+                
+                # Check if cell has rich text formatting
+                if hasattr(cell.value, '__iter__') and not isinstance(cell.value, str):
+                    # Rich text is a list of tuples in openpyxl
+                    for text_obj in cell.value:
+                        if hasattr(text_obj, 'font') and text_obj.font and text_obj.font.b:
+                            bold_phrases.append(text_obj.text.strip())
+                elif cell.font and cell.font.b:
+                    # Entire cell is bold
+                    bold_phrases.append(cell_value.strip())
+                
+                workbook.close()
+                return bold_phrases
+            else:
+                print(f"Warning: Unsupported file format: {self.path}")
+                return []
+                
+        except Exception as e:
+            # Don't print warning for .xls files - it's expected
+            if not self.path.endswith('.xls'):
+                print(f"Warning: Could not extract bold formatting from cell ({row}, {col}): {e}")
             return []
-        bold_phrases = []
-        if rich_text_runlist:
-            rich_text_runlist.append((len(cell_value), None))
-            for i in range(len(rich_text_runlist)-1):
-                font = workbook.font_list[rich_text_runlist[i][1]]
-                if font.bold:
-                    bold_phrases.append(cell_value[rich_text_runlist[i][0]: rich_text_runlist[i+1][0]].strip())
-        return bold_phrases
     
     def get_interaction(self, current_interaction_number: int) -> dict:
         """

@@ -753,6 +753,7 @@ def get_cluster(cluster_id):
 def add_roleplay_to_cluster(cluster_id, roleplay_id, order_sequence=1):
     """Add roleplay to cluster"""
     try:
+        print(f"DEBUG: Adding roleplay {roleplay_id} to cluster {cluster_id} with order {order_sequence}")
         with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
             cursor = dbconn.cursor()
             insert_query = """
@@ -762,9 +763,12 @@ def add_roleplay_to_cluster(cluster_id, roleplay_id, order_sequence=1):
             """
             cursor.execute(insert_query, (cluster_id, roleplay_id, order_sequence, order_sequence))
             dbconn.commit()
+            print(f"DEBUG: Successfully added roleplay {roleplay_id} to cluster {cluster_id}")
             return True
     except Exception as e:
         print(f"Error adding roleplay to cluster: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return False
 
 def remove_roleplay_from_cluster(cluster_id, roleplay_id):
@@ -783,8 +787,14 @@ def remove_roleplay_from_cluster(cluster_id, roleplay_id):
 def get_cluster_roleplays(cluster_id):
     """Get all roleplays in a cluster"""
     try:
+        print(f"DEBUG: Getting roleplays for cluster {cluster_id}")
         with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
             cursor = dbconn.cursor()
+            # First check if cluster_roleplay entries exist
+            cursor.execute("SELECT COUNT(*) FROM cluster_roleplay WHERE cluster_id = %s", (cluster_id,))
+            count = cursor.fetchone()[0]
+            print(f"DEBUG: Found {count} cluster_roleplay entries for cluster {cluster_id}")
+            
             query = """
             SELECT r.*, cr.order_sequence
             FROM roleplay r
@@ -793,9 +803,13 @@ def get_cluster_roleplays(cluster_id):
             ORDER BY cr.order_sequence
             """
             cursor.execute(query, (cluster_id,))
-            return cursor.fetchall()
+            results = cursor.fetchall()
+            print(f"DEBUG: Retrieved {len(results)} roleplays for cluster {cluster_id}")
+            return results
     except Exception as e:
         print(f"Error getting cluster roleplays: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return []
 
 def delete_cluster(cluster_id):
@@ -867,17 +881,59 @@ def create_user_account(email, password_plain):
         print(f"Error creating user: {str(e)}")
         return None, str(e)
 
+def get_user_by_email(email):
+    """Get user by email"""
+    try:
+        with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
+            cursor = dbconn.cursor()
+            cursor.execute("SELECT id, email, is_admin FROM user WHERE email = %s", (email,))
+            return cursor.fetchone()
+    except Exception as e:
+        print(f"Error getting user by email: {str(e)}")
+        return None
+
+def create_user(email, password_plain, username, is_admin=False):
+    """Create a new user account (regular or admin)"""
+    try:
+        # Hash the password using bcrypt
+        password_bytes = password_plain.encode('utf-8')
+        salt = bcrypt.gensalt(rounds=12)
+        password_hash = bcrypt.hashpw(password_bytes, salt)
+        
+        with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
+            cursor = dbconn.cursor()
+            
+            # Check if email already exists
+            cursor.execute("SELECT id FROM user WHERE email = %s", (email,))
+            if cursor.fetchone():
+                return None
+            
+            # Insert new user (bcrypt hash is bytes, MySQL expects string)
+            admin_flag = 1 if is_admin else 0
+            cursor.execute("""
+                INSERT INTO user (email, password, is_admin) 
+                VALUES (%s, %s, %s)
+            """, (email, password_hash.decode('utf-8'), admin_flag))
+            dbconn.commit()
+            
+            return cursor.lastrowid
+    except Exception as e:
+        print(f"Error creating user: {str(e)}")
+        return None
+
 def assign_cluster_to_user(user_id, cluster_id):
     """Assign a cluster to a user"""
     try:
+        print(f"DEBUG: Assigning cluster {cluster_id} to user {user_id}")
         with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
             cursor = dbconn.cursor()
             # Check if assignment already exists
             cursor.execute("""
-                SELECT id FROM user_cluster 
+                SELECT user_id FROM user_cluster 
                 WHERE user_id = %s AND cluster_id = %s
             """, (user_id, cluster_id))
             if cursor.fetchone():
+                print(f"DEBUG: Cluster {cluster_id} already assigned to user {user_id}")
                 return True  # Already assigned
             
             cursor.execute("""
@@ -885,9 +941,12 @@ def assign_cluster_to_user(user_id, cluster_id):
                 VALUES (%s, %s)
             """, (user_id, cluster_id))
             dbconn.commit()
+            print(f"DEBUG: Successfully assigned cluster {cluster_id} to user {user_id}")
             return True
     except Exception as e:
         print(f"Error assigning cluster to user: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return False
 
 def remove_cluster_from_user(user_id, cluster_id):
@@ -908,8 +967,16 @@ def remove_cluster_from_user(user_id, cluster_id):
 def get_user_clusters(user_id):
     """Get all clusters assigned to a user"""
     try:
+        print(f"DEBUG: Getting clusters for user {user_id}")
         with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
             cursor = dbconn.cursor()
+            
+            # First check if user has any cluster assignments
+            cursor.execute("SELECT COUNT(*) FROM user_cluster WHERE user_id = %s", (user_id,))
+            count = cursor.fetchone()[0]
+            print(f"DEBUG: User {user_id} has {count} cluster assignments")
+            
+            # Get the cluster details
             cursor.execute("""
                 SELECT rc.id, rc.name, rc.cluster_id, rc.type, rc.created_at
                 FROM roleplay_cluster rc
@@ -917,9 +984,13 @@ def get_user_clusters(user_id):
                 WHERE uc.user_id = %s
                 ORDER BY rc.created_at DESC
             """, (user_id,))
-            return cursor.fetchall()
+            results = cursor.fetchall()
+            print(f"DEBUG: Retrieved {len(results)} clusters for user {user_id}")
+            return results
     except Exception as e:
         print(f"Error getting user clusters: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return []
 
 def get_cluster_users(cluster_id):

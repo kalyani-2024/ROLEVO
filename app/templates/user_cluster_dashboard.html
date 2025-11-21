@@ -909,7 +909,13 @@
         {% for roleplay in roleplays %}
         <div class="roleplay-card">
             <div class="card-header">
-                <div class="avatar-circle">👤</div>
+                <div class="avatar-circle">
+                    {% if roleplay.logo_path %}
+                        <img src="/static/images/{{ roleplay.logo_path.split('/')[-1].split('\\')[-1] }}" alt="{{ roleplay.person_name }}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                    {% else %}
+                        👤
+                    {% endif %}
+                </div>
                 <div class="character-name">{{ roleplay.person_name }}</div>
                 <div class="character-role">{{ roleplay.name }}</div>
             </div>
@@ -1288,8 +1294,8 @@ function showSituation(roleplayId, personName, scenario, inputType, scenarioFile
     if (scenarioFile && scenarioFile.trim() !== '') {
         // Extract just the filename from the path
         const fileName = scenarioFile.split(/[/\\]/).pop();
-        fileLink.href = `/static/images/${fileName}`;
-        fileLink.download = fileName;
+        // Use the download route instead of direct static link
+        fileLink.href = `/download/scenario/${fileName}`;
         fileDownloadDiv.style.display = 'block';
     } else {
         fileDownloadDiv.style.display = 'none';

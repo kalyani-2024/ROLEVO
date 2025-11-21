@@ -1,0 +1,101 @@
+<!-- 
+Add this to your admin interface to manually send reports 
+Place this code wherever you display play sessions or user performance data
+-->
+
+<!-- Example 1: In a table of completed sessions -->
+<table class="table">
+    <thead>
+        <tr>
+            <th>User</th>
+            <th>Roleplay</th>
+            <th>Score</th>
+            <th>Completed</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for session in completed_sessions %}
+        <tr>
+            <td>{{ session.user_email }}</td>
+            <td>{{ session.roleplay_name }}</td>
+            <td>{{ session.overall_score }}/100</td>
+            <td>{{ session.completed_at }}</td>
+            <td>
+                <!-- Send Report Button -->
+                <form method="POST" action="{{ url_for('admin_send_report', play_id=session.play_id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-sm btn-primary" title="Send performance report to user">
+                        <i class="fas fa-envelope"></i> Send Report
+                    </button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Example 2: Standalone button in user detail page -->
+<div class="card">
+    <div class="card-header">
+        <h4>Session Details</h4>
+    </div>
+    <div class="card-body">
+        <p><strong>User:</strong> {{ user.email }}</p>
+        <p><strong>Roleplay:</strong> {{ roleplay.name }}</p>
+        <p><strong>Score:</strong> {{ score }}/100</p>
+        
+        <!-- Send Report Button -->
+        <form method="POST" action="{{ url_for('admin_send_report', play_id=play_id) }}">
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-file-pdf"></i> Generate & Send Report
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Example 3: With confirmation dialog -->
+<script>
+function confirmSendReport(email) {
+    return confirm('Send performance report to ' + email + '?');
+}
+</script>
+
+<form method="POST" action="{{ url_for('admin_send_report', play_id=session.play_id) }}" 
+      onsubmit="return confirmSendReport('{{ session.user_email }}')">
+    <button type="submit" class="btn btn-primary">
+        <i class="fas fa-paper-plane"></i> Send Report
+    </button>
+</form>
+
+<!-- Example 4: Bulk send for multiple users -->
+<form method="POST" action="{{ url_for('admin_bulk_send_reports') }}">
+    {% for session in sessions %}
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" name="play_ids" value="{{ session.play_id }}" id="session{{ session.id }}">
+        <label class="form-check-label" for="session{{ session.id }}">
+            {{ session.user_email }} - {{ session.roleplay_name }} ({{ session.overall_score }}/100)
+        </label>
+    </div>
+    {% endfor %}
+    
+    <button type="submit" class="btn btn-primary mt-3">
+        <i class="fas fa-envelope-bulk"></i> Send Selected Reports
+    </button>
+</form>
+
+<!-- 
+Note: For bulk send, you would need to add this route to routes.py:
+
+@app.route('/admin/send_reports/bulk', methods=['POST'])
+@admin_required
+def admin_bulk_send_reports():
+    play_ids = request.form.getlist('play_ids')
+    success_count = 0
+    
+    for play_id in play_ids:
+        if generate_and_send_report_async(int(play_id)):
+            success_count += 1
+    
+    flash(f'Sent {success_count} out of {len(play_ids)} reports')
+    return redirect(request.referrer or url_for('admin_dashboard'))
+-->

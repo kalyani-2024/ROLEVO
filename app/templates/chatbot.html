@@ -521,7 +521,7 @@
                                             
                                             <!-- Audio Controls -->
                                             <div class="audio-controls">
-                                                <audio id="spkr" class="scenario-audio" controls>
+                                                <audio id="spkr" class="scenario-audio" controls autoplay>
                                                     {% if 'comp_dialogue' in context %}
                                                         <source src="{{ url_for('make_audio', text=context.comp_dialogue|string) }}" type="audio/mpeg">
                                                     {% else %}
@@ -560,6 +560,7 @@
                                 {% endfor %}
                             </div>
                             {% if not final %}
+                            {% if context.cluster_type and context.cluster_type != 'assessment' %}
                             <div class="col-md-3 tip-column" style="cursor: pointer; margin-top: 0 !important; padding-top: 0 !important;">
     <img src="{{url_for('static', filename='images/NAT.png')}}" 
          style="width: 100%; height: 190px !important; object-fit: contain;" 
@@ -597,7 +598,8 @@
         <!-- /.modal-dialog -->
     </div>
 </div>
-                            <div class="col-md-9">
+                            {% endif %}
+                            <div class="{% if context.cluster_type and context.cluster_type == 'assessment' %}col-md-12{% else %}col-md-9{% endif %}">
                                 <form action="" method="post" novalidate id="form">
                                     {{ form.hidden_tag() }}
                                     <p id="mainform">
@@ -624,6 +626,9 @@
                         </div>  
                     </div>
                 
+                    <!-- DEBUG: Show cluster type -->
+                    <!-- Cluster Type: {{ context.cluster_type if context.cluster_type else 'NOT SET' }} -->
+                    
                     {% if context.cluster_type and context.cluster_type != 'assessment' %}
                     <div class="col-md-3">
                         <div class="card bg-white text-dark marginadjust-detail-page" style="border-radius:15px;border:1px solid #074924;height: 14%;margin-bottom: 5%;">

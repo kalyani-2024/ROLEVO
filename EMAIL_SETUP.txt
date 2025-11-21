@@ -1,0 +1,28 @@
+# Email Configuration for Report Sending
+# Add these environment variables to your .env file
+
+# SMTP Server Settings (Gmail example)
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+
+# SMTP Credentials
+# For Gmail: Use App Password (not your regular password)
+# Generate at: https://myaccount.google.com/apppasswords
+SMTP_USERNAME=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+
+# Alternative SMTP providers:
+# - Outlook: smtp.office365.com (port 587)
+# - Yahoo: smtp.mail.yahoo.com (port 587)
+# - SendGrid: smtp.sendgrid.net (port 587)
+# - Mailgun: smtp.mailgun.org (port 587)
+
+# Admin Email (for sending reports)
+ADMIN_EMAIL=admin@yourcompany.com
+ADMIN_NAME=Rolevo Admin
+
+# Setup Instructions:
+# 1. Enable "Less secure app access" or generate an App Password for your email
+# 2. Add the variables above to your .env file
+# 3. Restart your Flask application
+# 4. Reports will be automatically sent after roleplay completion

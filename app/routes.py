@@ -8,7 +8,9 @@ import reader.excel
 import interface.openai
 import interface.interact
 import os
-from app.queries import get_roleplay_file_path, old_query_showreport, get_play_info, query_create_chat_entry, query_create_score_master, query_create_score_breakdown, query_update, query_showreport, create_or_update, get_roleplays, get_roleplay, delete_roleplay, create_or_update_roleplay_config, get_roleplay_config, get_roleplay_with_config, create_cluster, update_cluster, get_clusters, get_cluster, add_roleplay_to_cluster, remove_roleplay_from_cluster, get_cluster_roleplays, delete_cluster, get_all_users, get_user, assign_cluster_to_user, remove_cluster_from_user, get_user_clusters, get_cluster_users, get_user_id, create_user_account
+import json
+import threading
+from app.queries import get_roleplay_file_path, old_query_showreport, get_play_info, query_create_chat_entry, query_create_score_master, query_create_score_breakdown, query_update, query_showreport, create_or_update, get_roleplays, get_roleplay, delete_roleplay, create_or_update_roleplay_config, get_roleplay_config, get_roleplay_with_config, create_cluster, update_cluster, get_clusters, get_cluster, add_roleplay_to_cluster, remove_roleplay_from_cluster, get_cluster_roleplays, delete_cluster, get_all_users, get_user, assign_cluster_to_user, remove_cluster_from_user, get_user_clusters, get_cluster_users, get_user_id, create_user_account, get_user_by_email, create_user
 from gtts import gTTS
 from deep_translator import GoogleTranslator
 from dotenv import load_dotenv, find_dotenv
@@ -17,6 +19,8 @@ import time
 import requests
 from werkzeug.security import generate_password_hash
 from functools import wraps
+from app.report_generator import generate_roleplay_report
+from app.email_service import send_report_email
 
 load_dotenv(find_dotenv())
 openai.api_key = os.getenv('OPENAI_API_KEY')
@@ -181,8 +185,15 @@ def serialize_datetime(obj):
 def post_attempt_data(play_id):
     final_json = {}
     play_info = get_play_info(play_id)
+    
+    # Use session user_id as fallback if play record has NULL user_id
+    user_id_from_play = play_info[2] if play_info else None
+    user_id = user_id_from_play if user_id_from_play is not None else session.get('user_id')
+    
+    print(f"DEBUG post_attempt_data: play_id={play_id}, user_id from play={user_id_from_play}, user_id from session={session.get('user_id')}, final user_id={user_id}")
+    
     final_json["start_time"] = play_info[1]
-    final_json["user_id"] = play_info[2]
+    final_json["user_id"] = user_id
     final_json["roleplay_id"] = play_info[3]
 
     report = query_showreport(play_id)
@@ -204,6 +215,18 @@ def post_attempt_data(play_id):
         res = r.json()
         if not res["success"]:
             flash("Failed to return data to Trajectorie - something went wrong")
+    
+    # Generate and send report to user after scoring
+    try:
+        import threading
+        # Run report generation in background thread to avoid blocking
+        # Pass user_id explicitly as it might not be in play record
+        thread = threading.Thread(target=generate_and_send_report_async, args=(play_id, user_id))
+        thread.daemon = True
+        thread.start()
+        print(f"Started background report generation for play_id {play_id}, user_id {user_id}")
+    except Exception as e:
+        print(f"Error starting report generation thread: {str(e)}")
 
 def create_chat_entry(user_text, response_text):
     chathistory_id = query_create_chat_entry(user_text, response_text)
@@ -363,6 +386,31 @@ def logout():
     return redirect(url_for('login'))
 
 
+@app.route('/download/scenario/<path:filename>')
+def download_scenario_file(filename):
+    """Download scenario file"""
+    try:
+        # Scenario files are stored in the images folder
+        file_path = os.path.join(app.config['UPLOAD_PATH_IMAGES'], filename)
+        
+        if not os.path.exists(file_path):
+            flash('Scenario file not found')
+            return redirect(url_for('index'))
+        
+        # Get the original filename without the timestamp prefix
+        original_filename = filename
+        if '_' in filename:
+            parts = filename.split('_', 2)  # Split on first 2 underscores (ID_timestamp_originalname)
+            if len(parts) == 3:
+                original_filename = parts[2]
+        
+        return send_file(file_path, as_attachment=True, download_name=original_filename)
+    except Exception as e:
+        print(f"Error downloading scenario file: {str(e)}")
+        flash('Error downloading file')
+        return redirect(url_for('index'))
+
+
 @app.route("/launch/<int:user_id>/<path:roleplay_id>", methods=['GET', 'POST'])
 def launch(user_id, roleplay_id):
     try:
@@ -424,14 +472,15 @@ def launch(user_id, roleplay_id):
 
         # Get roleplay configuration for voice settings
         roleplay_config = get_roleplay_with_config(roleplay_id)
-        input_type = 'text'  # Default
+        input_type = 'audio'  # Always enable audio for scenario reading
         available_languages = 'English'  # Default
         max_interaction_time = 300  # Default 5 minutes
         max_total_time = 1800  # Default 30 minutes
         
         if roleplay_config and len(roleplay_config) > 10:
             # Index 10 is input_type from the query in get_roleplay_with_config
-            input_type = roleplay_config[10] if roleplay_config[10] else 'text'
+            # Always use 'audio' to ensure scenario is read out loud
+            input_type = 'audio'
             # Index 12 is available_languages
             available_languages = roleplay_config[12] if roleplay_config[12] else 'English'
             # Index 13 is max_interaction_time
@@ -597,36 +646,14 @@ def chatbot(roleplay_id, interaction_num):
         context["image"] = reader_obj.get_system_prompt_image()
         context["cumul_score"] = cumul_score(roleplay_id)
         
-        # Get cluster type from database
+        # Get cluster type from database - ALWAYS fetch fresh, don't cache
         cluster_type = 'training'  # Default
         cluster_id = session.get('cluster_id')
+        user_id = session.get('user_id')
         
-        # If no cluster_id in session, try to get it from user_cluster table
-        if cluster_id is None:
-            user_id = session.get('user_id')
-            if user_id:
-                try:
-                    conn = mysql.connector.connect(
-                        host=os.getenv('DB_HOST', 'localhost'),
-                        user=os.getenv('DB_USER', 'root'),
-                        password=os.getenv('DB_PASSWORD'),
-                        database=os.getenv('DB_NAME', 'roleplay')
-                    )
-                    cur = conn.cursor()
-                    cur.execute("""
-                        SELECT cluster_id FROM user_cluster 
-                        WHERE user_id = %s 
-                        LIMIT 1
-                    """, (user_id,))
-                    result = cur.fetchone()
-                    if result:
-                        cluster_id = result[0]
-                        session['cluster_id'] = cluster_id  # Store in session for next time
-                    cur.close()
-                    conn.close()
-                except Exception as e:
-                    print(f"Error querying user_cluster: {e}")
+        print(f"DEBUG CLUSTER TYPE: user_id={user_id}, cluster_id from session={cluster_id}")
         
+        # Always fetch fresh cluster type from database to avoid stale cached data
         if cluster_id:
             try:
                 conn = mysql.connector.connect(
@@ -640,11 +667,51 @@ def chatbot(roleplay_id, interaction_num):
                 result = cur.fetchone()
                 if result:
                     cluster_type = result[0]
+                    print(f"DEBUG: Fetched cluster type from roleplay_cluster: cluster_id={cluster_id}, type={cluster_type}")
+                else:
+                    print(f"DEBUG: No cluster found with id {cluster_id}")
                 cur.close()
                 conn.close()
             except Exception as e:
                 print(f"Error fetching cluster type: {e}")
+                import traceback
+                traceback.print_exc()
         
+        # If no cluster_id in session, try to get it from user_cluster table
+        elif user_id:
+            try:
+                conn = mysql.connector.connect(
+                    host=os.getenv('DB_HOST', 'localhost'),
+                    user=os.getenv('DB_USER', 'root'),
+                    password=os.getenv('DB_PASSWORD'),
+                    database=os.getenv('DB_NAME', 'roleplay')
+                )
+                cur = conn.cursor()
+                # Get the cluster that contains this roleplay for this user
+                cur.execute("""
+                    SELECT uc.cluster_id, rc.type
+                    FROM user_cluster uc
+                    JOIN roleplay_cluster rc ON uc.cluster_id = rc.id
+                    JOIN cluster_roleplay cr ON rc.id = cr.cluster_id
+                    WHERE uc.user_id = %s AND cr.roleplay_id = %s
+                    LIMIT 1
+                """, (user_id, roleplay_id))
+                result = cur.fetchone()
+                if result:
+                    cluster_id = result[0]
+                    cluster_type = result[1]
+                    session['cluster_id'] = cluster_id  # Store in session for next time
+                    print(f"DEBUG: Found cluster from user_cluster: cluster_id={cluster_id}, type={cluster_type}")
+                else:
+                    print(f"DEBUG: No cluster found for user {user_id} and roleplay {roleplay_id}")
+                cur.close()
+                conn.close()
+            except Exception as e:
+                print(f"Error querying user_cluster: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        print(f"DEBUG: Final cluster_type being sent to template: '{cluster_type}'")
         context["cluster_type"] = cluster_type
         
         # Get selected language for translation
@@ -743,16 +810,53 @@ def chatbot(roleplay_id, interaction_num):
                 context["tip"] = tip
 
         # Pass voice configuration to template
-        context["input_type"] = session.get('input_type', 'text')
+        context["input_type"] = session.get('input_type', 'audio')  # Default to audio
         context["available_languages"] = session.get('available_languages', 'English')
         context["voice_enabled"] = context["input_type"] == 'audio'
         context["selected_language"] = selected_language  # Pass to template for display
         context["max_interaction_time"] = session.get('max_interaction_time', 300)
         context["max_total_time"] = session.get('max_total_time', 1800)
+        
+        print(f"DEBUG AUDIO: input_type={context['input_type']}, voice_enabled={context['voice_enabled']}")
 
         return render_template("chatbot.html", context = context, form = form)
     else:
         return render_template('404.html', title='Error')
+
+@app.route('/admin/register', methods=['GET', 'POST'])
+def admin_register():
+    """Admin registration page"""
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        username = request.form.get('username')
+        
+        if not email or not password or not username:
+            flash('All fields are required')
+            return render_template('admin_register.html')
+        
+        if password != confirm_password:
+            flash('Passwords do not match')
+            return render_template('admin_register.html')
+        
+        # Check if user already exists
+        existing_user = get_user_by_email(email)
+        if existing_user:
+            flash('Email already registered')
+            return render_template('admin_register.html')
+        
+        # Create admin user
+        result = create_user(email, password, username, is_admin=True)
+        
+        if result:
+            flash('Admin account created successfully! Please login.')
+            return redirect(url_for('admin_login'))
+        else:
+            flash('Error creating admin account. Please try again.')
+            return render_template('admin_register.html')
+    
+    return render_template('admin_register.html')
 
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
@@ -961,6 +1065,8 @@ def upload_files():
 
     # Validate Excel files with enhanced validator that stores data in arrays
     validation_errors = []
+    force_upload = request.form.get('force_upload') == 'true'  # Check if admin wants to force upload
+    
     if roleplay_file_path and image_file_path:
         try:
             from app.enhanced_excel_validator import validate_excel_files_detailed
@@ -970,68 +1076,60 @@ def upload_files():
             print(f"\n🔍 VALIDATION DEBUG:")
             print(f"   File paths: {roleplay_file_path}, {image_file_path}")
             print(f"   Is valid: {is_valid}")
+            print(f"   Force upload: {force_upload}")
             print(f"   Errors found: {len(validation_data.get('errors', []))}")
             print(f"   Warnings found: {len(validation_data.get('warnings', []))}")
             for error in validation_data.get('errors', []):
                 print(f"   ERROR: {error}")
             print(f"🔍 END DEBUG\n")
 
-            if not is_valid:
-                # Delete uploaded files if validation fails
-                if os.path.exists(roleplay_file_path):
-                    os.remove(roleplay_file_path)
-                if os.path.exists(image_file_path):
-                    os.remove(image_file_path)
-
+            if not is_valid and not force_upload:
+                # Show validation errors but don't delete files - let admin decide
+                validation_has_errors = True
+                
                 # Check if this is a structural validation failure
                 if "STRUCTURAL VALIDATION FAILED:" in detailed_report:
                     # Extract structural errors from detailed_report
                     structural_errors = detailed_report.split("STRUCTURAL VALIDATION FAILED:\n")[1].strip().split('\n')
                     
-                    print(f"📢 FLASHING STRUCTURAL ERRORS: {len(structural_errors)} errors")
-                    flash("❌ STRUCTURAL VALIDATION FAILED:")
+                    print(f"📢 CRITICAL STRUCTURAL ERRORS: {len(structural_errors)} errors")
+                    flash("❌ STRUCTURAL VALIDATION FAILED - Critical structure issues found")
                     flash("Excel file structure does not match required format.")
                     
                     for i, error in enumerate(structural_errors[:10]):  # Show first 10 structural errors
                         if error.strip():
                             error_msg = f"   • {error.strip()}"
                             flash(error_msg)
-                            print(f"📢 FLASHED ERROR {i+1}: {error_msg}")
+                            print(f"📢 ERROR {i+1}: {error_msg}")
                     
                     if len(structural_errors) > 10:
                         flash(f"   ... and {len(structural_errors) - 10} more structural issues.")
                     
-                    # Debug: Check if messages were actually flashed
-                    from flask import session
-                    print(f"🔍 SESSION AFTER FLASHING: {dict(session)}")
-                    print(f"🔍 SESSION FLASH KEY: {session.get('_flashes', 'NOT FOUND')}")
+                    # Delete files for structural errors - these are critical
+                    if os.path.exists(roleplay_file_path):
+                        os.remove(roleplay_file_path)
+                    if os.path.exists(image_file_path):
+                        os.remove(image_file_path)
                     
-                    # Try to get flashed messages to see if they exist
-                    from flask import get_flashed_messages
-                    test_messages = get_flashed_messages(with_categories=True)
-                    print(f"🔍 GET_FLASHED_MESSAGES TEST: {test_messages}")
-                    
-                    # Re-flash them if they were consumed
-                    if test_messages:
-                        for category, message in test_messages:
-                            flash(message, category)
-                        print(f"🔄 RE-FLASHED {len(test_messages)} MESSAGES")
-                    
-                    print(f"📢 TOTAL FLASH MESSAGES SENT: {len(structural_errors[:10]) + 2}")
+                    return render_template('adminview.html', roleplay=None, config=None)
                 
                 else:
-                    # Handle content validation errors
-                    flash("Excel file validation failed with detailed analysis:")
-                    
-                    # Show only critical errors - no improvement suggestions
+                    # Content validation errors - allow admin to proceed
                     errors = validation_data.get('errors', [])
+                    warnings = validation_data.get('warnings', [])
                     
                     if errors:
-                        flash(f"❌ Missing Data Found ({len(errors)}) - Must be fixed:")
-                        for error in errors[:15]:  # Show more errors since we removed warnings
+                        flash(f"⚠️ Validation found {len(errors)} missing/incorrect data fields:")
+                        for error in errors[:10]:
                             flash(f"   • {error}")
-                        if len(errors) > 15:
-                            flash(f"   ... and {len(errors) - 15} more missing data issues. Check console for full report.")
+                        if len(errors) > 10:
+                            flash(f"   ... and {len(errors) - 10} more issues.")
+                    
+                    if warnings:
+                        flash(f"ℹ️ {len(warnings)} warnings (non-critical)")
+                    
+                    flash("⚠️ You can proceed anyway, but the roleplay may not work correctly.")
+                    flash("✓ To proceed with upload despite errors, click 'Save & Force Upload' below.")
                 
                 # Print full detailed report to console for developer debugging
                 print("\n" + "="*80)
@@ -1039,15 +1137,19 @@ def upload_files():
                 print("="*80)
                 print(detailed_report)
                 print("="*80 + "\n")
-                
-                # Instead of redirect, render template directly to preserve flash messages
-                return render_template('adminview.html', roleplay=None, config=None)
-            else:
-                # Show success message with data summary - no improvement suggestions
+            
+            # If validation passed OR admin forced upload, show success message
+            if is_valid or force_upload:
+                # Show success message with data summary
                 roleplay_interactions = len(validation_data.get('roleplay_data', []))
                 image_interactions = len(validation_data.get('image_data', []))
                 
-                success_msg = f"✅ Excel files validated successfully! Found {roleplay_interactions} roleplay interactions"
+                if force_upload and not is_valid:
+                    flash(f"⚠️ Files uploaded WITH VALIDATION WARNINGS ({len(validation_data.get('errors', []))} issues)")
+                    success_msg = f"Proceeding with {roleplay_interactions} roleplay interactions (may have missing data)"
+                else:
+                    success_msg = f"✅ Excel files validated successfully! Found {roleplay_interactions} roleplay interactions"
+                
                 if image_interactions > 0:
                     success_msg += f" and {image_interactions} image interactions"
                 flash(success_msg)
@@ -1455,8 +1557,11 @@ def admin_cluster_create():
             
             # Add selected roleplays
             selected_roleplays = request.form.getlist('selected_roleplays')
+            print(f"DEBUG: Adding {len(selected_roleplays)} roleplays to cluster {cluster_id}")
             for idx, roleplay_id in enumerate(selected_roleplays):
-                add_roleplay_to_cluster(cluster_id, roleplay_id, idx + 1)
+                print(f"DEBUG: Adding roleplay {roleplay_id} at position {idx + 1}")
+                result = add_roleplay_to_cluster(cluster_id, roleplay_id, idx + 1)
+                print(f"DEBUG: Result of adding roleplay {roleplay_id}: {result}")
             
             # Update user assignments
             # First, remove all existing users
@@ -1467,8 +1572,11 @@ def admin_cluster_create():
             
             # Add selected users
             selected_users = request.form.getlist('selected_users')
+            print(f"DEBUG: Assigning cluster {cluster_id} to {len(selected_users)} users: {selected_users}")
             for user_id in selected_users:
-                assign_cluster_to_user(int(user_id), cluster_id)
+                print(f"DEBUG: Assigning cluster {cluster_id} to user {user_id}")
+                result = assign_cluster_to_user(int(user_id), cluster_id)
+                print(f"DEBUG: Result of assigning cluster to user {user_id}: {result}")
             
             flash('Cluster updated successfully!')
             
@@ -1482,13 +1590,19 @@ def admin_cluster_create():
             if new_cluster_id:
                 # Add selected roleplays to cluster
                 selected_roleplays = request.form.getlist('selected_roleplays')
+                print(f"DEBUG: Adding {len(selected_roleplays)} roleplays to new cluster {new_cluster_id}")
                 for idx, roleplay_id in enumerate(selected_roleplays):
-                    add_roleplay_to_cluster(new_cluster_id, roleplay_id, idx + 1)
+                    print(f"DEBUG: Adding roleplay {roleplay_id} at position {idx + 1}")
+                    result = add_roleplay_to_cluster(new_cluster_id, roleplay_id, idx + 1)
+                    print(f"DEBUG: Result of adding roleplay {roleplay_id}: {result}")
                 
                 # Add selected users to cluster
                 selected_users = request.form.getlist('selected_users')
+                print(f"DEBUG: Assigning new cluster {new_cluster_id} to {len(selected_users)} users: {selected_users}")
                 for user_id in selected_users:
-                    assign_cluster_to_user(int(user_id), new_cluster_id)
+                    print(f"DEBUG: Assigning cluster {new_cluster_id} to user {user_id}")
+                    result = assign_cluster_to_user(int(user_id), new_cluster_id)
+                    print(f"DEBUG: Result of assigning cluster to user {user_id}: {result}")
                 
                 flash('Cluster created successfully!')
             else:
@@ -1589,26 +1703,34 @@ def user_dashboard(user_id):
             flash('User not found')
             return redirect(url_for('index'))
         
+        print(f"DEBUG: Loading dashboard for user {user_id}")
         user_clusters = get_user_clusters(user_id)
+        print(f"DEBUG: Found {len(user_clusters) if user_clusters else 0} clusters for user {user_id}")
+        
         if not user_clusters:
             return render_template('user_dashboard.html', user=user, clusters=[])
         
         # Enrich clusters with roleplay information
         clusters_with_roleplays = []
         for cluster in user_clusters:
+            print(f"DEBUG: Processing cluster {cluster[0]} - {cluster[1]}")
+            cluster_roleplays = get_cluster_roleplays(cluster[0])
             cluster_dict = {
                 'id': cluster[0],
                 'name': cluster[1],
                 'cluster_id': cluster[2],
                 'type': cluster[3],
                 'created_at': cluster[4],
-                'roleplays': get_cluster_roleplays(cluster[0])
+                'roleplays': cluster_roleplays
             }
+            print(f"DEBUG: Cluster {cluster[0]} has {len(cluster_roleplays)} roleplays")
             clusters_with_roleplays.append(cluster_dict)
         
         return render_template('user_dashboard.html', user=user, clusters=clusters_with_roleplays)
     except Exception as e:
         print(f"Error loading user dashboard: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return render_template('500.html'), 500
 
 @app.route('/user/<int:user_id>/cluster/<int:cluster_id>')
@@ -1653,21 +1775,21 @@ def user_cluster_view(user_id, cluster_id):
             )
             cur = conn.cursor()
             
-            # Get user's play history for this roleplay
+            # Get user's play history for this roleplay in THIS cluster
             cur.execute("""
                 SELECT COUNT(*) FROM play 
                 WHERE user_id = %s AND roleplay_id = %s AND cluster_id = %s AND status = 'completed'
             """, (user_id, rp[0], cluster_id))
             completed_attempts = cur.fetchone()[0]
             
-            # Check if user viewed optimal video
+            # Check if user viewed optimal video in THIS cluster
             cur.execute("""
                 SELECT COUNT(*) FROM play 
-                WHERE user_id = %s AND roleplay_id = %s AND status = 'optimal_viewed'
-            """, (user_id, rp[0]))
+                WHERE user_id = %s AND roleplay_id = %s AND cluster_id = %s AND status = 'optimal_viewed'
+            """, (user_id, rp[0], cluster_id))
             viewed_optimal = cur.fetchone()[0] > 0
             
-            # Check if there's an in-progress attempt
+            # Check if there's an in-progress attempt in THIS cluster
             cur.execute("""
                 SELECT COUNT(*) FROM play 
                 WHERE user_id = %s AND roleplay_id = %s AND cluster_id = %s AND status = 'in_progress'
@@ -1704,6 +1826,7 @@ def user_cluster_view(user_id, cluster_id):
                 'title': rp[5],  # Use person_name as title
                 'scenario': rp[4],
                 'scenario_file_path': rp[8] if len(rp) > 8 else None,  # scenario file for download
+                'logo_path': rp[9] if len(rp) > 9 else None,  # roleplay logo for tile display
                 'image_path': rp[3],
                 'difficulty': config[12].capitalize() if config and len(config) > 12 and config[12] else 'Easy',  # Get from config
                 'order': rp[-1],  # order_sequence from cluster_roleplay
@@ -1871,26 +1994,32 @@ def roleplay_completion(user_id, cluster_id, roleplay_id):
         )
         cur = conn.cursor()
         
-        # Check if user has viewed optimal video
+        # Check if user has viewed optimal video in THIS cluster
         cur.execute("""
             SELECT COUNT(*) FROM play 
-            WHERE user_id = %s AND roleplay_id = %s AND status = 'optimal_viewed'
-        """, (user_id, roleplay_id))
+            WHERE user_id = %s AND roleplay_id = %s AND cluster_id = %s AND status = 'optimal_viewed'
+        """, (user_id, roleplay_id, cluster_id))
         
         has_viewed_optimal = cur.fetchone()[0] > 0
         
+        # Count completed attempts for this roleplay in THIS cluster
         cur.execute("""
             SELECT COUNT(*) FROM play 
-            WHERE user_id = %s AND roleplay_id = %s AND status = 'completed'
-        """, (user_id, roleplay_id))
+            WHERE user_id = %s AND roleplay_id = %s AND cluster_id = %s AND status = 'completed'
+        """, (user_id, roleplay_id, cluster_id))
         
         completed_attempts = cur.fetchone()[0]
+        
+        print(f"DEBUG ATTEMPTS: user_id={user_id}, roleplay_id={roleplay_id}, cluster_id={cluster_id}")
+        print(f"DEBUG ATTEMPTS: max_attempts={max_attempts}, completed_attempts={completed_attempts}, has_viewed_optimal={has_viewed_optimal}")
         
         # If user has viewed optimal video, they cannot retry
         if has_viewed_optimal:
             attempts_remaining = 0
         else:
             attempts_remaining = max(0, max_attempts - completed_attempts)
+        
+        print(f"DEBUG ATTEMPTS: attempts_remaining={attempts_remaining}")
         
         cur.close()
         conn.close()
@@ -1972,3 +2101,249 @@ def test_validation_modal():
     
     # Render the adminview template to show the modal
     return render_template('adminview.html', roleplay=None, config=None)
+
+
+@app.route('/admin/send_report/<int:play_id>', methods=['POST'])
+@admin_required
+def admin_send_report(play_id):
+    """Admin route to generate and send performance report"""
+    try:
+        # Get play information
+        play_info = get_play_info(play_id)
+        if not play_info:
+            flash('Play session not found')
+            return redirect(url_for('admin_dashboard'))
+        
+        user_id = play_info[2]
+        roleplay_id = play_info[3]
+        
+        # Get user information
+        conn = mysql.connector.connect(
+            host=os.getenv('DB_HOST', 'localhost'),
+            user=os.getenv('DB_USER', 'root'),
+            password=os.getenv('DB_PASSWORD'),
+            database=os.getenv('DB_NAME', 'roleplay')
+        )
+        cur = conn.cursor()
+        
+        # Get user email
+        cur.execute("SELECT id, email FROM user WHERE id = %s", (user_id,))
+        user_data = cur.fetchone()
+        if not user_data:
+            flash('User not found')
+            return redirect(url_for('admin_dashboard'))
+        
+        user_email = user_data[1]
+        user_name = user_email.split('@')[0]  # Use email prefix as name if no name field
+        
+        # Get roleplay details
+        roleplay = get_roleplay(roleplay_id)
+        if not roleplay:
+            flash('Roleplay not found')
+            return redirect(url_for('admin_dashboard'))
+        
+        roleplay_name = roleplay[1]  # name field
+        scenario = roleplay[4]  # scenario field
+        
+        # Get report data (scores and interactions)
+        report = query_showreport(play_id)
+        interactions = report[0]  # conversation data
+        score_breakdown = report[1]  # competencies scores
+        overall_score = report[2].get('overall_score', 0)
+        
+        # Generate PDF report
+        report_path = generate_roleplay_report(
+            user_name=user_name,
+            user_email=user_email,
+            roleplay_name=roleplay_name,
+            scenario=scenario,
+            overall_score=overall_score,
+            score_breakdown=score_breakdown,
+            interactions=interactions
+        )
+        
+        # Send email with report
+        admin_email = session.get('email', os.getenv('SMTP_USERNAME'))
+        success = send_report_email(
+            to_email=user_email,
+            user_name=user_name,
+            roleplay_name=roleplay_name,
+            overall_score=overall_score,
+            report_pdf_path=report_path,
+            admin_email=admin_email
+        )
+        
+        cur.close()
+        conn.close()
+        
+        if success:
+            flash(f'Report successfully sent to {user_email}')
+        else:
+            flash('Report generated but email sending failed. Check SMTP settings.')
+        
+        return redirect(request.referrer or url_for('admin_dashboard'))
+        
+    except Exception as e:
+        print(f"Error sending report: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        flash(f'Error generating/sending report: {str(e)}')
+        return redirect(url_for('admin_dashboard'))
+
+
+def generate_and_send_report_async(play_id, user_id_override=None):
+    """
+    Generate and send report automatically after roleplay completion
+    This can be called asynchronously in the background
+    
+    Args:
+        play_id: The play session ID
+        user_id_override: Optional user_id to use if play record has NULL user_id
+    """
+    # Run in app context to access current_app
+    with app.app_context():
+        try:
+            print(f"DEBUG: Starting report generation for play_id={play_id}, user_id_override={user_id_override}")
+            
+            # Get play information
+            play_info = get_play_info(play_id)
+            if not play_info:
+                print(f"ERROR: Play session {play_id} not found")
+                return False
+            
+            print(f"DEBUG: Play info retrieved: {play_info}")
+            
+            # Play table structure: (id, start_time, user_id, ???, roleplay_id, cluster_id, ...)
+            # Adjust indices based on actual structure
+            user_id = play_info[2]
+            
+            # roleplay_id appears to be at index 4 based on debug output
+            roleplay_id = play_info[4] if len(play_info) > 4 else play_info[3]
+            
+            print(f"DEBUG: user_id from play={user_id}, roleplay_id={roleplay_id}")
+            
+            # Check if user_id is None and use override
+            if user_id is None:
+                if user_id_override:
+                    user_id = user_id_override
+                    print(f"DEBUG: Using user_id_override={user_id}")
+                else:
+                    print(f"ERROR: user_id is None for play_id={play_id} and no override provided")
+                    # Try to get from session as last resort
+                    from flask import session
+                    user_id = session.get('user_id')
+                    if user_id:
+                        print(f"DEBUG: Retrieved user_id={user_id} from session")
+                    else:
+                        print(f"ERROR: Cannot determine user_id for play_id={play_id}")
+                        return False
+            
+            # Get user information
+            conn = mysql.connector.connect(
+                host=os.getenv('DB_HOST', 'localhost'),
+                user=os.getenv('DB_USER', 'root'),
+                password=os.getenv('DB_PASSWORD'),
+                database=os.getenv('DB_NAME', 'roleplay')
+            )
+            cur = conn.cursor()
+            
+            # Get user email
+            cur.execute("SELECT id, email FROM user WHERE id = %s", (user_id,))
+            user_data = cur.fetchone()
+            if not user_data:
+                print(f"ERROR: User {user_id} not found in database")
+                cur.close()
+                conn.close()
+                return False
+            
+            user_email = user_data[1]
+            user_name = user_email.split('@')[0]
+            
+            print(f"DEBUG: User found - email={user_email}, name={user_name}")
+            
+            # Get roleplay details
+            roleplay = get_roleplay(roleplay_id)
+            if not roleplay:
+                print(f"ERROR: Roleplay {roleplay_id} not found")
+                print(f"DEBUG: Attempting to query roleplay table directly...")
+                
+                # Try direct query to debug
+                try:
+                    cur.execute("SELECT * FROM roleplay WHERE id = %s", (roleplay_id,))
+                    roleplay = cur.fetchone()
+                    if not roleplay:
+                        # Try to get any roleplay as fallback for testing
+                        cur.execute("SELECT * FROM roleplay LIMIT 1")
+                        roleplay = cur.fetchone()
+                        if roleplay:
+                            print(f"WARNING: Using fallback roleplay: {roleplay[0]}")
+                        else:
+                            print(f"ERROR: No roleplays found in database")
+                            cur.close()
+                            conn.close()
+                            return False
+                except Exception as e:
+                    print(f"ERROR: Database query failed: {str(e)}")
+                    cur.close()
+                    conn.close()
+                    return False
+            
+            roleplay_name = roleplay[1]
+            scenario = roleplay[4]
+            
+            print(f"DEBUG: Roleplay found - name={roleplay_name}")
+            
+            # Get report data
+            report = query_showreport(play_id)
+            interactions = report[0]
+            score_breakdown_list = report[1]  # List of {"name": X, "score": Y, "total_possible": Z}
+            # report[2] is final_score dict with structure: {"overall_score": {"score": X, "total": Y}}
+            overall_score_dict = report[2].get('overall_score', {"score": 0, "total": 0})
+            overall_score = overall_score_dict.get('score', 0)
+            
+            # Convert score_breakdown from list to dict format expected by report generator
+            # Convert scores to percentage (out of 100)
+            score_breakdown = {}
+            for item in score_breakdown_list:
+                category_name = item['name']
+                score = item['score']
+                total_possible = item['total_possible']
+                # Convert to percentage
+                percentage = (score / total_possible * 100) if total_possible > 0 else 0
+                score_breakdown[category_name] = round(percentage, 1)
+            
+            print(f"DEBUG: Report data - interactions={len(interactions)}, overall_score={overall_score}, breakdown={score_breakdown}")
+            
+            # Generate PDF report
+            report_path = generate_roleplay_report(
+                user_name=user_name,
+                user_email=user_email,
+                roleplay_name=roleplay_name,
+                scenario=scenario,
+                overall_score=overall_score,
+                score_breakdown=score_breakdown,
+                interactions=interactions
+            )
+            
+            # Send email with report
+            success = send_report_email(
+                to_email=user_email,
+                user_name=user_name,
+                roleplay_name=roleplay_name,
+                overall_score=overall_score,
+                report_pdf_path=report_path
+            )
+            
+            cur.close()
+            conn.close()
+            
+            print(f"Report {'sent successfully' if success else 'generation failed'} for play_id {play_id}")
+            return success
+            
+        except Exception as e:
+            print(f"Error in generate_and_send_report_async: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return False
+
+
