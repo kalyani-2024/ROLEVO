@@ -11,13 +11,18 @@ from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
 from datetime import datetime
 import os
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
+import matplotlib.pyplot as plt
+import numpy as np
+from io import BytesIO
 
 
 def generate_roleplay_report(user_name, user_email, roleplay_name, scenario, 
                              overall_score, score_breakdown, interactions, 
                              completion_date=None, output_path=None):
     """
-    Generate a comprehensive roleplay performance report
+    Generate a comprehensive roleplay performance report with radar chart
     
     Args:
         user_name: Name of the user
@@ -25,8 +30,8 @@ def generate_roleplay_report(user_name, user_email, roleplay_name, scenario,
         roleplay_name: Name of the roleplay scenario
         scenario: Description of the roleplay scenario
         overall_score: Overall performance score (0-100)
-        score_breakdown: Dict with score categories and values
-        interactions: List of interaction dicts with user_text and response_text
+        score_breakdown: List of dicts with {name, score, total_possible}
+        interactions: List of interaction dicts with user_text, response_text, and score
         completion_date: Date of completion (defaults to now)
         output_path: Path to save the PDF (defaults to temp folder)
     
@@ -54,12 +59,11 @@ def generate_roleplay_report(user_name, user_email, roleplay_name, scenario,
     # Define styles
     styles = getSampleStyleSheet()
     
-    # Custom styles
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
-        fontSize=24,
-        textColor=colors.HexColor('#074924'),
+        fontSize=28,
+        textColor=colors.black,
         spaceAfter=30,
         alignment=TA_CENTER,
         fontName='Helvetica-Bold'
@@ -69,151 +73,198 @@ def generate_roleplay_report(user_name, user_email, roleplay_name, scenario,
         'CustomHeading',
         parent=styles['Heading2'],
         fontSize=16,
-        textColor=colors.HexColor('#074924'),
+        textColor=colors.black,
         spaceAfter=12,
         spaceBefore=12,
-        fontName='Helvetica-Bold'
-    )
-    
-    subheading_style = ParagraphStyle(
-        'CustomSubHeading',
-        parent=styles['Heading3'],
-        fontSize=12,
-        textColor=colors.HexColor('#074924'),
-        spaceAfter=6,
         fontName='Helvetica-Bold'
     )
     
     normal_style = ParagraphStyle(
         'CustomNormal',
         parent=styles['Normal'],
-        fontSize=11,
-        spaceAfter=12,
-        alignment=TA_JUSTIFY
+        fontSize=10,
+        spaceAfter=8,
+        alignment=TA_LEFT
+    )
+    
+    score_style = ParagraphStyle(
+        'ScoreStyle',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=colors.HexColor('#666666'),
+        spaceAfter=4
     )
     
     # Title
-    elements.append(Paragraph("ROLEVO", title_style))
-    elements.append(Paragraph("Roleplay Performance Report", heading_style))
-    elements.append(Spacer(1, 0.2*inch))
-    
-    # User Information Table
-    user_info_data = [
-        ['Participant Name:', user_name],
-        ['Email:', user_email],
-        ['Report Date:', completion_date.strftime('%B %d, %Y')],
-        ['Roleplay Scenario:', roleplay_name]
-    ]
-    
-    user_info_table = Table(user_info_data, colWidths=[2*inch, 4*inch])
-    user_info_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
-        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#074924')),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-    ]))
-    
-    elements.append(user_info_table)
+    elements.append(Paragraph("FINAL REPORT", title_style))
     elements.append(Spacer(1, 0.3*inch))
     
-    # Scenario Description
-    elements.append(Paragraph("Scenario Description", heading_style))
-    elements.append(Paragraph(scenario, normal_style))
-    elements.append(Spacer(1, 0.2*inch))
+    # SECTION 1: Radar Chart for Competencies
+    # Include all items from score_breakdown
+    print(f"DEBUG REPORT: score_breakdown = {score_breakdown}")
     
-    # Overall Score Section
-    elements.append(Paragraph("Performance Summary", heading_style))
+    competencies = {}
+    # score_breakdown is now a list of {name, score, total_possible}
+    for item in score_breakdown:
+        category_name = item.get('name', 'Unknown')
+        score = item.get('score', 0)
+        total_possible = item.get('total_possible', 1)
+        
+        # Include all competencies (removed the 'Level' filter)
+        # Calculate percentage for radar chart
+        percentage = (score / total_possible * 100) if total_possible > 0 else 0
+        competencies[category_name] = percentage
     
-    # Create a colored box for overall score
-    score_color = get_score_color(overall_score)
-    score_data = [[f"Overall Score: {overall_score}/100"]]
-    score_table = Table(score_data, colWidths=[6*inch])
+    print(f"DEBUG REPORT: competencies = {competencies}")
+    
+    if competencies:
+        # Generate radar chart
+        chart_image_path = generate_radar_chart(competencies)
+        if chart_image_path and os.path.exists(chart_image_path):
+            img = Image(chart_image_path, width=5.5*inch, height=4*inch)
+            elements.append(img)
+            elements.append(Spacer(1, 0.3*inch))
+    
+    # SECTION 2: Score Totals Table
+    elements.append(Paragraph("Score Totals", heading_style))
+    
+    score_totals_data = [['Name', 'Score', 'Total']]
+    
+    print(f"DEBUG REPORT: Building score totals table")
+    
+    # Display all competencies with their scores
+    for item in score_breakdown:
+        category_name = item.get('name', 'Unknown')
+        # Include all competencies (removed the 'Level' filter)
+        score = item.get('score', 0)
+        total_possible = item.get('total_possible', 0)
+        score_totals_data.append([str(category_name), str(score), str(total_possible)])
+        print(f"DEBUG REPORT: {category_name} = {score}/{total_possible}")
+    
+    score_table = Table(score_totals_data, colWidths=[3.5*inch, 1*inch, 1*inch])
     score_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), score_color),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 18),
-        ('TOPPADDING', (0, 0), (-1, -1), 15),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
-        ('BOX', (0, 0), (-1, -1), 2, colors.HexColor('#074924')),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f0f0f0')),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 11),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ('TOPPADDING', (0, 0), (-1, -1), 10),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.white])
     ]))
     
     elements.append(score_table)
+    elements.append(Spacer(1, 0.4*inch))
+    
+    # SECTION 3: Conversation Thread
+    elements.append(Paragraph("Conversation Thread", heading_style))
     elements.append(Spacer(1, 0.2*inch))
     
-    # Score Breakdown
-    if score_breakdown:
-        elements.append(Paragraph("Detailed Score Breakdown", heading_style))
-        
-        breakdown_data = [['Criteria', 'Score', 'Rating']]
-        for category, score in score_breakdown.items():
-            rating = get_rating_text(score)
-            breakdown_data.append([category, f"{score}/100", rating])
-        
-        breakdown_table = Table(breakdown_data, colWidths=[3*inch, 1.5*inch, 1.5*inch])
-        breakdown_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#074924')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTNAME', (0, 1), (0, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('TOPPADDING', (0, 1), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')])
-        ]))
-        
-        elements.append(breakdown_table)
-        elements.append(Spacer(1, 0.3*inch))
-    
-    # Interaction Transcript
     if interactions:
-        elements.append(Paragraph("Interaction Transcript", heading_style))
-        elements.append(Spacer(1, 0.1*inch))
-        
         for idx, interaction in enumerate(interactions, 1):
-            # User message
-            elements.append(Paragraph(f"<b>Exchange {idx} - Your Response:</b>", subheading_style))
-            elements.append(Paragraph(interaction.get('user_text', 'N/A'), normal_style))
+            # Get the score (star rating) for this interaction
+            score_value = interaction.get('score', 0)
+            # Use filled/empty star symbols
+            stars = '★' * int(score_value) if score_value > 0 else ''
             
-            # System response
-            elements.append(Paragraph(f"<b>Feedback:</b>", subheading_style))
-            elements.append(Paragraph(interaction.get('response_text', 'N/A'), normal_style))
+            # User message in green box - Use Paragraph for text wrapping
+            user_text = interaction.get('user', '') or interaction.get('user_text', 'N/A')
+            
+            # Create a paragraph style for the table content with word wrapping
+            user_paragraph = Paragraph(user_text, normal_style)
+            
+            user_data = [[user_paragraph]]
+            user_table = Table(user_data, colWidths=[6*inch])
+            user_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#d4edda')),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('TOPPADDING', (0, 0), (-1, -1), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+                ('LEFTPADDING', (0, 0), (-1, -1), 10),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+            ]))
+            
+            elements.append(user_table)
+            
+            # Score display - use simple text representation
+            score_text = f"Score: {'★' * int(score_value)}" if score_value > 0 else "Score: -"
+            elements.append(Paragraph(score_text, score_style))
+            
             elements.append(Spacer(1, 0.15*inch))
-    
-    # Performance Recommendations
-    elements.append(PageBreak())
-    elements.append(Paragraph("Performance Analysis & Recommendations", heading_style))
-    
-    recommendations = generate_recommendations(overall_score, score_breakdown)
-    for rec in recommendations:
-        elements.append(Paragraph(f"• {rec}", normal_style))
-    
-    elements.append(Spacer(1, 0.3*inch))
-    
-    # Footer
-    footer_style = ParagraphStyle(
-        'Footer',
-        parent=styles['Normal'],
-        fontSize=9,
-        textColor=colors.grey,
-        alignment=TA_CENTER
-    )
-    
-    elements.append(Spacer(1, 0.5*inch))
-    elements.append(Paragraph("This report is confidential and intended for the named recipient only.", footer_style))
-    elements.append(Paragraph("© 2025 ROLEVO - All Rights Reserved", footer_style))
     
     # Build PDF
     doc.build(elements)
     
     return output_path
+
+
+def generate_radar_chart(competencies):
+    """Generate a radar/polar chart for competencies"""
+    try:
+        # Prepare data
+        categories = list(competencies.keys())
+        values = [competencies[cat] for cat in categories]
+        
+        # Number of variables
+        num_vars = len(categories)
+        
+        # Compute angle for each axis
+        angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
+        
+        # Complete the circle
+        values += values[:1]
+        angles += angles[:1]
+        
+        # Create figure
+        fig, ax = plt.subplots(figsize=(8, 6), subplot_kw=dict(projection='polar'))
+        
+        # Define colors for each competency
+        colors_list = ['#87CEEB', '#90EE90', '#FFB6C1', '#FFE4B5', '#DDA0DD']
+        
+        # Plot data
+        for i, (cat, val) in enumerate(competencies.items()):
+            cat_angles = [angles[i], angles[i+1]]
+            cat_values = [0, val, val, 0]
+            cat_angles_fill = [angles[i], angles[i], angles[i+1], angles[i+1]]
+            
+            color = colors_list[i % len(colors_list)]
+            ax.fill(cat_angles_fill, cat_values, color=color, alpha=0.6)
+        
+        # Fix axis to go from 0 to 100
+        ax.set_ylim(0, 100)
+        ax.set_yticks([20, 40, 60, 80])
+        ax.set_yticklabels(['20', '40', '60', '80'])
+        
+        # Set category labels
+        ax.set_xticks(angles[:-1])
+        ax.set_xticklabels([])  # Remove radial labels
+        
+        # Add legend
+        ax.legend(categories, loc='upper left', bbox_to_anchor=(0.0, 1.15), fontsize=8, ncol=2)
+        
+        # Add grid
+        ax.grid(True, linewidth=0.5, alpha=0.5)
+        
+        # Save to temporary file
+        from flask import current_app
+        temp_dir = os.path.join(current_app.root_path, 'temp')
+        os.makedirs(temp_dir, exist_ok=True)
+        chart_path = os.path.join(temp_dir, f'chart_{datetime.now().strftime("%Y%m%d_%H%M%S")}.png')
+        
+        plt.tight_layout()
+        plt.savefig(chart_path, format='png', dpi=150, bbox_inches='tight')
+        plt.close()
+        
+        return chart_path
+        
+    except Exception as e:
+        print(f"Error generating radar chart: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
 
 
 def get_score_color(score):
@@ -226,49 +277,3 @@ def get_score_color(score):
         return colors.HexColor('#ff9800')  # Orange
     else:
         return colors.HexColor('#dc3545')  # Red
-
-
-def get_rating_text(score):
-    """Return rating text based on score"""
-    if score >= 90:
-        return 'Excellent'
-    elif score >= 80:
-        return 'Very Good'
-    elif score >= 70:
-        return 'Good'
-    elif score >= 60:
-        return 'Satisfactory'
-    elif score >= 50:
-        return 'Fair'
-    else:
-        return 'Needs Improvement'
-
-
-def generate_recommendations(overall_score, score_breakdown):
-    """Generate personalized recommendations based on scores"""
-    recommendations = []
-    
-    if overall_score >= 80:
-        recommendations.append("Excellent performance! Continue maintaining this level of professionalism.")
-        recommendations.append("Consider mentoring others who are developing their skills in this area.")
-    elif overall_score >= 60:
-        recommendations.append("Good performance with room for improvement in specific areas.")
-    else:
-        recommendations.append("Additional practice recommended to improve overall performance.")
-    
-    # Analyze specific categories
-    if score_breakdown:
-        low_scores = {k: v for k, v in score_breakdown.items() if v < 60}
-        
-        if low_scores:
-            recommendations.append(f"Focus on improving: {', '.join(low_scores.keys())}")
-            
-        high_scores = {k: v for k, v in score_breakdown.items() if v >= 80}
-        if high_scores:
-            recommendations.append(f"Strong areas to leverage: {', '.join(high_scores.keys())}")
-    
-    recommendations.append("Review the interaction transcript to identify specific moments for improvement.")
-    recommendations.append("Practice active listening and empathetic responses in future interactions.")
-    recommendations.append("Consider scheduling a follow-up session to track progress.")
-    
-    return recommendations

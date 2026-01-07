@@ -219,16 +219,8 @@ class EnhancedExcelValidator:
             if pd.notna(cell_value) and str(cell_value).strip():
                 comp_value = str(cell_value).strip()
                 competencies.append(comp_value)
-                
-                # Skip competency format validation - only report missing data
-            else:
-                # Only report missing meta competencies as errors (not warnings)
-                if comp_type == "Meta competencies" and col_idx <= 3:  # First 3 columns should have values
-                    issue = ValidationIssue('error', f"Missing {comp_type.lower()}", 
-                                          sheet_name, row_idx + 1, col_letter, cell_value, 
-                                          "Competency name required")
-                    self.all_issues.append(issue)
         
+        # Only report error if NO competencies found at all
         if comp_type == "Meta competencies" and not competencies:
             issue = ValidationIssue('error', f"No meta competencies found", 
                                   sheet_name, row_idx + 1, 'B', None, "At least one competency required")
@@ -264,16 +256,22 @@ class EnhancedExcelValidator:
                     self.system_prompt_data['scenario_description'] = str(system_prompt).strip()
                 # Don't error if missing - it's optional
             
-            # Parse each interaction row by row
-            current_row = 1  # Start after header
-            while current_row < df.shape[0]:
-                interaction = self._parse_single_interaction(df, sheet_name, current_row)
+            # Scan all rows to find interaction numbers (Column A)
+            # Don't assume fixed row spacing - follow actual interaction numbers
+            interaction_numbers = []
+            for row_idx in range(1, df.shape[0]):  # Start after header
+                cell_value = df.iloc[row_idx, 0]  # Column A
+                if pd.notna(cell_value) and str(cell_value).strip().isdigit():
+                    interaction_num = int(str(cell_value).strip())
+                    interaction_numbers.append((interaction_num, row_idx))
+            
+            print(f"📋 Found {len(interaction_numbers)} interactions in Excel: {[num for num, _ in interaction_numbers]}")
+            
+            # Parse each interaction by its actual row number
+            for interaction_num, row_idx in interaction_numbers:
+                interaction = self._parse_single_interaction(df, sheet_name, row_idx)
                 if interaction:
                     self.roleplay_data.append(interaction)
-                    # Move to next interaction (typically 4 rows: interaction, player, competency, other)
-                    current_row += 4
-                else:
-                    current_row += 1  # Move to next row if no interaction found
                     
         except Exception as e:
             issue = ValidationIssue('error', f"Error parsing flow sheet: {str(e)}", sheet_name, 0, 'N/A', None)

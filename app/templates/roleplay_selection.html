@@ -254,7 +254,7 @@
     
     .difficulty-label {
         color: #333;
-        font-size: 0.9rem;
+        font-size: 1rem;
         font-weight: bold;
         margin-bottom: 8px;
         text-transform: uppercase;
@@ -285,7 +285,7 @@
         color: white;
         padding: 5px 15px;
         border-radius: 15px;
-        font-size: 0.8rem;
+        font-size: 1rem;
         font-weight: bold;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -322,7 +322,7 @@
     
     .instructions-seen {
         color: #158044;
-        font-size: 0.9rem;
+        font-size: 1rem;
         text-align: center;
         margin-top: 10px;
         opacity: 0;
@@ -412,8 +412,8 @@
         {% for roleplay in roleplays %}
         <div class="roleplay-card">
             <div class="character-avatar"></div>
-            <div class="character-name">{{ roleplay[2] }}</div>
-            <div class="character-role">{{ roleplay[1] }}</div>
+            <div class="character-name">{{ roleplay[1] }}</div>
+            <div class="character-role">{{ roleplay[6] if roleplay|length > 6 and roleplay[6] else 'Role Player' }}</div>
             
             <div class="difficulty-section">
                 <div class="difficulty-label">Difficulty Level</div>

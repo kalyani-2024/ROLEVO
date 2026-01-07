@@ -9,6 +9,10 @@
 <link href="{{url_for('static', filename='css/slick-theme.css')}}" rel="stylesheet">
 <script src="{{url_for('static', filename='js/fontawesome.js')}}" crossorigin="anonymous"></script>
 
+<!-- Quill Rich Text Editor (No API Key Required) -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+
 <style>     
     body{background: url("{{url_for('static', filename='images/login_page_bg.jpg')}}");}
 </style>
@@ -55,16 +59,16 @@
     @media (min-width:769px) and (max-width:1024px){
     .detail-page-button-leaderboard .leaderboard-icon{width:39px!important;}
     .detail-page-button-leaderboard .leaderboard-icon img{width:30px!important;}
-    .score-title{font-size:14px!important;}
+    .score-title{font-size:1rem!important;}
     .time-progress-counter{width:90%!important;}
-    .leaderboard-title{font-size:10px!important;}
+    .leaderboard-title{font-size:1rem!important;}
     }
     @media (min-device-width:769px) and (max-device-width:1024px){
     .detail-page-button-leaderboard .leaderboard-icon{width:39px!important;}
     .detail-page-button-leaderboard .leaderboard-icon img{width:30px!important;}
-    .score-title{font-size:14px!important;}
+    .score-title{font-size:1rem!important;}
     .time-progress-counter{width:90%!important;}
-    .leaderboard-title{font-size:10px!important;}
+    .leaderboard-title{font-size:1rem!important;}
     }
     input{
         width: 100%;
@@ -193,24 +197,11 @@
                                 <input type="text" id="name" name="name" value="{{roleplay[1]}}" required><br>
                                 
                                 <label for="person_name">Person Name:</label><br>
-                                <input type="text" id="person_name" name="person_name" value="{{roleplay[5]}}" required><br>
+                                <input type="text" id="person_name" name="person_name" value="{{roleplay[6]}}" required><br>
                                 
-                                <label for="scenario">Scenario:</label><br>
-                                <textarea type="text" id="scenario" name="scenario" style="width:100%;margin-bottom: 30px;" required>{{roleplay[4]}}</textarea><br>
-
-                                <label for="scenario_file">Optional Scenario File (for users to download):</label><br>
-                                <input type="file" name="scenario_file" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx">
-                                {% if roleplay and roleplay[8] %}
-                                    <p class="text-success">Current file: {{ roleplay[8].split('/')[-1].split('\\')[-1] }}</p>
-                                {% endif %}
-                                <br>
-
-                                <label for="roleplay_logo">Roleplay Logo (displayed on tile):</label><br>
-                                <input type="file" name="roleplay_logo" accept="image/*">
-                                {% if roleplay and roleplay[9] %}
-                                    <p class="text-success">Current logo: <img src="/static/{{ roleplay[9].split('static/')[-1] if 'static/' in roleplay[9] else 'images/' + roleplay[9].split('/')[-1].split('\\')[-1] }}" alt="Logo" style="width: 40px; height: 40px; border-radius: 50%; vertical-align: middle;"></p>
-                                {% endif %}
-                                <br>
+                                <label for="scenario">Scenario (supports rich text formatting):</label><br>
+                                <div id="scenario-editor" style="height: 300px; background: white;"></div>
+                                <textarea type="text" id="scenario" name="scenario" class="tinymce-editor" style="display:none;" required>{{roleplay[5]}}</textarea><br>
                             </div>
                         </div>
 
@@ -219,13 +210,44 @@
                             <div class="card-header"><h5>File Uploads</h5></div>
                             <div class="card-body">
                                 <label for="roleplay_file">Select a <b>new</b> roleplay excel sheet (.xls file):</label><br>
+                                {% if roleplay|length > 11 and roleplay[11] %}
+                                <p style="color: #28a745; font-size: 14px; margin: 5px 0;">
+                                    <i class="fas fa-file-excel"></i> <strong>Current file:</strong> {{ roleplay[11] }}
+                                </p>
+                                {% endif %}
                                 <p><input type="file" name="roleplay_file" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"></p>
 
                                 <label for="image_file">Select a <b>new</b> image file (.xls file):</label><br>
+                                {% if roleplay|length > 12 and roleplay[12] %}
+                                <p style="color: #28a745; font-size: 14px; margin: 5px 0;">
+                                    <i class="fas fa-file-excel"></i> <strong>Current file:</strong> {{ roleplay[12] }}
+                                </p>
+                                {% endif %}
                                 <p><input type="file" name="image_file" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"></p>
 
                                 <label for="comp_file">Select the metacompetency file (.xlsx, add only if needed):</label><br>
+                                {% if roleplay|length > 13 and roleplay[13] %}
+                                <p style="color: #28a745; font-size: 14px; margin: 5px 0;">
+                                    <i class="fas fa-file-excel"></i> <strong>Current file:</strong> {{ roleplay[13] }}
+                                </p>
+                                {% endif %}
                                 <p><input type="file" name="comp_file" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"></p>
+                                
+                                <label for="scenario_file">Optional Scenario File (for users to download):</label><br>
+                                {% if roleplay|length > 14 and roleplay[14] %}
+                                <p style="color: #28a745; font-size: 14px; margin: 5px 0;">
+                                    <i class="fas fa-file"></i> <strong>Current file:</strong> {{ roleplay[14] }}
+                                </p>
+                                {% endif %}
+                                <p><input type="file" name="scenario_file" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx"></p>
+                                
+                                <label for="roleplay_logo">Roleplay Logo (displayed on tile):</label><br>
+                                {% if roleplay|length > 15 and roleplay[15] %}
+                                <p style="color: #28a745; font-size: 14px; margin: 5px 0;">
+                                    <i class="fas fa-image"></i> <strong>Current logo:</strong> {{ roleplay[15] }}
+                                </p>
+                                {% endif %}
+                                <p><input type="file" name="roleplay_logo" accept="image/*"></p>
                             </div>
                         </div>
 
@@ -346,6 +368,39 @@
                             </div>
                         </div>
 
+                        <!-- 16PF Voice Analysis Configuration -->
+                        <div class="card mb-4">
+                            <div class="card-header"><h5>16PF Voice Personality Analysis</h5></div>
+                            <div class="card-body">
+                                <p class="text-muted small">Analyze user's voice recordings to generate 16 Personality Factor (16PF) scores using AI-powered voice analysis.</p>
+                                
+                                <label><input type="checkbox" name="enable_16pf_analysis" {% if config and config[13] %}checked{% endif %} onchange="toggle16PFOptions()"> Enable 16PF Voice Analysis</label><br><br>
+                                
+                                <div id="pf16_options" style="display: {% if config and config[13] %}block{% else %}none{% endif %};">
+                                    <label for="pf16_analysis_source">Analysis Source:</label><br>
+                                    <select id="pf16_analysis_source" name="pf16_analysis_source" style="width:100%;margin-bottom: 15px;">
+                                        <option value="none" {% if not config or config[14] == 'none' %}selected{% endif %}>None (Disabled)</option>
+                                        <option value="persona360" {% if config and config[14] == 'persona360' %}selected{% endif %}>Persona360 API</option>
+                                        <option value="third_party" {% if config and config[14] == 'third_party' %}selected{% endif %}>Third Party Plugin</option>
+                                    </select>
+                                    
+                                    <div class="mt-3">
+                                        <label><input type="checkbox" name="pf16_user_age_required" {% if not config or config[15] != 0 %}checked{% endif %}> Require User Age for Analysis</label><br>
+                                        <label><input type="checkbox" name="pf16_user_gender_required" {% if not config or config[16] != 0 %}checked{% endif %}> Require User Gender for Analysis</label><br>
+                                        <label><input type="checkbox" name="pf16_send_audio_for_analysis" {% if not config or config[18] != 0 %}checked{% endif %}> Send Audio for Analysis (Persona360)</label>
+                                    </div>
+                                    
+                                    <label for="pf16_default_age" style="margin-top: 15px;">Default Age (if not provided):</label><br>
+                                    <input type="number" id="pf16_default_age" name="pf16_default_age" min="18" max="100" value="{{config[17] if config and config[17] else 30}}" style="margin-bottom: 15px;"><br>
+                                    
+                                    <div class="alert alert-info small mt-2">
+                                        <strong>Note:</strong> 16PF analysis will be performed after the roleplay session completes. 
+                                        The user's recorded audio will be sent to the selected analysis provider for personality assessment.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <p><input type="submit" value="Update Roleplay" class="btn btn-warning"></p>
                     </form>
                     {% endif %}
@@ -365,8 +420,9 @@
                                 <label for="person_name">Person Name:</label><br>
                                 <input type="text" id="person_name" name="person_name" required><br>
                                 
-                                <label for="scenario">Scenario:</label><br>
-                                <textarea type="text" id="scenario" name="scenario" style="width:100%;margin-bottom: 30px;" required></textarea><br>
+                                <label for="scenario">Scenario (supports rich text formatting):</label><br>
+                                <div id="scenario-editor-new" style="height: 300px; background: white;"></div>
+                                <textarea type="text" id="scenario" name="scenario" class="tinymce-editor" style="display:none;" required></textarea><br>
 
                                 <label for="scenario_file">Optional Scenario File (for users to download):</label><br>
                                 <input type="file" name="scenario_file" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx"><br>
@@ -499,6 +555,39 @@
                             </div>
                         </div>
 
+                        <!-- 16PF Voice Analysis Configuration (New Roleplay) -->
+                        <div class="card mb-4">
+                            <div class="card-header"><h5>16PF Voice Personality Analysis</h5></div>
+                            <div class="card-body">
+                                <p class="text-muted small">Analyze user's voice recordings to generate 16 Personality Factor (16PF) scores using AI-powered voice analysis.</p>
+                                
+                                <label><input type="checkbox" name="enable_16pf_analysis" onchange="toggle16PFOptionsNew()"> Enable 16PF Voice Analysis</label><br><br>
+                                
+                                <div id="pf16_options_new" style="display: none;">
+                                    <label for="pf16_analysis_source_new">Analysis Source:</label><br>
+                                    <select id="pf16_analysis_source_new" name="pf16_analysis_source" style="width:100%;margin-bottom: 15px;">
+                                        <option value="none" selected>None (Disabled)</option>
+                                        <option value="persona360">Persona360 API</option>
+                                        <option value="third_party">Third Party Plugin</option>
+                                    </select>
+                                    
+                                    <div class="mt-3">
+                                        <label><input type="checkbox" name="pf16_user_age_required" checked> Require User Age for Analysis</label><br>
+                                        <label><input type="checkbox" name="pf16_user_gender_required" checked> Require User Gender for Analysis</label><br>
+                                        <label><input type="checkbox" name="pf16_send_audio_for_analysis" checked> Send Audio for Analysis (Persona360)</label>
+                                    </div>
+                                    
+                                    <label for="pf16_default_age_new" style="margin-top: 15px;">Default Age (if not provided):</label><br>
+                                    <input type="number" id="pf16_default_age_new" name="pf16_default_age" min="18" max="100" value="30" style="margin-bottom: 15px;"><br>
+                                    
+                                    <div class="alert alert-info small mt-2">
+                                        <strong>Note:</strong> 16PF analysis will be performed after the roleplay session completes. 
+                                        The user's recorded audio will be sent to the selected analysis provider for personality assessment.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <p><input type="submit" value="Create Roleplay" class="btn btn-success"></p>
                     </form>
                     {% endif %}
@@ -544,6 +633,80 @@ $(document).ready(function () {
 </script>
 
 <script type="text/javascript">
+    // Initialize Quill editor for scenario field
+    var quillEditor = null;
+    var quillEditorNew = null;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize for edit form
+        if (document.getElementById('scenario-editor')) {
+            quillEditor = new Quill('#scenario-editor', {
+                theme: 'snow',
+                modules: {
+                    toolbar: [
+                        [{ 'header': [1, 2, 3, false] }],
+                        ['bold', 'italic', 'underline', 'strike'],
+                        [{ 'color': [] }, { 'background': [] }],
+                        [{ 'align': [] }],
+                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                        ['clean']
+                    ]
+                }
+            });
+            
+            // Load initial content
+            var scenarioField = document.getElementById('scenario');
+            if (scenarioField && scenarioField.value) {
+                quillEditor.root.innerHTML = scenarioField.value;
+            }
+            
+            // Update hidden textarea when content changes
+            quillEditor.on('text-change', function() {
+                scenarioField.value = quillEditor.root.innerHTML;
+            });
+            
+            // Update before form submission
+            var editForm = scenarioField.closest('form');
+            if (editForm) {
+                editForm.addEventListener('submit', function() {
+                    scenarioField.value = quillEditor.root.innerHTML;
+                });
+            }
+        }
+        
+        // Initialize for new form
+        if (document.getElementById('scenario-editor-new')) {
+            quillEditorNew = new Quill('#scenario-editor-new', {
+                theme: 'snow',
+                modules: {
+                    toolbar: [
+                        [{ 'header': [1, 2, 3, false] }],
+                        ['bold', 'italic', 'underline', 'strike'],
+                        [{ 'color': [] }, { 'background': [] }],
+                        [{ 'align': [] }],
+                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                        ['clean']
+                    ]
+                }
+            });
+            
+            var scenarioFieldNew = document.getElementById('scenario');
+            
+            // Update hidden textarea when content changes
+            quillEditorNew.on('text-change', function() {
+                scenarioFieldNew.value = quillEditorNew.root.innerHTML;
+            });
+            
+            // Update before form submission
+            var newForm = scenarioFieldNew.closest('form');
+            if (newForm) {
+                newForm.addEventListener('submit', function() {
+                    scenarioFieldNew.value = quillEditorNew.root.innerHTML;
+                });
+            }
+        }
+    });
+
     textarea = document.querySelector("#scenario");
     if (textarea) {
         textarea.addEventListener('input', autoResize, false);
@@ -574,6 +737,35 @@ $(document).ready(function () {
             videoUpload.style.display = 'block';
         } else {
             videoUpload.style.display = 'none';
+        }
+    }
+
+    // 16PF Options toggle for Edit form
+    function toggle16PFOptions() {
+        const enabled = document.querySelector('input[name="enable_16pf_analysis"]').checked;
+        const options = document.getElementById('pf16_options');
+        
+        if (enabled) {
+            options.style.display = 'block';
+        } else {
+            options.style.display = 'none';
+        }
+    }
+
+    // 16PF Options toggle for New form
+    function toggle16PFOptionsNew() {
+        const checkboxes = document.querySelectorAll('input[name="enable_16pf_analysis"]');
+        // Get the checkbox in the new form (second one if exists)
+        let checkbox = checkboxes.length > 1 ? checkboxes[1] : checkboxes[0];
+        const enabled = checkbox ? checkbox.checked : false;
+        const options = document.getElementById('pf16_options_new');
+        
+        if (options) {
+            if (enabled) {
+                options.style.display = 'block';
+            } else {
+                options.style.display = 'none';
+            }
         }
     }
 </script>

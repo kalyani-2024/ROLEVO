@@ -164,7 +164,7 @@
     }
     
     .info-text strong {
-        font-size: 0.75rem;
+        font-size: 1rem;
         color: #6b7280;
         font-weight: 500;
         margin-bottom: 2px;
@@ -178,7 +178,7 @@
     
     .cluster-subtitle {
         color: #6b7280;
-        font-size: 0.9rem;
+        font-size: 1rem;
         margin: 15px 0;
     }
     
@@ -215,7 +215,7 @@
         color: white;
         padding: 15px 20px;
         border-radius: 12px;
-        font-size: 0.9rem;
+        font-size: 1rem;
         line-height: 1.5;
         width: 280px;
         box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
@@ -335,18 +335,19 @@
     .card-header {
         text-align: center;
         margin-bottom: 15px;
+        min-height: 110px;
     }
     
     .avatar-circle {
-        width: 70px;
-        height: 70px;
+        width: 100px;
+        height: 100px;
         background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
         border-radius: 50%;
         margin: 0 auto 12px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 2.2rem;
+        font-size: 3rem;
         color: #9ca3af;
     }
     
@@ -359,23 +360,20 @@
     
     .character-role {
         color: #6b7280;
-        font-size: 0.85rem;
+        font-size: 1rem;
     }
     
     .difficulty-section {
         padding: 15px 0;
         border-top: 1px solid #f3f4f6;
-        margin-bottom: 15px;
-        flex-grow: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
+        margin-bottom: 5px;
+        height: 110px;
     }
     
     .difficulty-label {
         text-align: center;
         color: #16a34a;
-        font-size: 0.8rem;
+        font-size: 1rem;
         font-weight: 600;
         margin-bottom: 12px;
     }
@@ -405,7 +403,7 @@
         color: white;
         padding: 4px 14px;
         border-radius: 16px;
-        font-size: 0.75rem;
+        font-size: 1rem;
         font-weight: 600;
         text-transform: capitalize;
         display: inline-block;
@@ -423,7 +421,7 @@
         border: none;
         padding: 10px 20px;
         border-radius: 25px;
-        font-size: 0.85rem;
+        font-size: 1rem;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.3s ease;
@@ -460,7 +458,7 @@
         text-align: center;
         margin-top: 10px;
         color: #6b7280;
-        font-size: 0.85rem;
+        font-size: 1rem;
     }
     
     .attempts-info.warning {
@@ -479,6 +477,7 @@
         background-color: rgba(0, 0, 0, 0.85);
         z-index: 9997;
         pointer-events: all;
+        cursor: pointer;
     }
     
     .page-overlay.show {
@@ -494,7 +493,7 @@
     .modal {
         display: none;
         position: fixed;
-        z-index: 1000;
+        z-index: 10000;
         left: 0;
         top: 0;
         width: 100%;
@@ -749,7 +748,7 @@
     
     .instructions-header p {
         color: #6b7280;
-        font-size: 0.95rem;
+        font-size: 1rem;
         margin: 0;
         line-height: 1.6;
     }
@@ -765,7 +764,7 @@
         padding: 15px 0;
         border-bottom: 1px solid #e5e7eb;
         color: #374151;
-        font-size: 0.95rem;
+        font-size: 1rem;
         line-height: 1.6;
     }
     
@@ -866,6 +865,41 @@
 </div>
 
 <div class="dashboard-container">
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="flash-message alert-{{ category }}" id="flashMessage" style="position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 9999; margin: 0; max-width: 500px; width: 90%; background: {% if category == 'success' %}#d4edda{% else %}#f8d7da{% endif %}; color: {% if category == 'success' %}#155724{% else %}#721c24{% endif %}; padding: 20px 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); border: 2px solid {% if category == 'success' %}#c3e6cb{% else %}#f5c6cb{% endif %}; display: flex; align-items: center; gap: 15px; font-size: 16px; font-weight: 500; animation: slideDown 0.3s ease;">
+                <i class="fas fa-check-circle" style="font-size: 24px;"></i>
+                <span>{{ message }}</span>
+                <button onclick="document.getElementById('flashMessage').style.display='none'" style="margin-left: auto; background: none; border: none; font-size: 24px; cursor: pointer; color: inherit; opacity: 0.7; padding: 0; width: 30px; height: 30px;">&times;</button>
+            </div>
+            <script>
+                // Auto-dismiss after 5 seconds
+                setTimeout(function() {
+                    var flash = document.getElementById('flashMessage');
+                    if (flash) {
+                        flash.style.animation = 'slideUp 0.3s ease';
+                        setTimeout(function() {
+                            flash.style.display = 'none';
+                        }, 300);
+                    }
+                }, 5000);
+            </script>
+            <style>
+                @keyframes slideDown {
+                    from { transform: translate(-50%, -100%); opacity: 0; }
+                    to { transform: translate(-50%, 0); opacity: 1; }
+                }
+                @keyframes slideUp {
+                    from { transform: translate(-50%, 0); opacity: 1; }
+                    to { transform: translate(-50%, -100%); opacity: 0; }
+                }
+            </style>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
     <!-- Header Section -->
     <div class="header-section" id="headerSection">
         <h1 class="main-title">{{ cluster[1] if cluster else 'Test Roleplay' }}</h1>
@@ -916,8 +950,8 @@
                         👤
                     {% endif %}
                 </div>
-                <div class="character-name">{{ roleplay.person_name }}</div>
-                <div class="character-role">{{ roleplay.name }}</div>
+                <div class="character-name">{{ roleplay.name }}</div>
+                <div class="character-role">{{ roleplay.person_name }}</div>
             </div>
             
             <div class="difficulty-section">
@@ -987,13 +1021,19 @@
                 <div class="attempts-info">
                     {{ roleplay.attempts_remaining }} attempt(s) remaining
                 </div>
+                {% elif roleplay.status == 'attempted' or roleplay.status == 'completed' %}
+                <button class="start-btn completed" disabled>
+                    <i class="fas fa-check-circle"></i> COMPLETED
+                </button>
+                {% if roleplay.max_attempts > 1 %}
+                <div class="attempts-info">
+                    {{ roleplay.completed_attempts }}/{{ roleplay.max_attempts }} attempts used
+                </div>
+                {% endif %}
                 {% else %}
                 <button class="start-btn" disabled>
-                    <i class="fas fa-check"></i> COMPLETED
+                    <i class="fas fa-lock"></i> LOCKED
                 </button>
-                <div class="attempts-info warning">
-                    No attempts remaining
-                </div>
                 {% endif %}
             </div>
         </div>
@@ -1001,8 +1041,8 @@
     </div>
 </div>
 
-<!-- Simple Black Overlay - Dims existing page until instructions are read -->
-<div id="pageOverlay" class="page-overlay"></div>
+<!-- Simple Black Overlay - Dims existing page until instructions are read - Click anywhere to dismiss -->
+<div id="pageOverlay" class="page-overlay" onclick="this.classList.remove('show'); sessionStorage.setItem('hasReadInstructions', 'true'); document.getElementById('clickTooltip').classList.add('hidden'); instructionsViewed = true;"></div>
 
 <!-- Instructions Modal -->
 <div id="instructionsModal" class="modal instructions-modal">
@@ -1054,23 +1094,23 @@
                     <h3 style="margin: 0; color: #111827; font-size: 1.1rem; font-weight: 600;">Instructions</h3>
                 </div>
                 <ul style="list-style: none; padding: 0; margin: 0;">
-                    <li style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; font-size: 0.95rem; color: #374151; line-height: 1.5;">
+                    <li style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; font-size: 1rem; color: #374151; line-height: 1.5;">
                         <i class="fas fa-arrow-right" style="color: #dc2626; margin-top: 3px; flex-shrink: 0;"></i>
                         <span>Read each context, imagine you really are meeting and talking to them</span>
                     </li>
-                    <li style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; font-size: 0.95rem; color: #374151; line-height: 1.5;">
+                    <li style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; font-size: 1rem; color: #374151; line-height: 1.5;">
                         <i class="fas fa-arrow-right" style="color: #dc2626; margin-top: 3px; flex-shrink: 0;"></i>
                         <span>Then, put on your headphones before you "Start" a conversation with any of them</span>
                     </li>
-                    <li style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; font-size: 0.95rem; color: #374151; line-height: 1.5;">
+                    <li style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; font-size: 1rem; color: #374151; line-height: 1.5;">
                         <i class="fas fa-arrow-right" style="color: #dc2626; margin-top: 3px; flex-shrink: 0;"></i>
                         <span>Then, listen carefully to what the virtual stakeholder says, and respond by choosing between 2 response options</span>
                     </li>
-                    <li style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; font-size: 0.95rem; color: #374151; line-height: 1.5;">
+                    <li style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; font-size: 1rem; color: #374151; line-height: 1.5;">
                         <i class="fas fa-arrow-right" style="color: #dc2626; margin-top: 3px; flex-shrink: 0;"></i>
                         <span>Continue the conversation... listening, selecting as if you are really talking to them</span>
                     </li>
-                    <li style="display: flex; align-items: flex-start; gap: 10px; font-size: 0.95rem; color: #374151; line-height: 1.5;">
+                    <li style="display: flex; align-items: flex-start; gap: 10px; font-size: 1rem; color: #374151; line-height: 1.5;">
                         <i class="fas fa-arrow-right" style="color: #dc2626; margin-top: 3px; flex-shrink: 0;"></i>
                         <span>Of course, remember to be yourself and carry on the conversation as you would</span>
                     </li>
@@ -1093,7 +1133,7 @@
             
             <!-- Language Selection -->
             <div class="language-selection" style="margin: 20px 0;">
-                <label for="languageDropdown" style="display: flex; align-items: center; gap: 8px; font-size: 0.95rem; color: #374151; font-weight: 600; margin-bottom: 10px;">
+                <label for="languageDropdown" style="display: flex; align-items: center; gap: 8px; font-size: 1rem; color: #374151; font-weight: 600; margin-bottom: 10px;">
                     <i class="fas fa-language" style="color: #16a34a;"></i>
                     Choose Language You Wish to Respond In
                 </label>
@@ -1189,6 +1229,19 @@ window.addEventListener('load', function() {
     }
 });
 
+// Hide tooltip when clicking anywhere on the page
+document.addEventListener('click', function(event) {
+    const tooltip = document.getElementById('clickTooltip');
+    const clickBeforeBtn = document.querySelector('.click-before-btn');
+    
+    // If tooltip is visible and click is not on the "Click Before Starting" button
+    if (tooltip && !tooltip.classList.contains('hidden') && event.target !== clickBeforeBtn && !clickBeforeBtn.contains(event.target)) {
+        tooltip.classList.add('hidden');
+        sessionStorage.setItem('hasReadInstructions', 'true');
+        instructionsViewed = true;
+    }
+});
+
 let currentRoleplayId = null;
 let instructionsViewed = false;
 let previousRoleplayId = null;
@@ -1225,8 +1278,6 @@ function showInstructions() {
     // Mark instructions as read and remove the overlay
     sessionStorage.setItem('hasReadInstructions', 'true');
     document.getElementById('pageOverlay').classList.remove('show');
-    // Send header section to back (lower z-index)
-    document.getElementById('headerSection').style.zIndex = '1';
     // Hide the tooltip
     document.getElementById('clickTooltip').classList.add('hidden');
     // Show the instructions modal
@@ -1244,18 +1295,11 @@ function showSituation(roleplayId, personName, scenario, inputType, scenarioFile
     // Hide the page overlay when showing situation modal
     document.getElementById('pageOverlay').classList.remove('show');
     
+    // Auto-mark instructions as viewed if user clicks on a roleplay (implicit consent)
     if (!instructionsViewed) {
-        // Show a more prominent modal instead of alert
-        document.getElementById('warningText').textContent = 
-            'Please click on "Click Before Starting" button to read the instructions before starting any conversation.';
-        document.getElementById('warningModal').classList.add('show');
-        
-        // Override confirm to show instructions
-        window.tempConfirmAction = function() {
-            closeWarning();
-            showInstructions();
-        };
-        return;
+        instructionsViewed = true;
+        sessionStorage.setItem('hasReadInstructions', 'true');
+        document.getElementById('clickTooltip').classList.add('hidden');
     }
     
     // Check if moving to next roleplay with in-progress attempt on previous

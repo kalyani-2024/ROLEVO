@@ -54,6 +54,31 @@ This information has been given to the trainee, using this the trainee must hold
             part_prompt += "\n"
 
             # strip words level2 as it is confusing gpt
+        print(f"\n🔍 EVALUATING COMPETENCY: {competency['name']}")
+        print(f"   User input: {user_input[:100]}...")
+        
+        # Safety check: Ensure examples is a list
+        if not isinstance(competency.get('examples'), list):
+            print(f"   ❌ ERROR: competency['examples'] is not a list! It's {type(competency.get('examples'))}: {competency.get('examples')}")
+            print(f"   This means your Competency Master Excel has numbers in Score columns instead of text examples!")
+            # Create dummy examples as fallback
+            competency['examples'] = [
+                "Basic/poor response example missing",
+                "Acceptable/average response example missing", 
+                "Excellent response example missing"
+            ]
+        
+        # Ensure we have 3 examples
+        while len(competency['examples']) < 3:
+            competency['examples'].append("Example not provided")
+        
+        # Convert any non-string examples to strings
+        competency['examples'] = [str(ex) if ex is not None else "Example not provided" for ex in competency['examples']]
+        
+        print(f"   Score 1 example: {competency['examples'][0][:80] if competency['examples'][0] else 'None'}...")
+        print(f"   Score 2 example: {competency['examples'][1][:80] if competency['examples'][1] else 'None'}...")
+        print(f"   Score 3 example: {competency['examples'][2][:80] if competency['examples'][2] else 'None'}...")
+        
         prompt = f"""
 The user has now input a response: "{user_input}"
 
@@ -62,12 +87,30 @@ The above is a response that the user has said to {self.person_name}. The user h
 You need to judge purely based on user input's competency tagged as: {competency['name'].strip("Level 2")}
 {competency['name'].strip("Level 2")} is defined as "{competency['description']}"
 
-IMPORTANT SCORING RULES:
-1. Compare the user's response STRICTLY against the example responses below
-2. The user must demonstrate the competency level to earn that score
-3. DO NOT give high scores just because the response sounds good
-4. Look for SPECIFIC behaviors and elements described in the scoring examples
-5. If the user simply copies tips or gives a generic response, score based on actual competency demonstration
+🎯 CRITICAL SCORING RULE - COMPARE AGAINST EXCEL EXAMPLES:
+⚠️ YOU MUST CAREFULLY COMPARE THE USER'S RESPONSE AGAINST EACH SCORE LEVEL
+⚠️ Score 3 requires EXCELLENCE - multiple strong behaviors from the examples
+⚠️ Score 2 is AVERAGE - shows some but not all excellent behaviors
+⚠️ Score 1 is POOR - minimal or weak demonstration of competency
+
+IMPORTANT EVALUATION PROCESS - Follow this order:
+1. Read the user's response carefully and identify ALL relevant behaviors
+2. Check Score 3 examples FIRST - Does the user's response show MULTIPLE characteristics of excellence?
+   - If YES and response is comprehensive → Score 3
+   - If PARTIAL or missing key elements → Continue to Score 2
+3. Check Score 2 examples - Does the response show acceptable but not excellent behaviors?
+   - If YES and shows moderate competency → Score 2
+   - If weak or minimal → Continue to Score 1
+4. Check Score 1 examples - Does the response show only basic/poor behaviors?
+   - If YES → Score 1
+   - If worse than examples → Score 0
+
+🔑 KEY PRINCIPLE FOR DISTINGUISHING SCORE 2 vs SCORE 3:
+- Score 3 = COMPREHENSIVE, PROACTIVE, shows MULTIPLE strong behaviors, goes above and beyond
+- Score 2 = ADEQUATE, REACTIVE, shows SOME good behaviors but missing depth or key elements
+- When in doubt between 2 and 3: Ask "Does this response demonstrate EXCELLENCE or just ADEQUACY?"
+
+⚠️ BE ACCURATE NOT HARSH: If the response genuinely demonstrates most/all Score 3 characteristics, give Score 3
 
 Below are SPECIFIC examples for how this competency would be evaluated and scored:
 
@@ -93,22 +136,39 @@ These responses show STRONG competency. Only give score 3 if the user's response
 
 ---
 
-SCORE 0 - No Competency Demonstrated:
-If the user's response:
-- Shows NO evidence of {competency['name']}
-- Is completely off-topic
-- Is just copying tips without actual application
-- Does not address the situation appropriately
-Then give it a score of 0
+SCORE 0 - Worse than Score 1 Examples:
+⚠️ GIVE SCORE 0 ONLY IF:
+- Response shows NO evidence of {competency['name']} at all
+- Response is completely off-topic or irrelevant
+- Response is worse than the Score 1 example characteristics
+- Response is nonsense or incoherent
 
-STRICT EVALUATION CRITERIA:
-- Match the user's response against the SPECIFIC behaviors described in each score level
-- The user must DEMONSTRATE the competency, not just mention it
-- Generic or vague responses should get lower scores
-- Responses that copy tips verbatim without demonstrating competency should score based on actual demonstration
-- Be CRITICAL and PRECISE in your evaluation
+📊 EVALUATION METHOD - Step by Step:
+
+STEP 1: List the behaviors you observe in the user's response
+STEP 2: Compare against Score 3 example characteristics
+   - Count how many Score 3 behaviors are present
+   - Are there 2+ strong Score 3 characteristics? → Likely Score 3
+STEP 3: If not Score 3, compare against Score 2 characteristics
+   - Does it show moderate/acceptable behaviors? → Score 2
+STEP 4: If not Score 2, compare against Score 1
+   - Basic/minimal behaviors? → Score 1
+   - Worse than Score 1? → Score 0
+
+🎯 SPECIAL GUIDANCE FOR SCORE 2 vs SCORE 3 DECISION:
+If you're unsure between Score 2 and Score 3, ask yourself:
+- Does the response demonstrate MOST of the Score 3 characteristics? → Give Score 3
+- Does the response show SOME good points but lack depth/completeness? → Give Score 2
+- Remember: Score 3 means EXCELLENT, not just "good enough"
+- But also: Don't be overly harsh - if it genuinely shows excellence, give credit
 
 You can only return a value of 0, 1, 2, or 3.
+
+In your response:
+1. Briefly list the key behaviors you observed in the user's response
+2. State which score level these behaviors most closely match
+3. If choosing between 2 and 3, explicitly explain why you chose that level
+4. Provide your final score
 
 {self.normal_output_format}
         """
@@ -143,11 +203,17 @@ You can only return a value of 0, 1, 2, or 3.
         prompt = f"""        
 Your task is to perform STRICT sentiment and keyword analysis on the user's input and return a score of 0, 1, 2, or 3.
 
-CRITICAL RULES:
-1. The user's response MUST match BOTH the meaning/intent AND sentiment of one of the example sentences
-2. If keywords are specified for an example, the user MUST use similar keywords or concepts
-3. Simply copying the tip or giving a generic response does NOT automatically match any example
-4. The user must ACTUALLY demonstrate the behavior described in the example
+CRITICAL ANTI-COPYING RULES:
+⚠️ IF THE RESPONSE LOOKS COPIED OR TEMPLATE-LIKE = SCORE 0
+⚠️ GENERIC BUSINESS PHRASES WITHOUT CONTEXT = SCORE 0
+⚠️ MUST BE NATURAL DIALOGUE, NOT SCRIPTED TEXT
+
+1. The user's response MUST match BOTH the meaning/intent AND sentiment of one of the example sentences IN A NATURAL WAY
+2. If keywords are specified, user must use similar concepts NATURALLY, not just insert keywords
+3. Simply copying tips, instructions, or using template language = AUTOMATIC SCORE 0
+4. The user must ACTUALLY demonstrate the behavior in authentic dialogue
+5. Responses that sound rehearsed, perfect, or professional without context = SUSPICIOUS = LOW SCORE
+6. Be SKEPTICAL - real people don't talk in perfect sentences, they're conversational
 
 SCORING:
 - Score 1: User's response matches the intent, sentiment, AND keywords of sentence 1
@@ -198,19 +264,27 @@ The instruction/tip provided to the player is:
 The player input you have to judge is:
 "{user_input}"
 
+⚠️ PRIMARY CHECK: Did they COPY the tip or APPLY the tip?
+If the response contains exact phrases or very similar wording to the tip = COPIED = SCORE 0
+
 You have to judge STRICTLY based on:
-- Did they UNDERSTAND and APPLY the tip (not just copy it)?
-- Did they demonstrate the behavior/approach suggested by the tip?
-- Is their response appropriate for the roleplay context?
-- Did they integrate the tip naturally into their response?
+- Did they UNDERSTAND and APPLY the tip IN THEIR OWN WORDS?
+- Did they demonstrate the behavior/approach NATURALLY without sounding scripted?
+- Is their response AUTHENTIC and appropriate for the roleplay context?
+- Did they integrate the tip so naturally that you can't tell they were given a tip?
+- Does it sound like something a real person would say, or like copied instructions?
 
 SCORING:
-0 - Instruction NOT followed at all, or just blindly copied without proper application, or completely inappropriate
-1 - Instruction followed remotely/partially, weak application, barely demonstrates the tip
-2 - Instruction followed reasonably well but not perfectly, shows good understanding but could be better
-3 - Instruction followed excellently, demonstrates clear understanding and proper application in context
+0 - COPIED the tip text (similar wording/phrasing), OR instruction not followed at all, OR completely inappropriate
+1 - Instruction followed remotely/partially, sounds somewhat scripted, weak/forced application
+2 - Instruction followed reasonably well with some natural integration, but could be more authentic
+3 - Instruction followed excellently IN THEIR OWN WORDS, sounds completely natural and authentic, no trace of copying
 
-BE CRITICAL: If the user just copied the tip text without actually demonstrating it in a natural, contextual way, give a LOW score (0 or 1).
+⚠️ BE EXTREMELY CRITICAL: 
+- Check for exact phrases from the tip = AUTOMATIC SCORE 0
+- Check for similar sentence structure to the tip = SCORE 0 OR 1
+- "Perfect" or professional-sounding responses without natural flow = SUSPICIOUS = LOW SCORE
+- The best responses won't sound like they came from a tip at all
 
 Provide a score only as 0, 1, 2, or 3.
 

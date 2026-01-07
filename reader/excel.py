@@ -13,6 +13,56 @@ try:
 except ImportError:
     XLRD_AVAILABLE = False
 
+
+def convert_gdrive_link(url):
+    """
+    Convert Google Drive sharing links to direct download/view links.
+    
+    Supported formats:
+    - https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+    - https://drive.google.com/open?id=FILE_ID
+    - https://drive.google.com/uc?id=FILE_ID
+    - https://drive.usercontent.google.com/download?id=FILE_ID&...
+    
+    Returns the direct link format that can be used as image src.
+    Uses lh3.googleusercontent.com for more reliable image embedding.
+    """
+    if not url or not isinstance(url, str):
+        return url
+    
+    url = url.strip()
+    
+    # Skip if not a Google Drive link
+    if 'drive.google.com' not in url and 'drive.usercontent.google.com' not in url:
+        return url
+    
+    file_id = None
+    
+    # Pattern 1: /file/d/FILE_ID/view
+    match = re.search(r'/file/d/([a-zA-Z0-9_-]+)', url)
+    if match:
+        file_id = match.group(1)
+    
+    # Pattern 2: ?id=FILE_ID or &id=FILE_ID
+    if not file_id:
+        match = re.search(r'[?&]id=([a-zA-Z0-9_-]+)', url)
+        if match:
+            file_id = match.group(1)
+    
+    # Pattern 3: /uc?export=view&id=FILE_ID (already correct format)
+    if not file_id and '/uc?' in url and 'id=' in url:
+        # Already in correct format
+        return url
+    
+    if file_id:
+        # Use lh3.googleusercontent.com for reliable image embedding
+        # This format works better for embedding images in HTML
+        return f'https://lh3.googleusercontent.com/d/{file_id}'
+    
+    # If we couldn't extract file ID, return original
+    return url
+
+
 class ExcelReader:
     """
     This temporary reader will parse excel file containing the roleplay
@@ -84,7 +134,9 @@ class ExcelReader:
         return self.data.iloc[0,2]
     
     def get_system_prompt_image(self):
-        return self.image_data.iloc[0,2]
+        """Returns the system prompt image URL, converting Google Drive links if needed."""
+        image_url = self.image_data.iloc[0,2]
+        return convert_gdrive_link(image_url)
     
     def _get_bold_words(self, row: int, col: int) -> List[str]:
         """
@@ -163,26 +215,126 @@ class ExcelReader:
         if len(current_index.index) == 0:
             return False
         current_index = current_index.index[0]
-        tip = self.data.iloc[current_index, 5]
-        if pd.isna(tip):
+        
+        print(f"\n📖 READING INTERACTION #{current_interaction_number}")
+        print(f"   Excel Row for interaction: {current_index + 1}")  # +1 for Excel row numbering
+        print(f"   Player choices row: {current_index + 1}")
+        print(f"   Competency row: {current_index + 2}")
+        print(f"   Computer response row: {current_index + 3}")
+        print(f"   DataFrame columns count: {self.data.shape[1]}")
+        
+        # Try to get tip from column 5 (F), if it exists (column F is index 5, so need at least 6 columns)
+        tip = None
+        try:
+            if self.data.shape[1] > 5:  # Need MORE than 5 columns to access index 5
+                tip = self.data.iloc[current_index, 5]
+                if pd.isna(tip):
+                    tip = None
+                else:
+                    print(f"   Tip found: {tip}")
+            else:
+                print(f"   No tip column available (only {self.data.shape[1]} columns)")
+        except (IndexError, KeyError) as e:
+            print(f"   Could not read tip column: {e}")
             tip = None
+        
         player = self.data.iloc[current_index, 2:].tolist()[:3]
         keywords = [self._get_bold_words(current_index, x) for x in range(2,5)]
         competency = self._process_choice_competencies(self.data.iloc[current_index+1, 2:].tolist()[:3], self.master)
         comp = self.data.iloc[current_index+2, 2:].tolist()[:3]
-        return {"player":player, "comp":comp, "competencies":competency, "tip": tip, "keywords": keywords}
+        
+        print(f"   Player choices: {player}")
+        print(f"   Computer responses RAW: {comp}")
+        print(f"   Computer responses TYPES: {[type(x) for x in comp]}")
+        
+        # Convert any non-string values to strings (handles numbers, NaN, etc.)
+        comp_cleaned = []
+        for idx, item in enumerate(comp):
+            if pd.isna(item):
+                print(f"   ⚠️ WARNING: Computer response {idx+1} (score {idx+1}) is empty/NaN!")
+                comp_cleaned.append("")
+            elif isinstance(item, (int, float)):
+                print(f"   ⚠️ WARNING: Computer response {idx+1} (score {idx+1}) is a number: {item}")
+                comp_cleaned.append(str(item))
+            else:
+                comp_cleaned.append(str(item) if item else "")
+        
+        comp = comp_cleaned
+        print(f"   Computer responses CLEANED: {[x[:50] if x else 'EMPTY' for x in comp]}")  # First 50 chars
+        
+        # Extract character names and gender from computer response
+        # Two formats supported:
+        # 1. Team roleplay: "Bheem (M): Yes Sir | Satyam (M): All okay" (multi-speaker)
+        # 2. Single roleplay: Column B = "other (M)" or "other (F)" (single speaker)
+        characters = []
+        character = None
+        gender_marker = None  # For single-speaker roleplays
+        
+        # Check Column B (index 1) for single-speaker gender marker: "other (M)" or "other (F)"
+        column_b_value = self.data.iloc[current_index+2, 1]  # Row 3 (computer response), Column B
+        if pd.notna(column_b_value):
+            column_b_str = str(column_b_value).strip().lower()
+            print(f"🔍 EXCEL DEBUG: Row {current_index+3} Column B value = '{column_b_value}' (lowercased: '{column_b_str}')")
+            import re
+            # Look for (M), (F), (Male), (Female) in Column B
+            if '(m)' in column_b_str or '(male)' in column_b_str:
+                gender_marker = 'male'
+                print(f"✅ GENDER MARKER DETECTED: MALE from Column B")
+            elif '(f)' in column_b_str or '(female)' in column_b_str:
+                gender_marker = 'female'
+                print(f"✅ GENDER MARKER DETECTED: FEMALE from Column B")
+            else:
+                print(f"⚠️ No gender marker found in Column B (expected '(M)' or '(F)')")
+        
+        # Extract character names from dialogue text for team roleplays
+        for response_text in comp:
+            if response_text and not pd.isna(response_text):
+                text = str(response_text)
+                # Find all "Name:" patterns
+                matches = re.findall(r'([A-Z][a-zA-Z]+):', text)
+                for name in matches:
+                    if name and name not in characters:
+                        characters.append(name)
+        
+        # Set primary character as first one found
+        if characters:
+            character = characters[0]
+        
+        return {
+            "player": player, 
+            "comp": comp, 
+            "competencies": competency, 
+            "tip": tip, 
+            "keywords": keywords, 
+            "character": character, 
+            "characters": characters,
+            "gender_marker": gender_marker  # For single-speaker roleplays
+        }
     
     def get_images(self, current_interaction_number: int):
+        """
+        Get images for the current interaction.
+        Converts Google Drive links to direct viewable URLs.
+        """
+        placeholder = "https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png"
         try:
             current_index = self.image_data.loc[self.image_data[0] == current_interaction_number]
             if len(current_index.index) == 0:
-                return {"images":["https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png","https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png","https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png"]}
+                return {"images": [placeholder, placeholder, placeholder]}
             current_index = current_index.index[0]
             images = self.image_data.iloc[current_index+2, 2:].tolist()[:3]
-            return {"images":images}
+            
+            # Convert Google Drive links to direct URLs
+            converted_images = [convert_gdrive_link(img) if isinstance(img, str) else placeholder for img in images]
+            
+            # Ensure we always have 3 images
+            while len(converted_images) < 3:
+                converted_images.append(placeholder)
+            
+            return {"images": converted_images}
         except Exception as e:
-            print(e)
-            return {"images":["https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png","https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png","https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png"]}
+            print(f"Error getting images for interaction {current_interaction_number}: {e}")
+            return {"images": [placeholder, placeholder, placeholder]}
         
     def _process_choice_competencies(self, options: List[str], descriptions: dict) -> List[str]:
         """
@@ -195,7 +347,9 @@ class ExcelReader:
             for comp in comps:
                 key = comp.strip().split(":")[0]
                 if key not in descriptions:
-                    raise ValueError("Could not find competency in master")
+                    # Better error message showing what's wrong
+                    available_keys = list(descriptions.keys())
+                    raise ValueError(f"Could not find competency '{key}' in master file. Check spelling and spacing. Available: {available_keys}")
                 if descriptions[key] not in final_list:
                     final_list.append(descriptions[key])
         return final_list
@@ -204,28 +358,87 @@ class ExcelReader:
         """
         Considers the input and returns the accurate next interaction 
         (including skipping interactions as mentioned in the excel sheet)
-        Returns false if interaction is over
+        Returns -1 if interaction is over (changed from False)
         """
         current_index = self.data.loc[self.data[0] == interaction_number].index[0]
+        
         if score <= 0 or score > 3:
             raise ValueError("Invalid Score")
-        if pd.isnull(self.data.iloc[current_index+3, 0]):
-            todo = self.data.iloc[current_index+3, 1+score]
-            todo = todo.lower().strip()
-            todo = re.sub('[^A-Za-z0-9]+', ' ', todo).strip() # remove special chats
-            if any(str.isdigit(c) for c in todo): # check if any numbers in text
-                extract = todo.split(" ")
-                goto_number = None
+        
+        print(f"\n🔍 GET_NEXT_INTERACTION: Current interaction={interaction_number}, Score={score}")
+        print(f"   Current Excel row index: {current_index}")
+        
+        # Check the next row (current_index + 3) to see if it has an interaction number
+        next_row_value = self.data.iloc[current_index+3, 0]
+        print(f"   Next row (index {current_index+3}) Column A value: {next_row_value}")
+        
+        if pd.isnull(next_row_value):
+            # No interaction number in next row, check the action cell
+            action_cell_col = 1 + score  # Column B=2, C=3, D=4 for scores 1, 2, 3
+            todo = self.data.iloc[current_index+3, action_cell_col]
+            todo_original = str(todo)
+            print(f"   Action cell (row {current_index+3}, col {action_cell_col}): '{todo_original}'")
+            
+            # Handle NaN/None values
+            if pd.isna(todo):
+                print(f"   ❌ Action cell is NaN/None - ENDING roleplay (returning -1)")
+                return -1
+            
+            todo_processed = str(todo).lower().strip()
+            todo_processed = re.sub('[^A-Za-z0-9]+', ' ', todo_processed).strip()
+            print(f"   Processed action text: '{todo_processed}'")
+            
+            # Check for goto instruction (e.g., "Go to row 24", "goto row 5", "Go to 24")
+            if any(str.isdigit(c) for c in todo_processed):
+                extract = todo_processed.split(" ")
+                print(f"   Found digits in action cell, split words: {extract}")
+                goto_row_number = None
                 for e in extract:
                     if e.isnumeric():
-                        goto_number = int(e)
+                        goto_row_number = int(e)
+                        print(f"   ✅ Found goto ROW number: {goto_row_number}")
                         break
-                if goto_number == None:
-                    return False
-                return goto_number
-            elif "end" in todo:
-                return False
+                if goto_row_number == None:
+                    print(f"   ❌ Could not extract goto number - ENDING roleplay (returning -1)")
+                    return -1
+                
+                # IMPORTANT: goto_row_number is an EXCEL ROW, not an interaction number
+                # We need to find which interaction number is at that Excel row
+                # Excel rows are 1-indexed, pandas DataFrame is 0-indexed
+                # So Excel row 9 = DataFrame index 8
+                try:
+                    goto_excel_index = goto_row_number - 1  # Convert to 0-indexed
+                    print(f"   Converting Excel row {goto_row_number} to DataFrame index {goto_excel_index}")
+                    
+                    # Get the interaction number at that row (column A = index 0)
+                    goto_interaction_number = self.data.iloc[goto_excel_index, 0]
+                    
+                    if pd.isna(goto_interaction_number):
+                        print(f"   ❌ No interaction number at Excel row {goto_row_number} - ENDING roleplay (returning -1)")
+                        return -1
+                    
+                    goto_interaction_number = int(goto_interaction_number)
+                    print(f"   ➡️ Excel row {goto_row_number} = INTERACTION {goto_interaction_number}")
+                    print(f"   ➡️ GOTO interaction {goto_interaction_number}")
+                    return goto_interaction_number
+                except Exception as e:
+                    print(f"   ❌ Error finding interaction at Excel row {goto_row_number}: {e}")
+                    print(f"   Treating {goto_row_number} as interaction number (fallback)")
+                    return goto_row_number
+            elif "end" in todo_processed:
+                print(f"   ❌ Found 'end' keyword - ENDING roleplay (returning -1)")
+                return -1
             else:
-                return int(self.data.iloc[current_index+4, 0])
+                # No clear instruction, try to go to next numbered interaction
+                try:
+                    next_int = int(self.data.iloc[current_index+4, 0])
+                    print(f"   ➡️ No clear action, going to next numbered row: {next_int}")
+                    return next_int
+                except:
+                    print(f"   ❌ Cannot find next interaction - ENDING roleplay (returning -1)")
+                    return -1
         else:
-            return int(self.data.iloc[current_index+3, 0])
+            # Next row has an interaction number, go there
+            next_int = int(next_row_value)
+            print(f"   ➡️ Next row has interaction number, going to: {next_int}")
+            return next_int

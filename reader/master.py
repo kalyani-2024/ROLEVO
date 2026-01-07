@@ -28,6 +28,18 @@ class MasterLoader:
             data_dict = {}
             data_dict["name"] = mapping_dict[x]
             data_dict["description"] = mapping_dict2[x]
-            data_dict["examples"] = [score1[x], score2[x], score3[x]]  
+            
+            # Convert examples to strings to handle Excel cells containing numbers
+            # This prevents "'float' object is not subscriptable" errors
+            examples = []
+            for score_dict, score_label in [(score1, "Score 1"), (score2, "Score 2"), (score3, "Score 3")]:
+                value = score_dict.get(x)
+                if pd.isna(value):  # Handle NaN/None
+                    examples.append(f"{score_label} example not provided")
+                else:
+                    examples.append(str(value))  # Convert to string (handles float, int, str)
+            
+            data_dict["examples"] = examples
             r_dict[x] = data_dict
+        
         return r_dict

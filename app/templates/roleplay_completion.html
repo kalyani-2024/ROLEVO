@@ -6,6 +6,18 @@
 <link href="{{url_for('static', filename='css/style.css')}}" rel="stylesheet">
 <script src="{{url_for('static', filename='js/fontawesome.js')}}" crossorigin="anonymous"></script>
 
+{% if cluster_type == 'assessment' %}
+<!-- Assessment mode: Redirect to homepage with flash message -->
+<script>
+console.log('Cluster type: assessment - redirecting to homepage');
+window.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, redirecting to cluster dashboard');
+    // Redirect to cluster dashboard
+    window.location.href = '/user/{{ user_id }}/cluster/{{ cluster_id }}?completed=1';
+});
+</script>
+{% else %}
+<!-- Training mode: Show full completion page -->
 <style>
     body {
         background: url("{{url_for('static', filename='images/login_page_bg.jpg')}}");
@@ -234,9 +246,12 @@
         border-color: #218838;
     }
 </style>
+{% endif %}
 {% endblock %}
 
 {% block content %}
+{% if cluster_type != 'assessment' %}
+<!-- Only show completion page for training mode -->
 <div class="completion-container">
     <div class="completion-icon">🎉</div>
     <h1 class="completion-title">Great Work!</h1>
@@ -319,4 +334,11 @@ document.getElementById('warningModal').addEventListener('click', function(e) {
     }
 });
 </script>
+{% else %}
+<!-- Testing mode: Just show loading message while redirect happens -->
+<div style="text-align: center; padding: 50px;">
+    <h2>Roleplay Completed!</h2>
+    <p>Redirecting to dashboard...</p>
+</div>
+{% endif %}
 {% endblock %}

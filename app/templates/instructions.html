@@ -205,12 +205,12 @@
         
         <div class="roleplay-info">
             <div class="character-name">{{ roleplay[1] }}</div>
-            <p><strong>Character:</strong> {{ roleplay[2] }}</p>
+            <p><strong>Character:</strong> {{ roleplay[6] if roleplay|length > 6 and roleplay[6] else 'Role Player' }}</p>
         </div>
         
         <div class="scenario-description">
             <h4 style="color: #158044; margin-bottom: 15px;">📖 Scenario</h4>
-            {{ roleplay[3] }}
+            {{ roleplay[5] if roleplay|length > 5 and roleplay[5] else 'No scenario provided' }}
         </div>
         
         <div class="instructions-list">
