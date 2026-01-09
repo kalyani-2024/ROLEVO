@@ -44,6 +44,26 @@ class Persona360Service:
         "Tension",              # Factor Q4
     ]
     
+    # 16PF Factor code to name mapping
+    FACTOR_CODE_TO_NAME = {
+        "A": "Warmth",
+        "B": "Reasoning", 
+        "C": "Emotional Stability",
+        "E": "Dominance",
+        "F": "Liveliness",
+        "G": "Rule-Consciousness",
+        "H": "Social Boldness",
+        "I": "Sensitivity",
+        "L": "Vigilance",
+        "M": "Abstractedness",
+        "N": "Privateness",
+        "O": "Apprehension",
+        "Q1": "Openness to Change",
+        "Q2": "Self-Reliance",
+        "Q3": "Perfectionism",
+        "Q4": "Tension",
+    }
+    
     # Additional composite/derived scores
     COMPOSITE_SCORES = [
         "Adjustment",
@@ -133,7 +153,9 @@ class Persona360Service:
             # Check response status
             if response.status_code == 200:
                 result = response.json()
-                print(f"[Persona360] Analysis successful: {json.dumps(result, indent=2)[:500]}...")
+                print(f"[Persona360] Analysis successful!")
+                print(f"[Persona360] FULL RAW RESPONSE: {json.dumps(result, indent=2)}")
+                print(f"[Persona360] Response keys: {list(result.keys()) if isinstance(result, dict) else 'Not a dict'}")
                 return True, self._parse_response(result)
             else:
                 error_msg = f"API returned status {response.status_code}: {response.text}"
@@ -173,20 +195,58 @@ class Persona360Service:
             "analysis_confidence": None
         }
         
+        print(f"[Persona360] Parsing response with keys: {list(api_response.keys()) if isinstance(api_response, dict) else 'Not a dict'}")
+        
         # The API response structure may vary - handle common formats
         # Try to extract personality factors
         if "personality" in api_response:
             personality_data = api_response["personality"]
+            print(f"[Persona360] Found 'personality' key with {len(personality_data) if isinstance(personality_data, dict) else 'non-dict'} items")
             if isinstance(personality_data, dict):
                 result["personality_scores"] = personality_data
         
         # Try to extract 16PF factors directly
         if "16pf" in api_response:
+            print(f"[Persona360] Found '16pf' key")
             result["personality_scores"] = api_response["16pf"]
         
         # Try to extract factor scores
         if "factors" in api_response:
+            print(f"[Persona360] Found 'factors' key")
             result["personality_scores"] = api_response["factors"]
+        
+        # Try "scores" key
+        if "scores" in api_response:
+            print(f"[Persona360] Found 'scores' key: {api_response['scores']}")
+            if isinstance(api_response["scores"], dict):
+                result["personality_scores"] = api_response["scores"]
+        
+        # Try "traits" key
+        if "traits" in api_response:
+            print(f"[Persona360] Found 'traits' key: {api_response['traits']}")
+            if isinstance(api_response["traits"], dict):
+                result["personality_scores"] = api_response["traits"]
+        
+        # Try "predictions" or "results" keys - THIS IS THE MAIN FORMAT FROM PERSONA360 API
+        if "predictions" in api_response:
+            predictions = api_response["predictions"]
+            print(f"[Persona360] Found 'predictions' key: {predictions}")
+            if isinstance(predictions, dict):
+                # Convert factor codes (A, B, C...) to full names (Warmth, Reasoning...)
+                for code, score in predictions.items():
+                    if code in self.FACTOR_CODE_TO_NAME:
+                        full_name = self.FACTOR_CODE_TO_NAME[code]
+                        result["personality_scores"][full_name] = score
+                        print(f"[Persona360] Mapped {code} -> {full_name} = {score}")
+                    else:
+                        # Keep as-is if not a known code
+                        result["personality_scores"][code] = score
+                        print(f"[Persona360] Kept unknown code {code} = {score}")
+        
+        if "results" in api_response:
+            print(f"[Persona360] Found 'results' key: {api_response['results']}")
+            if isinstance(api_response["results"], dict):
+                result["personality_scores"] = api_response["results"]
         
         # Extract composite scores if present
         for score_name in self.COMPOSITE_SCORES:
@@ -210,18 +270,35 @@ class Persona360Service:
         
         # If the API returns scores directly at the root level, try to map them
         if not result["personality_scores"] and not result["composite_scores"]:
+            print(f"[Persona360] No personality/composite scores found in standard keys, checking root level...")
             # Try to find any score-like values in the response
             for key, value in api_response.items():
+                print(f"[Persona360] Checking key '{key}': value={value}, type={type(value)}")
                 if isinstance(value, (int, float)) and 0 <= value <= 100:
                     # Normalize key name
                     normalized_key = key.replace("_", " ").title()
                     if normalized_key in self.PERSONALITY_FACTORS:
                         result["personality_scores"][normalized_key] = value
+                        print(f"[Persona360] Mapped '{key}' -> personality_scores['{normalized_key}'] = {value}")
                     elif normalized_key in self.COMPOSITE_SCORES:
                         result["composite_scores"][normalized_key] = value
+                        print(f"[Persona360] Mapped '{key}' -> composite_scores['{normalized_key}'] = {value}")
                     else:
                         # Add to composite scores as a custom metric
                         result["composite_scores"][normalized_key] = value
+                        print(f"[Persona360] Mapped '{key}' -> composite_scores['{normalized_key}'] = {value} (custom)")
+                elif isinstance(value, dict):
+                    # Check if this dict contains score-like values
+                    print(f"[Persona360] Found nested dict at key '{key}' with keys: {list(value.keys())}")
+                    for sub_key, sub_value in value.items():
+                        if isinstance(sub_value, (int, float)):
+                            normalized_sub_key = sub_key.replace("_", " ").title()
+                            result["personality_scores"][normalized_sub_key] = sub_value
+                            print(f"[Persona360] Mapped from nested: {key}.{sub_key} -> {normalized_sub_key} = {sub_value}")
+        
+        print(f"[Persona360] FINAL parsed personality_scores: {result['personality_scores']}")
+        print(f"[Persona360] FINAL parsed composite_scores: {result['composite_scores']}")
+        print(f"[Persona360] FINAL overall_role_fit: {result['overall_role_fit']}")
         
         return result
     

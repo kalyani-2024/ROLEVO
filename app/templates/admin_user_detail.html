@@ -141,7 +141,7 @@
                                                 </td>
                                                 <td>{{cluster[1]}}</td>
                                                 <td>{{cluster[2]}}</td>
-                                                <td>{{cluster[4].strftime('%Y-%m-%d')}}</td>
+                                                <td>{{cluster[4]|ist('%Y-%m-%d')}}</td>
                                                 <td>
                                                     <a href="/user/{{user[0]}}/cluster/{{cluster[0]}}" class="btn btn-sm btn-info" target="_blank">
                                                         <i class="fas fa-eye"></i> View
@@ -199,7 +199,7 @@
                                                     </span>
                                                 {% endif %}
                                             </td>
-                                            <td>{{ attempt.start_time.strftime('%b %d, %Y %I:%M %p') if attempt.start_time else 'N/A' }}</td>
+                                            <td>{{ attempt.start_time|ist if attempt.start_time else 'N/A' }}</td>
                                             <td>
                                                 {% if attempt.status == 'completed' %}
                                                     <a href="{{ url_for('download_report', play_id=attempt.id) }}" class="btn btn-sm btn-success">

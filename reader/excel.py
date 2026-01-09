@@ -13,6 +13,19 @@ try:
 except ImportError:
     XLRD_AVAILABLE = False
 
+# ============================================================================
+# DEBUG MODE: Set to False for production to disable all console output
+# ============================================================================
+DEBUG_MODE = False
+
+# Override print function to be silent in production
+if not DEBUG_MODE:
+    import builtins
+    _original_print = builtins.print
+    def silent_print(*args, **kwargs):
+        pass  # Do nothing
+    builtins.print = silent_print
+
 
 def convert_gdrive_link(url):
     """

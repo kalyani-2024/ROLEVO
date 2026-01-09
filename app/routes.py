@@ -27,6 +27,19 @@ from app.persona360_service import get_persona360_service, analyze_audio_for_16p
 load_dotenv(find_dotenv())
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
+# ============================================================================
+# DEBUG MODE: Set to False for production to disable all console output
+# ============================================================================
+DEBUG_MODE = False
+
+# Override print function to be silent in production
+if not DEBUG_MODE:
+    import builtins
+    _original_print = builtins.print
+    def silent_print(*args, **kwargs):
+        pass  # Do nothing
+    builtins.print = silent_print
+
 # Admin authentication decorator
 def admin_required(f):
     @wraps(f)
@@ -34,6 +47,9 @@ def admin_required(f):
         if 'user_id' not in session or session.get('is_admin') != 1:
             flash('Admin access required. Please login.')
             return redirect(url_for('admin_login'))
+        # Refresh session on each request to extend lifetime
+        session.permanent = True
+        session.modified = True
         return f(*args, **kwargs)
     return decorated_function
 
@@ -187,15 +203,16 @@ def post_attempt_data(play_id):
     final_json = {}
     play_info = get_play_info(play_id)
     
+    # Play table columns: id(0), start_time(1), end_time(2), user_id(3), roleplay_id(4), ...
     # Use session user_id as fallback if play record has NULL user_id
-    user_id_from_play = play_info[2] if play_info else None
+    user_id_from_play = play_info[3] if play_info else None  # user_id is at index 3
     user_id = user_id_from_play if user_id_from_play is not None else session.get('user_id')
     
     print(f"DEBUG post_attempt_data: play_id={play_id}, user_id from play={user_id_from_play}, user_id from session={session.get('user_id')}, final user_id={user_id}")
     
-    final_json["start_time"] = play_info[1]
+    final_json["start_time"] = play_info[1]  # start_time at index 1
     final_json["user_id"] = user_id
-    final_json["roleplay_id"] = play_info[3]
+    final_json["roleplay_id"] = play_info[4]  # roleplay_id at index 4
 
     report = query_showreport(play_id)
 
@@ -205,17 +222,25 @@ def post_attempt_data(play_id):
 
     final_json = json.loads(json.dumps(final_json, default=serialize_datetime))
 
-    print(final_json, flush=True)
+    print(f"DEBUG: Posting to Trajectorie API: {final_json}", flush=True)
 
     post_url = "http://codrive.sgate.in/api/web/v1/coursejsons/data"
-    r = requests.post(post_url, json=final_json)
-    if not r.ok:
-        #raise Exception("Error in posting data")
+    try:
+        r = requests.post(post_url, json=final_json, timeout=30)
+        print(f"DEBUG: Trajectorie API response status: {r.status_code}", flush=True)
+        print(f"DEBUG: Trajectorie API response body: {r.text[:500] if r.text else 'empty'}", flush=True)
+        
+        if not r.ok:
+            print(f"ERROR: Trajectorie API returned status {r.status_code}: {r.text}", flush=True)
+            flash("Failed to return data to Trajectorie")
+        else:
+            res = r.json()
+            if not res.get("success"):
+                print(f"ERROR: Trajectorie API returned success=false: {res}", flush=True)
+                flash("Failed to return data to Trajectorie - something went wrong")
+    except requests.exceptions.RequestException as e:
+        print(f"ERROR: Trajectorie API request failed: {str(e)}", flush=True)
         flash("Failed to return data to Trajectorie")
-    else:
-        res = r.json()
-        if not res["success"]:
-            flash("Failed to return data to Trajectorie - something went wrong")
     
     # Generate and send report to user after scoring
     try:
@@ -231,7 +256,7 @@ def post_attempt_data(play_id):
     
     # Trigger 16PF voice analysis if enabled for this roleplay
     try:
-        roleplay_id = play_info[3] if play_info else None
+        roleplay_id = play_info[4] if play_info else None  # roleplay_id is at index 4
         if roleplay_id:
             trigger_16pf_analysis_if_enabled(play_id, user_id, roleplay_id)
     except Exception as e:
@@ -253,7 +278,8 @@ def merge_audio_files_for_play(play_id):
         audio_files = []
         for filename in os.listdir(user_recordings_dir):
             if filename.endswith(('.webm', '.mp3', '.wav', '.m4a', '.ogg')):
-                if f'play{play_id}_' in filename:
+                # Match patterns: user_audio_play{id}_int... or play{id}_ or play_{id}
+                if f'play{play_id}_' in filename or f'play_{play_id}' in filename:
                     file_path = os.path.join(user_recordings_dir, filename)
                     # Get modification time for sorting
                     audio_files.append((file_path, os.path.getmtime(file_path)))
@@ -267,8 +293,19 @@ def merge_audio_files_for_play(play_id):
             print(f"[16PF] Single audio file found: {audio_files[0][0]}")
             return audio_files[0][0]
         
-        # Sort by modification time (oldest first)
-        audio_files.sort(key=lambda x: x[1])
+        # Sort by filename to maintain interaction order (int1, int2, int3, etc.)
+        # or fallback to modification time (oldest first)
+        def get_interaction_num(file_tuple):
+            filename = os.path.basename(file_tuple[0])
+            # Extract interaction number from filename like "user_audio_play258_int3_..."
+            import re
+            match = re.search(r'_int(\d+)_', filename)
+            if match:
+                return int(match.group(1))
+            # Fallback to modification time
+            return file_tuple[1]
+        
+        audio_files.sort(key=get_interaction_num)
         file_paths = [f[0] for f in audio_files]
         
         print(f"[16PF] Found {len(file_paths)} audio files to merge for play_id {play_id}")
@@ -676,7 +713,6 @@ def make_audio():
     try:
         text = request.args.get('text', '')
         if not text:
-            print("❌ AUDIO ERROR: No text provided")
             return "No text provided", 400
 
         # Create cache directory
@@ -689,8 +725,6 @@ def make_audio():
         # Get gender/character preference (default to female for backward compatibility)
         gender = request.args.get('gender', 'female').lower()
         character = request.args.get('character', '').strip()
-        
-        print(f"🔊 AUDIO REQUEST: text='{text[:50]}...', gender={gender}, character={character}, lang={selected_language}")
         
         # Map language names to gTTS language codes
         language_map = {
@@ -740,8 +774,6 @@ def make_audio():
                 tld = 'com'
                 slow = False
         
-        print(f"🎤 Voice config: gender={gender}, tld={tld}, slow={slow}")
-        
         # Create unique filename based on text content, language, and gender/character
         # Use a safer hash to avoid negative numbers
         text_hash = abs(hash(text)) % (10 ** 10)
@@ -750,12 +782,9 @@ def make_audio():
         filename = f'speech_{text_hash}_{lang_code}_{gender_char}.mp3'
         filepath = os.path.join(cache_dir, filename)
         
-        print(f"Audio request: lang={selected_language}, cached={os.path.exists(filepath)}, file={filename}")
-        
         # Check if audio file already exists in cache
         if not os.path.exists(filepath):
             try:
-                print(f"Generating new audio for: {text[:50]}...")
                 
                 # Add timeout to gTTS generation (max 10 seconds)
                 import signal
@@ -772,203 +801,46 @@ def make_audio():
                 def generate_tts():
                     nonlocal generation_error, tts_method_used
                     
-                    # TTS Priority:
-                    # 1. Edge-TTS (online, high quality, many voices)
-                    # 2. pyttsx3 (offline, reliable, supports gender) - fallback
-                    # 3. gTTS (online, basic) - final fallback
+                    # OpenAI TTS ONLY - no fallbacks
+                    from openai import OpenAI
+                    import os as oai_os
                     
-                    # ===== ATTEMPT 1: Edge-TTS (Online - High Quality) =====
-                    try:
-                        import edge_tts
-                        import asyncio
-                    except ImportError as ie:
-                        print(f"⚠️ edge-tts not installed, skipping to pyttsx3")
-                        edge_tts = None
+                    api_key = oai_os.getenv('OPENAI_API_KEY')
+                    if not api_key:
+                        generation_error = ValueError("No OPENAI_API_KEY set")
+                        return
                     
-                    if edge_tts:
-                        try:
-                            # Character-to-voice mapping (for team roleplays with multiple speakers)
-                            character_hash = hash(character.lower()) if character else 0
-                            
-                            # Microsoft Edge TTS voices - works on all platforms
-                            male_voices = [
-                                'en-US-GuyNeural',
-                                'en-US-ChristopherNeural',
-                                'en-US-EricNeural',
-                                'en-GB-RyanNeural',
-                                'en-AU-WilliamNeural',
-                                'en-IN-PrabhatNeural',
-                            ]
-                            
-                            female_voices = [
-                                'en-US-JennyNeural',
-                                'en-US-AriaNeural',
-                                'en-US-SaraNeural',
-                                'en-GB-SoniaNeural',
-                                'en-AU-NatashaNeural',
-                                'en-IN-NeerjaNeural',
-                            ]
-                            
-                            # Non-English voices
-                            if lang_code == 'hi':
-                                male_voices = ['hi-IN-MadhurNeural']
-                                female_voices = ['hi-IN-SwaraNeural']
-                            elif lang_code == 'ta':
-                                male_voices = ['ta-IN-ValluvarNeural']
-                                female_voices = ['ta-IN-PallaviNeural']
-                            elif lang_code == 'te':
-                                male_voices = ['te-IN-MohanNeural']
-                                female_voices = ['te-IN-ShrutiNeural']
-                            elif lang_code == 'kn':
-                                male_voices = ['kn-IN-GaganNeural']
-                                female_voices = ['kn-IN-SapnaNeural']
-                            elif lang_code == 'mr':
-                                male_voices = ['mr-IN-ManoharNeural']
-                                female_voices = ['mr-IN-AarohiNeural']
-                            elif lang_code == 'bn':
-                                male_voices = ['bn-IN-BashkarNeural']
-                                female_voices = ['bn-IN-TanishaaNeural']
-                            elif lang_code == 'gu':
-                                male_voices = ['gu-IN-NiranjanNeural']
-                                female_voices = ['gu-IN-DhwaniNeural']
-                            elif lang_code == 'ml':
-                                male_voices = ['ml-IN-MidhunNeural']
-                                female_voices = ['ml-IN-SobhanaNeural']
-                            elif lang_code == 'fr':
-                                male_voices = ['fr-FR-HenriNeural', 'fr-FR-AlainNeural']
-                                female_voices = ['fr-FR-DeniseNeural', 'fr-FR-EloiseNeural']
-                            elif lang_code == 'ar':
-                                male_voices = ['ar-SA-HamedNeural']
-                                female_voices = ['ar-SA-ZariyahNeural']
-                            
-                            # Select voice based on gender and character
-                            if gender == 'male':
-                                voice_index = abs(character_hash) % len(male_voices)
-                                selected_voice = male_voices[voice_index]
-                            else:
-                                voice_index = abs(character_hash) % len(female_voices)
-                                selected_voice = female_voices[voice_index]
-                            
-                            print(f"🎙️ Edge-TTS: Trying {gender.upper()} voice: {selected_voice}")
-                            
-                            # Generate audio using edge-tts with retry
-                            async def generate_edge_audio():
-                                max_retries = 2
-                                for attempt in range(max_retries):
-                                    try:
-                                        communicate = edge_tts.Communicate(text, selected_voice)
-                                        await communicate.save(filepath)
-                                        return True
-                                    except Exception as e:
-                                        if attempt < max_retries - 1:
-                                            print(f"⚠️ Edge-TTS attempt {attempt + 1} failed: {str(e)}")
-                                            await asyncio.sleep(0.3)
-                                        else:
-                                            raise e
-                                return False
-                            
-                            # Run async
-                            try:
-                                loop = asyncio.new_event_loop()
-                                asyncio.set_event_loop(loop)
-                                loop.run_until_complete(generate_edge_audio())
-                                loop.close()
-                            except RuntimeError:
-                                asyncio.run(generate_edge_audio())
-                            
-                            if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
-                                tts_method_used = 'edge-tts'
-                                print(f"✅ Audio generated with Edge-TTS ({selected_voice}): {filename}")
-                                return  # Success!
-                            else:
-                                print(f"⚠️ Edge-TTS created empty/no file, trying pyttsx3...")
-                                
-                        except Exception as edge_error:
-                            print(f"⚠️ Edge-TTS failed: {str(edge_error)}, trying pyttsx3...")
+                    client = OpenAI(api_key=api_key)
                     
-                    # ===== ATTEMPT 2: pyttsx3 (Offline - Reliable Fallback) =====
-                    if lang_code == 'en':
-                        try:
-                            import pyttsx3
-                            
-                            engine = pyttsx3.init()
-                            voices = engine.getProperty('voices')
-                            
-                            # Find male and female voices
-                            male_voice = None
-                            female_voice = None
-                            for voice in voices:
-                                voice_name = voice.name.lower()
-                                if 'david' in voice_name or 'male' in voice_name:
-                                    male_voice = voice.id
-                                elif 'zira' in voice_name or 'female' in voice_name:
-                                    female_voice = voice.id
-                            
-                            # Select voice based on gender
-                            if gender == 'male' and male_voice:
-                                engine.setProperty('voice', male_voice)
-                                print(f"🎙️ pyttsx3: Using MALE voice (David)")
-                            elif gender == 'female' and female_voice:
-                                engine.setProperty('voice', female_voice)
-                                print(f"🎙️ pyttsx3: Using FEMALE voice (Zira)")
-                            elif voices:
-                                # Fallback to first available voice
-                                engine.setProperty('voice', voices[0].id)
-                                print(f"🎙️ pyttsx3: Using default voice {voices[0].name}")
-                            
-                            # Add voice variation for different characters (pitch and rate)
-                            base_rate = 180  # Normal speech rate
-                            base_volume = 1.0
-                            
-                            if character:
-                                char_hash = abs(hash(character.lower()))
-                                # Vary rate between 150-210 (slower to faster)
-                                rate_variation = (char_hash % 60) + 150
-                                engine.setProperty('rate', rate_variation)
-                                print(f"🎭 Character '{character}': rate={rate_variation}")
-                            else:
-                                engine.setProperty('rate', base_rate)
-                            
-                            engine.setProperty('volume', base_volume)
-                            
-                            # Save to file
-                            engine.save_to_file(text, filepath)
-                            engine.runAndWait()
-                            engine.stop()
-                            
-                            if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
-                                tts_method_used = 'pyttsx3'
-                                print(f"✅ Audio generated with pyttsx3 ({gender}): {filename}")
-                                return  # Success!
-                            else:
-                                print(f"⚠️ pyttsx3 created empty file, trying gTTS...")
-                                
-                        except Exception as pyttsx3_error:
-                            print(f"⚠️ pyttsx3 failed: {str(pyttsx3_error)}, trying gTTS...")
+                    # OpenAI TTS voices:
+                    # Male voices: echo (deep), onyx (authoritative), fable (British)
+                    # Female voices: nova (warm), shimmer (expressive), alloy (neutral)
+                    male_voices = ['echo', 'onyx', 'fable']
+                    female_voices = ['nova', 'shimmer', 'alloy']
                     
-                    # ===== ATTEMPT 3: gTTS (Final Fallback) =====
-                    try:
-                        from gtts import gTTS
-                        
-                        gtts_lang_map = {
-                            'en': 'en', 'hi': 'hi', 'ta': 'ta', 'te': 'te',
-                            'kn': 'kn', 'mr': 'mr', 'bn': 'bn', 'gu': 'gu',
-                            'ml': 'ml', 'fr': 'fr', 'ar': 'ar'
-                        }
-                        gtts_lang = gtts_lang_map.get(lang_code, 'en')
-                        
-                        tts = gTTS(text=text, lang=gtts_lang, slow=False)
-                        tts.save(filepath)
-                        
-                        if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
-                            tts_method_used = 'gTTS'
-                            print(f"✅ Audio generated with gTTS ({gtts_lang}): {filename}")
-                            print(f"   Note: gTTS doesn't support gender/voice variation")
-                            return  # Success!
-                            
-                    except Exception as gtts_error:
-                        print(f"❌ gTTS also failed: {str(gtts_error)}")
-                        generation_error = gtts_error
+                    # Select voice based on gender and character name
+                    character_lower = character.lower().strip() if character else ''
+                    char_sum = sum(ord(c) for c in character_lower) if character_lower else 0
+                    
+                    if gender.lower() == 'male':
+                        voice_index = char_sum % len(male_voices)
+                        selected_voice = male_voices[voice_index]
+                    else:
+                        voice_index = char_sum % len(female_voices)
+                        selected_voice = female_voices[voice_index]
+                    
+                    # Generate audio using OpenAI TTS
+                    response = client.audio.speech.create(
+                        model="tts-1",
+                        voice=selected_voice,
+                        input=text
+                    )
+                    
+                    # Save the audio
+                    response.stream_to_file(filepath)
+                    
+                    if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
+                        tts_method_used = 'openai-tts'
                 
                 # Run TTS generation in thread with timeout (15 seconds for fallback)
                 tts_thread = threading.Thread(target=generate_tts)
@@ -977,28 +849,16 @@ def make_audio():
                 tts_thread.join(timeout=15)  # 15 second timeout (allows time for fallback)
                 
                 if tts_thread.is_alive():
-                    print(f"⚠️ TTS generation timed out after 15 seconds")
                     return "Audio generation timed out. Please try again.", 504
                 
                 if generation_error:
                     raise generation_error
                     
                 if not os.path.exists(filepath):
-                    print(f"❌ Audio file was not created: {filepath}")
                     return "Audio file generation failed", 500
                     
             except Exception as e:
                 error_msg = str(e)
-                print(f"❌ TTS Error: {error_msg}")
-                
-                # Check if this is a PythonAnywhere whitelist issue
-                if 'api.msedgeservices.com' in error_msg or 'getaddrinfo failed' in error_msg:
-                    print("⚠️ This appears to be a network connectivity issue.")
-                    print("   Possible causes:")
-                    print("   1. PythonAnywhere free accounts have restricted external access")
-                    print("   2. api.msedgeservices.com is not on the whitelist")
-                    print("   3. Firewall blocking the connection")
-                    print("   Solution: Using gTTS fallback or upgrade PythonAnywhere account")
                 
                 # Return a more user-friendly error
                 if 'timeout' in error_msg.lower():
@@ -1007,8 +867,6 @@ def make_audio():
                     return "Network error. Audio generation fallback activated.", 503
                 else:
                     return f"Audio generation failed: {error_msg}", 500
-        else:
-            print(f"✅ Serving cached audio: {filename}")
         
         # Return cached file
         return send_file(
@@ -1020,9 +878,6 @@ def make_audio():
         )
         
     except Exception as e:
-        print(f"❌ Audio generation error: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return str(e), 500
 
 
@@ -1605,6 +1460,8 @@ def chatbot(roleplay_id, interaction_num):
                 - "Kalyani (F): Hello" → Female
                 - "Mr. Smith: Hello" → Male (title detection)
                 - "Ms. Jones: Hello" → Female (title detection)
+                - Common Indian male names → Male
+                - Common Indian female names → Female
                 Default: Male
                 """
                 if not speaker_text:
@@ -1615,11 +1472,9 @@ def chatbot(roleplay_id, interaction_num):
                 
                 # Method 1: Explicit gender markers (M), (F), (Male), (Female)
                 if '(m)' in text_lower or '(male)' in text_lower:
-                    print(f"✓ Gender from marker: {text[:30]}... = male")
                     return "male"
                 
                 if '(f)' in text_lower or '(female)' in text_lower:
-                    print(f"✓ Gender from marker: {text[:30]}... = female")
                     return "female"
                 
                 # Method 2: Title/prefix detection in speaker name
@@ -1628,16 +1483,42 @@ def chatbot(roleplay_id, interaction_num):
                 
                 for title in male_titles:
                     if text_lower.startswith(title) or f' {title} ' in text_lower:
-                        print(f"✓ Gender from title: {text[:30]}... = male (found '{title}')")
                         return "male"
                 
                 for title in female_titles:
                     if text_lower.startswith(title) or f' {title} ' in text_lower:
-                        print(f"✓ Gender from title: {text[:30]}... = female (found '{title}')")
                         return "female"
                 
-                # Method 3: Default fallback
-                print(f"⚠ Gender unknown for '{text[:30]}...', using default: male")
+                # Method 3: Common name detection
+                # Common Indian male names
+                male_names = [
+                    'bheem', 'satyam', 'rahul', 'amit', 'suresh', 'mahesh', 'rajesh', 'vijay',
+                    'anil', 'kumar', 'ravi', 'sanjay', 'deepak', 'ajay', 'prakash', 'mohan',
+                    'gopal', 'krishna', 'ram', 'shyam', 'arjun', 'karan', 'rohan', 'varun',
+                    'john', 'david', 'michael', 'james', 'robert', 'william', 'richard',
+                    'prabhat', 'vinod', 'ashok', 'sunil', 'manoj', 'rakesh', 'pradeep'
+                ]
+                
+                # Common Indian female names
+                female_names = [
+                    'kalyani', 'priya', 'anita', 'sunita', 'geeta', 'meena', 'seema', 'rekha',
+                    'kavita', 'neeta', 'pooja', 'rani', 'lakshmi', 'durga', 'radha', 'sita',
+                    'swati', 'anjali', 'divya', 'nisha', 'ritu', 'sneha', 'neha', 'shruti',
+                    'mary', 'patricia', 'jennifer', 'linda', 'elizabeth', 'susan', 'jessica',
+                    'deepa', 'shanti', 'asha', 'lata', 'usha', 'savita', 'mamta'
+                ]
+                
+                # Check if the name (first word) matches
+                first_word = text_lower.split()[0] if text_lower.split() else ''
+                # Remove any punctuation
+                first_word = first_word.rstrip(':').rstrip('.')
+                
+                if first_word in male_names:
+                    return "male"
+                if first_word in female_names:
+                    return "female"
+                
+                # Method 4: Default fallback - male for most professional settings
                 return "male"
             
             # IMPORTANT: Player is always SINGLE person
@@ -1700,7 +1581,6 @@ def chatbot(roleplay_id, interaction_num):
                                 'text': speaker_text,
                                 'gender': speaker_gender
                             })
-                            print(f"✅ ADDED SEGMENT: Speaker='{speaker_name}' ({speaker_gender}) - Text='{speaker_text[:50]}...'")
                             
                             if speaker_name not in speakers:
                                 speakers.append(speaker_name)
@@ -1718,15 +1598,12 @@ def chatbot(roleplay_id, interaction_num):
                             })
                 
                 if dialogue_segments:
-                    print(f"DEBUG VOICE: Parsed {len(dialogue_segments)} dialogue segments from {len(speakers)} speakers")
-                    for i, seg in enumerate(dialogue_segments):
-                        print(f"  Segment {i+1}: {seg['speaker']} ({seg['gender']}) - '{seg['text'][:50]}...'")
+                    pass  # Segments parsed successfully
             
             # Fallback: Use character names from Excel column B if no segments parsed
             if not dialogue_segments and characters and len(characters) > 0:
                 primary_speaker = characters[0]
                 speakers = characters
-                print(f"DEBUG VOICE: No dialogue segments parsed, using Excel Column B characters: {characters}")
             
             # Check for gender marker from Excel Column B (single-speaker roleplays)
             gender_marker = context["data"].get("gender_marker")
@@ -1736,7 +1613,6 @@ def chatbot(roleplay_id, interaction_num):
                 for segment in dialogue_segments:
                     if segment.get('text'):
                         segment['text'] = translate_text(segment['text'], selected_language)
-                print(f"DEBUG VOICE: Translated {len(dialogue_segments)} dialogue segments to {selected_language}")
             
             # Set dialogue segments for multi-voice audio playback
             context["dialogue_segments"] = dialogue_segments
@@ -1750,14 +1626,12 @@ def chatbot(roleplay_id, interaction_num):
                 context["gender"] = first_segment['gender']
                 context["all_speakers"] = speakers
                 context["is_team_roleplay"] = len(speakers) > 1
-                print(f"DEBUG VOICE: Multi-speaker roleplay - {len(dialogue_segments)} segments, {len(speakers)} unique speakers")
             elif gender_marker:
                 # Single-speaker roleplay: Use gender marker from Column B "other (M)" or "other (F)"
                 context["character"] = ""
                 context["gender"] = gender_marker
                 context["is_team_roleplay"] = False
                 context["dialogue_segments"] = []  # Empty for single voice
-                print(f"DEBUG VOICE: Single-speaker roleplay - Gender from Column B marker: {gender_marker}")
             elif primary_speaker:
                 # Team roleplay with multiple people in computer response
                 context["character"] = primary_speaker
@@ -1765,23 +1639,19 @@ def chatbot(roleplay_id, interaction_num):
                 context["all_speakers"] = speakers
                 context["is_team_roleplay"] = len(speakers) > 1
                 context["dialogue_segments"] = []  # Empty for single voice
-                print(f"DEBUG VOICE: Computer response - Primary speaker='{primary_speaker}', Gender={context['gender']}, Team={len(speakers) > 1}")
             elif character:
                 # Single character in computer response (from Excel column B)
                 context["character"] = character
                 context["gender"] = detect_gender(character)
                 context["is_team_roleplay"] = False
                 context["dialogue_segments"] = []  # Empty for single voice
-                print(f"DEBUG VOICE: Computer response - Single character='{character}', Gender={context['gender']}")
             else:
                 # No character specified - use default male voice
                 context["character"] = ""
                 context["gender"] = "male"  # Default to male voice
                 context["is_team_roleplay"] = False
                 context["dialogue_segments"] = []  # Empty for single voice
-                print(f"DEBUG VOICE: No character/gender detected, using default MALE voice")
         if context["data"] == False:
-            print(f"🏁 ROLEPLAY COMPLETE DETECTED! Setting completion overlay flags...")
             
             # Post attempt data to external API
             post_attempt_data(session['play_id'])
@@ -1902,23 +1772,25 @@ def chatbot(roleplay_id, interaction_num):
         # Pass 16PF configuration to template for audio recording
         pf16_config = get_16pf_config_for_roleplay(roleplay_id)
         context["enable_16pf_analysis"] = pf16_config.get('enable_16pf_analysis', False) if pf16_config else False
-        print(f"DEBUG 16PF: enable_16pf_analysis={context['enable_16pf_analysis']}")
         
         # Ensure interaction_elapsed_time is set (in case it wasn't set above)
         if "interaction_elapsed_time" not in context:
             context["interaction_elapsed_time"] = 0
-        
-        print(f"DEBUG AUDIO: input_type={context['input_type']}, voice_enabled={context['voice_enabled']}")
-        print(f"DEBUG TIMER: interaction_elapsed={context.get('interaction_elapsed_time', 0)}, total_elapsed={context.get('elapsed_time', 0)}")
 
-        # PRE-GENERATE AUDIO: Create audio file before rendering template so it's cached when page loads
+        # PRE-GENERATE AUDIO: Create audio files before rendering template so they're cached when page loads
         # This eliminates the delay when loading the audio player
         try:
-            audio_text = context.get('comp_dialogue') or context.get('scenario', '')
-            if audio_text:
-                from gtts import gTTS
-                import hashlib
+            from openai import OpenAI
+            import os as oai_os
+            
+            api_key = oai_os.getenv('OPENAI_API_KEY')
+            if api_key:
+                client = OpenAI(api_key=api_key)
                 
+                # OpenAI TTS voice mapping
+                male_voices = ['echo', 'onyx', 'fable']
+                female_voices = ['nova', 'shimmer', 'alloy']
+            
                 # Get language code
                 language_map = {
                     'English': 'en', 'Hindi': 'hi', 'Tamil': 'ta', 'Telugu': 'te',
@@ -1931,20 +1803,58 @@ def chatbot(roleplay_id, interaction_num):
                 cache_dir = os.path.join(app.root_path, 'static', 'audio_cache')
                 os.makedirs(cache_dir, exist_ok=True)
                 
-                # Generate filename (same logic as make_audio route)
-                text_hash = abs(hash(audio_text)) % (10 ** 10)
-                filename = f'speech_{text_hash}_{lang_code}.mp3'
-                filepath = os.path.join(cache_dir, filename)
-                
-                # Generate audio if not cached
-                if not os.path.exists(filepath):
-                    tts = gTTS(text=audio_text, lang=lang_code, slow=False)
-                    tts.save(filepath)
-                    print(f"✅ Pre-generated audio: {filename}")
+                # Pre-generate audio for TEAM roleplays (multiple segments)
+                dialogue_segments = context.get('dialogue_segments', [])
+                if dialogue_segments and len(dialogue_segments) > 0:
+                    for segment in dialogue_segments:
+                        segment_text = segment.get('text', '')
+                        segment_gender = segment.get('gender', 'male')
+                        segment_speaker = segment.get('speaker', '')
+                        
+                        if segment_text:
+                            # Generate filename (same logic as make_audio route)
+                            text_hash = abs(hash(segment_text)) % (10 ** 10)
+                            gender_char = f"{segment_gender}_{segment_speaker}" if segment_speaker else segment_gender
+                            filename = f'speech_{text_hash}_{lang_code}_{gender_char}.mp3'
+                            filepath = os.path.join(cache_dir, filename)
+                            
+                            # Generate audio if not cached - use OpenAI TTS
+                            if not os.path.exists(filepath):
+                                # Select voice based on gender and character
+                                character_lower = segment_speaker.lower().strip() if segment_speaker else ''
+                                char_sum = sum(ord(c) for c in character_lower) if character_lower else 0
+                                
+                                if segment_gender.lower() == 'male':
+                                    voice_index = char_sum % len(male_voices)
+                                    selected_voice = male_voices[voice_index]
+                                else:
+                                    voice_index = char_sum % len(female_voices)
+                                    selected_voice = female_voices[voice_index]
+                                
+                                response = client.audio.speech.create(
+                                    model="tts-1",
+                                    voice=selected_voice,
+                                    input=segment_text
+                                )
+                                response.stream_to_file(filepath)
                 else:
-                    print(f"✅ Audio already cached: {filename}")
-        except Exception as e:
-            print(f"⚠️ Audio pre-generation failed (will generate on demand): {e}")
+                    # Single speaker - pre-generate main audio
+                    audio_text = context.get('comp_dialogue') or context.get('scenario', '')
+                    if audio_text:
+                        text_hash = abs(hash(audio_text)) % (10 ** 10)
+                        filename = f'speech_{text_hash}_{lang_code}.mp3'
+                        filepath = os.path.join(cache_dir, filename)
+                        
+                        if not os.path.exists(filepath):
+                            # Default to male voice for single speaker
+                            response = client.audio.speech.create(
+                                model="tts-1",
+                                voice="echo",
+                                input=audio_text
+                            )
+                            response.stream_to_file(filepath)
+        except Exception:
+            pass  # Will generate on demand
 
         return render_template("chatbot.html", context = context, form = form)
     else:
@@ -2006,10 +1916,13 @@ def admin_login():
         user = get_user_id(email, password)
         
         if user and user['is_admin'] == 1:
-            # Set session for admin - make it permanent to avoid auto-logout
-            session.permanent = True  # Session will last for PERMANENT_SESSION_LIFETIME (7 days)
+            # Clear any existing session data first
+            session.clear()
+            # Set session as permanent BEFORE adding data - this makes the cookie persist
+            session.permanent = True  # Session will last for PERMANENT_SESSION_LIFETIME (30 days)
             session['user_id'] = user['id']
             session['is_admin'] = user['is_admin']
+            session.modified = True  # Force the session to be saved
             flash('Welcome Admin!')
             return redirect(url_for('admin'))
         else:
@@ -3606,8 +3519,9 @@ def admin_send_report(play_id):
             flash('Play session not found')
             return redirect(url_for('admin_dashboard'))
         
-        user_id = play_info[2]
-        roleplay_id = play_info[3]
+        # Play table: id(0), start_time(1), end_time(2), user_id(3), roleplay_id(4)
+        user_id = play_info[3]  # user_id is at index 3
+        roleplay_id = play_info[4]  # roleplay_id is at index 4
         
         # Get user information
         conn = mysql.connector.connect(
@@ -3814,12 +3728,11 @@ def generate_and_send_report_async(play_id, user_id_override=None):
             
             print(f"DEBUG: Play info retrieved: {play_info}")
             
-            # Play table structure: (id, start_time, user_id, ???, roleplay_id, cluster_id, ...)
-            # Adjust indices based on actual structure
-            user_id = play_info[2]
+            # Play table structure: (id, start_time, end_time, user_id, roleplay_id, cluster_id, ...)
+            user_id = play_info[3]  # user_id is at index 3
             
-            # roleplay_id appears to be at index 4 based on debug output
-            roleplay_id = play_info[4] if len(play_info) > 4 else play_info[3]
+            # roleplay_id is at index 4
+            roleplay_id = play_info[4]
             
             print(f"DEBUG: user_id from play={user_id}, roleplay_id={roleplay_id}")
             
@@ -4052,8 +3965,9 @@ def api_16pf_trigger(play_id):
         if not play_info:
             return jsonify({"success": False, "error": "Play session not found"}), 404
         
-        user_id = play_info[2]
-        roleplay_id = play_info[3]
+        # Play table: id(0), start_time(1), end_time(2), user_id(3), roleplay_id(4)
+        user_id = play_info[3]  # user_id is at index 3
+        roleplay_id = play_info[4]  # roleplay_id is at index 4
         
         # Get request data for age/gender overrides
         data = request.get_json() or {}
@@ -4174,12 +4088,23 @@ def api_16pf_upload_analyze():
 @admin_required
 def download_16pf_audio(play_id):
     """
-    Download the audio file used for 16PF analysis for a specific play session.
+    Download the merged audio file for 16PF analysis for a specific play session.
     
-    This is helpful for testing and verifying what audio was sent for analysis.
+    This merges all user recordings from the roleplay session into one file.
     """
     try:
-        # Get the audio file path from pf16_analysis_results table
+        # First try to merge all audio files for this play session
+        merged_audio_path = merge_audio_files_for_play(play_id)
+        
+        if merged_audio_path and os.path.exists(merged_audio_path):
+            filename = os.path.basename(merged_audio_path)
+            return send_file(
+                merged_audio_path,
+                as_attachment=True,
+                download_name=f"play_{play_id}_merged_{filename}"
+            )
+        
+        # If merging fails, try to get from database
         from app.queries import get_16pf_analysis_by_play_id
         
         result = get_16pf_analysis_by_play_id(play_id)
@@ -4215,6 +4140,52 @@ def download_16pf_audio(play_id):
             as_attachment=True,
             download_name=f"play_{play_id}_{filename}"
         )
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/16pf/list-audio/<int:play_id>", methods=["GET"])
+@admin_required
+def list_16pf_audio_files(play_id):
+    """
+    List all audio files available for a specific play session.
+    
+    This is useful for debugging to see what audio recordings exist.
+    """
+    try:
+        user_recordings_dir = os.path.join(app.root_path, 'static', 'user_recordings')
+        
+        if not os.path.exists(user_recordings_dir):
+            return jsonify({
+                "success": True,
+                "play_id": play_id,
+                "audio_files": [],
+                "message": "User recordings directory does not exist"
+            })
+        
+        audio_files = []
+        for filename in os.listdir(user_recordings_dir):
+            if filename.endswith(('.webm', '.mp3', '.wav', '.m4a', '.ogg')):
+                if f'play{play_id}_' in filename or f'play_{play_id}' in filename:
+                    file_path = os.path.join(user_recordings_dir, filename)
+                    file_size = os.path.getsize(file_path)
+                    file_mtime = os.path.getmtime(file_path)
+                    audio_files.append({
+                        "filename": filename,
+                        "size_bytes": file_size,
+                        "size_mb": round(file_size / (1024 * 1024), 2),
+                        "modified": datetime.datetime.fromtimestamp(file_mtime).strftime('%Y-%m-%d %H:%M:%S')
+                    })
+        
+        # Sort by filename to show in interaction order
+        audio_files.sort(key=lambda x: x['filename'])
+        
+        return jsonify({
+            "success": True,
+            "play_id": play_id,
+            "total_files": len(audio_files),
+            "audio_files": audio_files
+        })
         
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500

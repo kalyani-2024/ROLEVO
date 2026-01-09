@@ -106,7 +106,7 @@
     .image-container {
         background: white;
         border-radius: 15px;
-        padding: 20px;
+        padding: 0;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         border: 1px solid #074924;
         width: 100%;
@@ -115,13 +115,14 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        overflow: hidden;
     }
 
     .image-container img {
-        max-width: 100%;
-        max-height: 100%;  /* Use full container height */
-        border-radius: 10px;
-        object-fit: contain;
+        width: 100%;
+        height: 100%;
+        border-radius: 14px;
+        object-fit: cover;
         background: #fff;
     }
 
@@ -605,125 +606,95 @@
                                                 {% if context.dialogue_segments and context.dialogue_segments|length > 0 %}
                                                     <!-- Multi-speaker audio: Play each segment sequentially -->
                                                     <div id="multi-audio-player">
-                                                        <div style="margin-bottom: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px; display: none;">
-                                                            <strong>🔊 Team Audio:</strong> <span id="current-speaker-name">Loading...</span>
+                                                        <div id="speaker-display" style="margin-bottom: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px;">
+                                                            <strong>🔊 Now Playing:</strong> <span id="current-speaker-name">Click play to start</span>
                                                         </div>
                                                         <audio id="team-audio-player" class="scenario-audio" controls style="width: 100%;">
-                                                            <source id="team-audio-source" src="" type="audio/mpeg">
                                                             Your browser does not support the audio element.
                                                         </audio>
-                                                        <!-- Hidden audio elements for preloading -->
-                                                        {% for segment in context.dialogue_segments %}
-                                                            <audio class="segment-audio" data-speaker="{{ segment.speaker }}" data-gender="{{ segment.gender }}" data-index="{{ loop.index0 }}" style="display:none;">
-                                                                <source src="{{ url_for('make_audio', text=segment.text|string, gender=segment.gender, character=segment.speaker) }}" type="audio/mpeg">
-                                                            </audio>
-                                                        {% endfor %}
+                                                        <!-- Preload all audio URLs as data -->
+                                                        <script>
+                                                            window.teamAudioSegments = [
+                                                                {% for segment in context.dialogue_segments %}
+                                                                {
+                                                                    speaker: "{{ segment.speaker|e }}",
+                                                                    gender: "{{ segment.gender|e }}",
+                                                                    url: "/make_audio/?text={{ segment.text|urlencode }}&gender={{ segment.gender|urlencode }}&character={{ segment.speaker|urlencode }}"
+                                                                }{% if not loop.last %},{% endif %}
+                                                                {% endfor %}
+                                                            ];
+                                                        </script>
                                                     </div>
                                                     <script>
-                                                        // Play audio segments sequentially with visible controls
-                                                        // Use immediate execution AND DOMContentLoaded for maximum compatibility
+                                                        // Team audio player - sequential playback with visible controls
                                                         (function initTeamAudio() {
-                                                            console.log('🎵 Team audio script executing...');
+                                                            const segments = window.teamAudioSegments || [];
+                                                            const speakerDisplay = document.getElementById('current-speaker-name');
+                                                            const audioPlayer = document.getElementById('team-audio-player');
                                                             
-                                                            // Try immediate execution (works if DOM is already loaded)
-                                                            const audioElements = document.querySelectorAll('.segment-audio');
-                                                            const playerAudio = document.getElementById('team-audio-player');
-                                                            const audioSource = document.getElementById('team-audio-source');
-                                                            const speakerNameDisplay = document.getElementById('current-speaker-name');
-                                                            
-                                                            if (!playerAudio || !audioSource || audioElements.length === 0) {
-                                                                console.log('⏳ Team audio elements not ready, waiting for DOMContentLoaded...');
-                                                                document.addEventListener('DOMContentLoaded', initTeamAudio);
+                                                            if (segments.length === 0 || !audioPlayer) {
+                                                                if (!audioPlayer) {
+                                                                    document.addEventListener('DOMContentLoaded', initTeamAudio);
+                                                                }
                                                                 return;
                                                             }
                                                             
-                                                            console.log(`✅ Found ${audioElements.length} audio segments, initializing player...`);
                                                             let currentIndex = 0;
                                                             let isPlaying = false;
-                                                            let hasStartedPlaying = false;
                                                             
-                                                            function playNextSegment() {
-                                                                if (currentIndex < audioElements.length) {
-                                                                    const currentSegment = audioElements[currentIndex];
-                                                                    const speaker = currentSegment.getAttribute('data-speaker');
-                                                                    const gender = currentSegment.getAttribute('data-gender');
-                                                                    const audioUrl = currentSegment.querySelector('source').src;
-                                                                    
-                                                                    console.log(`Playing segment ${currentIndex + 1}/${audioElements.length}: ${speaker} (${gender})`);
-                                                                    
-                                                                    // Update display
-                                                                    speakerNameDisplay.textContent = `${speaker} (${gender} voice) - Segment ${currentIndex + 1}/${audioElements.length}`;
-                                                                    
-                                                                    // Update audio source and play
-                                                                    audioSource.src = audioUrl;
-                                                                    playerAudio.load();
-                                                                    
-                                                                    const playPromise = playerAudio.play();
-                                                                    if (playPromise !== undefined) {
-                                                                        playPromise.then(() => {
-                                                                            isPlaying = true;
-                                                                            hasStartedPlaying = true;
-                                                                            console.log(`✅ Segment ${currentIndex + 1} playing successfully`);
-                                                                        }).catch(e => {
-                                                                            console.error('Audio playback error:', e);
-                                                                            isPlaying = false;
-                                                                            // Only try next segment if this is a real failure, not an interruption
-                                                                            if (e.name !== 'AbortError') {
-                                                                                currentIndex++;
-                                                                                playNextSegment();
-                                                                            }
-                                                                        });
-                                                                    }
-                                                                } else {
-                                                                    speakerNameDisplay.textContent = 'All segments completed';
+                                                            function loadAndPlaySegment(index) {
+                                                                if (index >= segments.length) {
+                                                                    speakerDisplay.textContent = '✓ All dialogue completed';
+                                                                    isPlaying = false;
+                                                                    return;
                                                                 }
+                                                                
+                                                                const seg = segments[index];
+                                                                currentIndex = index;
+                                                                isPlaying = true;
+                                                                
+                                                                // Update speaker display
+                                                                speakerDisplay.textContent = seg.speaker + ' (' + (index + 1) + '/' + segments.length + ')';
+                                                                
+                                                                // Load the audio into the visible player
+                                                                audioPlayer.src = seg.url;
+                                                                audioPlayer.load();
+                                                                
+                                                                // Play when ready
+                                                                audioPlayer.oncanplay = function() {
+                                                                    audioPlayer.play().catch(function(e) {
+                                                                        speakerDisplay.textContent = seg.speaker + ' - Click play button to start';
+                                                                    });
+                                                                };
+                                                                
+                                                                // When this segment ends, play next
+                                                                audioPlayer.onended = function() {
+                                                                    // Small pause between speakers for distinction
+                                                                    setTimeout(function() {
+                                                                        loadAndPlaySegment(index + 1);
+                                                                    }, 300);
+                                                                };
+                                                                
+                                                                // Handle errors - skip to next
+                                                                audioPlayer.onerror = function() {
+                                                                    console.log('Audio error for segment ' + index + ', skipping...');
+                                                                    setTimeout(function() {
+                                                                        loadAndPlaySegment(index + 1);
+                                                                    }, 100);
+                                                                };
                                                             }
                                                             
-                                                            // When current segment ends, play next
-                                                            playerAudio.onended = function() {
-                                                                isPlaying = false;
-                                                                currentIndex++;
-                                                                if (currentIndex >= audioElements.length) {
-                                                                    // All segments finished - hide the speaker name display
-                                                                    const speakerDisplay = document.querySelector('#multi-audio-player > div');
-                                                                    if (speakerDisplay) {
-                                                                        speakerDisplay.style.display = 'none';
-                                                                    }
-                                                                } else {
-                                                                    playNextSegment();
+                                                            // Start with first segment
+                                                            loadAndPlaySegment(0);
+                                                            
+                                                            // Also handle manual play button clicks for restart
+                                                            audioPlayer.addEventListener('play', function() {
+                                                                if (!isPlaying && currentIndex >= segments.length) {
+                                                                    // Restart from beginning if all completed
+                                                                    loadAndPlaySegment(0);
                                                                 }
-                                                            };
-                                                            
-                                                            // Start playing first segment automatically - only try once
-                                                            let playAttempts = 0;
-                                                            const maxPlayAttempts = 1;
-                                                            
-                                                            const attemptAutoplay = function() {
-                                                                // Only attempt if we haven't started playing yet and haven't exceeded attempts
-                                                                if (!hasStartedPlaying && !isPlaying && currentIndex === 0 && playAttempts < maxPlayAttempts) {
-                                                                    playAttempts++;
-                                                                    console.log(`🔊 Team audio autoplay attempt ${playAttempts}/${maxPlayAttempts}...`);
-                                                                    playNextSegment();
-                                                                }
-                                                            };
-                                                            
-                                                            // Try to start playing immediately
-                                                            setTimeout(() => {
-                                                                attemptAutoplay();
-                                                            }, 100);
-                                                            
-                                                            // Also try on any user interaction if autoplay blocked
-                                                            const retryPlay = function() {
-                                                                if (!hasStartedPlaying && playerAudio.paused && currentIndex === 0) {
-                                                                    console.log('🖱️ Starting team audio on user interaction');
-                                                                    playAttempts = 0; // Reset counter
-                                                                    attemptAutoplay();
-                                                                }
-                                                            };
-                                                            ['click', 'touchstart', 'keydown'].forEach(eventType => {
-                                                                document.addEventListener(eventType, retryPlay, { once: true });
                                                             });
-                                                        })(); // Execute immediately
+                                                        })();
                                                     </script>
                                                 {% else %}
                                                     <!-- Single speaker audio: Play entire dialogue at once -->
@@ -823,12 +794,14 @@
                                         {% else %}
                                         {{ form.post(cols=40, rows=6, placeholder="Type here what you would say now", id="maintextarea") }}
                                         {% endif %}
+                                        {% if context.voice_enabled %}
                                         <button type="button" class="audio-record-btn" id="recordBtn" title="Start Recording" {% if context.is_final %}disabled style="opacity: 0.5; cursor: not-allowed;"{% endif %}>
                                             <i class="fas fa-microphone"></i>
                                         </button>
                                         <button type="button" class="audio-rerecord-btn" id="rerecordBtn" title="Clear & Re-record" style="display: none;" {% if context.is_final %}disabled{% endif %}>
                                             <i class="fas fa-redo"></i>
                                         </button>
+                                        {% endif %}
                                         
 
                                         
@@ -1243,13 +1216,23 @@ function pauseOptimalVideo() {
 <script src="{{url_for('static', filename='js/popper.min.js')}}"></script>
 <script src="{{url_for('static', filename='js/bootstrap.min.js')}}"></script>
 <script>
+// PRODUCTION MODE: Disable debug logging for seamless audio
+(function() {
+    const DEBUG_MODE = false;
+    if (!DEBUG_MODE) {
+        window._originalConsoleLog = console.log;
+        window._originalConsoleWarn = console.warn;
+        console.log = function() {};
+        console.warn = function() {};
+    }
+})();
+</script>
+<script>
 // Single-speaker audio autoplay - Run IMMEDIATELY (not in document.ready)
 (function() {
-    console.log('🎵 Single-speaker audio autoplay script executing immediately...');
     const audioElement = document.getElementById('spkr');
     
     if (audioElement) {
-        console.log('✅ Found single-speaker audio element, setting up ULTRA aggressive autoplay...');
         let playAttempts = 0;
         const maxAttempts = 15;
         
@@ -1263,14 +1246,12 @@ function pauseOptimalVideo() {
         const attemptPlay = function() {
             if (audioElement.paused && playAttempts < maxAttempts) {
                 playAttempts++;
-                console.log(`🔊 Single-speaker autoplay attempt ${playAttempts}/${maxAttempts}...`);
                 
                 const playPromise = audioElement.play();
                 if (playPromise !== undefined) {
                     playPromise.then(function() {
-                        console.log('✅ Single-speaker audio autoplay SUCCESS!');
+                        // Autoplay success
                     }).catch(function(error) {
-                        console.log(`❌ Autoplay attempt ${playAttempts} failed:`, error.message);
                         if (playAttempts < maxAttempts) {
                             // Retry with increasing delays
                             setTimeout(attemptPlay, playAttempts * 150);
@@ -1292,24 +1273,20 @@ function pauseOptimalVideo() {
         
         // Try when audio is ready
         audioElement.addEventListener('canplay', function() {
-            console.log('🎵 Audio canplay event - attempting autoplay...');
             attemptPlay();
         });
         
         audioElement.addEventListener('loadeddata', function() {
-            console.log('🎵 Audio loadeddata event - attempting autoplay...');
             attemptPlay();
         });
         
         audioElement.addEventListener('loadedmetadata', function() {
-            console.log('🎵 Audio loadedmetadata event - attempting autoplay...');
             attemptPlay();
         });
         
         // Fallback: Play on any user interaction (with multiple attempts)
         const playOnInteraction = function() {
             if (audioElement.paused) {
-                console.log('🖱️ User interaction detected, playing audio...');
                 playAttempts = 0; // Reset counter for new attempts
                 attemptPlay();
             }
@@ -1322,18 +1299,24 @@ function pauseOptimalVideo() {
         
         // Remove all interaction listeners once audio starts playing
         audioElement.addEventListener('playing', function() {
-            console.log('✅ Audio is now playing successfully!');
+            // Audio now playing
         }, { once: true });
         
         audioElement.addEventListener('error', function(e) {
-            console.error('❌ Audio loading error:', e);
+            // Audio loading error
         });
-    } else {
-        console.log('ℹ️ No single-speaker audio element found (might be team audio)');
     }
 })();
 
 $(document).ready(function () {
+    // PRODUCTION MODE: Disable console.log for better performance
+    const DEBUG_MODE = false;
+    if (!DEBUG_MODE) {
+        console.log = function() {};
+        console.warn = function() {};
+        // Keep console.error for critical issues only
+    }
+    
     // Ensure overlay is hidden initially
     $('#loadingOverlay').removeClass('active')
 

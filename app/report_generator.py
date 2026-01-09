@@ -9,13 +9,50 @@ from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, PageBreak
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import os
 import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import numpy as np
 from io import BytesIO
+
+# IST Timezone (UTC+5:30) - India Standard Time
+IST = timezone(timedelta(hours=5, minutes=30))
+# Database server timezone (UTC+4) - Gulf Standard Time (Dubai)
+DB_SERVER_TZ = timezone(timedelta(hours=4))
+
+def get_ist_now():
+    """Get current datetime in IST timezone (server-independent)"""
+    # Always use UTC as base and convert to IST - works regardless of local machine
+    return datetime.now(timezone.utc).astimezone(IST)
+
+def convert_to_ist(dt):
+    """Convert a datetime to IST. Handles naive and aware datetimes.
+    
+    For naive datetimes (no timezone info), we assume they are in database server time (UTC+4)
+    since MySQL stores times in server local time (Gulf Standard Time).
+    """
+    if dt is None:
+        return None
+    if isinstance(dt, str):
+        try:
+            dt = datetime.strptime(dt, '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            try:
+                dt = datetime.fromisoformat(dt.replace('Z', '+00:00'))
+            except ValueError:
+                return dt
+    
+    if not isinstance(dt, datetime):
+        return dt
+    
+    if dt.tzinfo is None:
+        # Naive datetime from database - it's in DB server timezone (UTC+4)
+        dt = dt.replace(tzinfo=DB_SERVER_TZ)
+    
+    # Convert to IST
+    return dt.astimezone(IST)
 
 
 def generate_roleplay_report(user_name, user_email, roleplay_name, scenario, 
@@ -39,13 +76,13 @@ def generate_roleplay_report(user_name, user_email, roleplay_name, scenario,
         Path to the generated PDF file
     """
     if completion_date is None:
-        completion_date = datetime.now()
+        completion_date = get_ist_now()
     
     if output_path is None:
         from flask import current_app
         temp_dir = os.path.join(current_app.root_path, 'temp')
         os.makedirs(temp_dir, exist_ok=True)
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = get_ist_now().strftime('%Y%m%d_%H%M%S')
         output_path = os.path.join(temp_dir, f'report_{user_email}_{timestamp}.pdf')
     
     # Create the PDF document

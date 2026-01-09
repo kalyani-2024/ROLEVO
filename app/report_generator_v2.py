@@ -18,13 +18,51 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.graphics.shapes import Drawing, Rect, String, Line, Circle, Polygon
 from reportlab.graphics.charts.barcharts import HorizontalBarChart
 from reportlab.graphics import renderPDF
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import os
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 from io import BytesIO
+
+# IST Timezone (UTC+5:30) - India Standard Time
+IST = timezone(timedelta(hours=5, minutes=30))
+# Database server timezone (UTC+4) - Gulf Standard Time (Dubai)
+DB_SERVER_TZ = timezone(timedelta(hours=4))
+
+def get_ist_now():
+    """Get current datetime in IST timezone (server-independent)"""
+    # Always use UTC as base and convert to IST - works regardless of local machine
+    return datetime.now(timezone.utc).astimezone(IST)
+
+def convert_to_ist(dt):
+    """Convert a datetime to IST. Handles naive and aware datetimes.
+    
+    For naive datetimes (no timezone info), we assume they are in database server time (UTC+4)
+    since MySQL stores times in server local time (Gulf Standard Time).
+    """
+    if dt is None:
+        return None
+    if isinstance(dt, str):
+        try:
+            dt = datetime.strptime(dt, '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            try:
+                dt = datetime.fromisoformat(dt.replace('Z', '+00:00'))
+            except ValueError:
+                return dt
+    
+    if not isinstance(dt, datetime):
+        return dt
+    
+    if dt.tzinfo is None:
+        # Naive datetime from database - it's in DB server timezone (UTC+4)
+        # Attach the DB server timezone, then convert to IST
+        dt = dt.replace(tzinfo=DB_SERVER_TZ)
+    
+    # Convert to IST
+    return dt.astimezone(IST)
 
 # Color constants matching the design
 GREEN_PRIMARY = colors.HexColor('#1E7D32')  # Dark green for headers
@@ -34,6 +72,98 @@ RED_WARNING = colors.HexColor('#DC3545')    # Red for overused
 GRAY_HEADER = colors.HexColor('#6B7280')    # Gray for table headers
 WHITE = colors.white
 BLACK = colors.black
+
+# 16PF Trait Mapping - Maps API factor names to display format with left/right traits
+PF16_TRAIT_MAPPING = {
+    'Warmth': {
+        'code': 'A', 'left_name': 'A: Cool', 'left_desc': 'reserved, impersonal, detached formal, aloof',
+        'right_name': 'A: Warm', 'right_desc': 'Outgoing, Kindly, Easy going, Participating, Likes people'
+    },
+    'Reasoning': {
+        'code': 'B', 'left_name': 'B: Concrete', 'left_desc': 'thinking, less intelligent',
+        'right_name': 'B: Abstract', 'right_desc': 'thinking, more intelligent and bright'
+    },
+    'Emotional Stability': {
+        'code': 'C', 'left_name': 'C: Affected by feelings', 'left_desc': 'emotionally less stable, easily annoyed',
+        'right_name': 'C: Emotionally stable', 'right_desc': 'mature, calm, realistic'
+    },
+    'Dominance': {
+        'code': 'E', 'left_name': 'E: Submissive', 'left_desc': 'humble, accommodating, mild, easily led',
+        'right_name': 'E: Dominant', 'right_desc': 'assertive, aggressive, competitive, self-assured, authoritative and stubborn'
+    },
+    'Liveliness': {
+        'code': 'F', 'left_name': 'F: Sober', 'left_desc': 'Restrained, prudent, taciturn, serious, introspective and pessimistic',
+        'right_name': 'F: Enthusiastic', 'right_desc': 'spontaneous, expressive, cheerful, talkative, carefree'
+    },
+    'Rule-Consciousness': {
+        'code': 'G', 'left_name': 'G: Expedient', 'left_desc': 'disregards rules, self-indulgent',
+        'right_name': 'G: Rule-Conscious', 'right_desc': 'dutiful, conscientious, conforming, moralistic'
+    },
+    'Social Boldness': {
+        'code': 'H', 'left_name': 'H: Shy', 'left_desc': 'threat-sensitive, timid, hesitant',
+        'right_name': 'H: Bold', 'right_desc': 'socially bold, venturesome, thick-skinned'
+    },
+    'Sensitivity': {
+        'code': 'I', 'left_name': 'I: Tough-Minded', 'left_desc': 'utilitarian, objective, unsentimental',
+        'right_name': 'I: Sensitive', 'right_desc': 'aesthetic, sentimental, tender-minded'
+    },
+    'Vigilance': {
+        'code': 'L', 'left_name': 'L: Trusting', 'left_desc': 'accepting conditions, easy to get on with',
+        'right_name': 'L: Vigilant', 'right_desc': 'suspicious, skeptical, distrustful, oppositional'
+    },
+    'Abstractedness': {
+        'code': 'M', 'left_name': 'M: Practical', 'left_desc': 'grounded, down-to-earth, prosaic',
+        'right_name': 'M: Abstracted', 'right_desc': 'imaginative, idea-oriented, absorbed in ideas'
+    },
+    'Privateness': {
+        'code': 'N', 'left_name': 'N: Forthright', 'left_desc': 'genuine, artless, open, unpretentious',
+        'right_name': 'N: Private', 'right_desc': 'discreet, non-disclosing, shrewd, polished'
+    },
+    'Apprehension': {
+        'code': 'O', 'left_name': 'O: Self-Assured', 'left_desc': 'unworried, complacent, secure, self-satisfied',
+        'right_name': 'O: Apprehensive', 'right_desc': 'self-doubting, worried, guilt-prone, insecure'
+    },
+    'Openness to Change': {
+        'code': 'Q1', 'left_name': 'Q1: Traditional', 'left_desc': 'attached to familiar, conservative',
+        'right_name': 'Q1: Open to Change', 'right_desc': 'experimenting, liberal, critical, freethinking'
+    },
+    'Self-Reliance': {
+        'code': 'Q2', 'left_name': 'Q2: Group-Oriented', 'left_desc': 'affiliative, a joiner and follower',
+        'right_name': 'Q2: Self-Reliant', 'right_desc': 'solitary, resourceful, individualistic'
+    },
+    'Perfectionism': {
+        'code': 'Q3', 'left_name': 'Q3: Tolerates Disorder', 'left_desc': 'flexible, undisciplined, impulsive',
+        'right_name': 'Q3: Perfectionistic', 'right_desc': 'organized, compulsive, self-disciplined'
+    },
+    'Tension': {
+        'code': 'Q4', 'left_name': 'Q4: Relaxed', 'left_desc': 'patient, composed, low drive',
+        'right_name': 'Q4: Tense', 'right_desc': 'driven, impatient, high energy, time-driven'
+    },
+}
+
+def convert_personality_data_to_16pf_format(personality_scores):
+    """Convert simple personality scores dict to full 16PF display format.
+    
+    Args:
+        personality_scores: Dict of {'Warmth': 6, 'Reasoning': 7, ...}
+        
+    Returns:
+        List of dicts with left_name, left_desc, right_name, right_desc, score, target
+    """
+    result = []
+    
+    for trait_name, mapping in PF16_TRAIT_MAPPING.items():
+        score = personality_scores.get(trait_name, 5)  # Default to 5 if not found
+        result.append({
+            'left_name': mapping['left_name'],
+            'left_desc': mapping['left_desc'],
+            'right_name': mapping['right_name'],
+            'right_desc': mapping['right_desc'],
+            'score': score,
+            'target': 5  # Neutral target
+        })
+    
+    return result
 
 
 class SkillsGaugeReport:
@@ -197,18 +327,9 @@ class SkillsGaugeReport:
             x = pct / 100 * width
             d.add(Line(x, 0, x, height + 4, strokeColor=colors.white, strokeWidth=1))
         
-        # Target score marker (diamond shape)
-        target_x = target_score / 100 * width
-        diamond_size = 6
-        d.add(Polygon([target_x, height/2 - diamond_size,
-                       target_x + diamond_size, height/2,
-                       target_x, height/2 + diamond_size,
-                       target_x - diamond_size, height/2],
-                      fillColor=GREEN_PRIMARY, strokeColor=WHITE, strokeWidth=1))
-        
-        # User score marker (circle)
+        # User score marker (filled circle)
         score_x = min(score / 100 * width, width)
-        d.add(Circle(score_x, height/2 + 2, 5, fillColor=WHITE, strokeColor=GREEN_PRIMARY, strokeWidth=2))
+        d.add(Circle(score_x, height/2 + 2, 5, fillColor=GREEN_PRIMARY, strokeColor=WHITE, strokeWidth=1.5))
         
         return d
     
@@ -295,75 +416,123 @@ class SkillsGaugeReport:
         return table
     
     def _create_balance_scale_image(self, overused_competencies):
-        """Create balance scale visualization with overused competencies"""
+        """Create balance scale visualization with overused competencies.
+        Only displays if there is at least one overused competency.
+        Each competency shown as a red box with name and score like 'Feedback (Basic) 5/3'
+        """
         from flask import current_app
         
         elements = []
         
-        if overused_competencies:
-            # Balance scale image - try both possible filenames
-            balance_img_path = os.path.join(current_app.root_path, 'static', 'images', 'balancescale.png')
-            if not os.path.exists(balance_img_path):
-                balance_img_path = os.path.join(current_app.root_path, 'static', 'images', 'balance_scale.png')
+        # Only show this section if there are overused competencies
+        if not overused_competencies or len(overused_competencies) == 0:
+            return elements
+        
+        # Balance scale image - try both possible filenames
+        balance_img_path = os.path.join(current_app.root_path, 'static', 'images', 'balancescale.png')
+        if not os.path.exists(balance_img_path):
+            balance_img_path = os.path.join(current_app.root_path, 'static', 'images', 'balance_scale.png')
+        
+        if os.path.exists(balance_img_path):
+            # Create a table with image and title side by side
+            img = Image(balance_img_path, width=2.5*inch, height=1.8*inch)
+            title_para = Paragraph('<font color="#1E7D32"><b>Competencies likely<br/>to be overused</b></font>',
+                                   ParagraphStyle('BalanceTitle', fontSize=14, alignment=TA_LEFT,
+                                                 textColor=GREEN_PRIMARY, leading=18))
             
-            if os.path.exists(balance_img_path):
-                # Create a table with image and title
-                img = Image(balance_img_path, width=3*inch, height=2*inch)
-                title_para = Paragraph('<font color="#1E7D32"><b>Competencies likely<br/>to be overused</b></font>',
-                                       ParagraphStyle('BalanceTitle', fontSize=14, alignment=TA_LEFT,
-                                                     textColor=GREEN_PRIMARY, leading=18))
-                
-                balance_table = Table([[img, title_para]], colWidths=[3.5*inch, 3*inch])
-                balance_table.setStyle(TableStyle([
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('ALIGN', (1, 0), (1, 0), 'LEFT'),
-                ]))
-                elements.append(balance_table)
-            else:
-                # Fallback title if image doesn't exist
-                elements.append(Paragraph('<font color="#1E7D32"><b>Competencies likely to be overused</b></font>', 
-                                         self.styles['SubHeader']))
+            balance_table = Table([[img, title_para]], colWidths=[2.8*inch, 3*inch])
+            balance_table.setStyle(TableStyle([
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('ALIGN', (1, 0), (1, 0), 'LEFT'),
+            ]))
+            elements.append(balance_table)
+        else:
+            # Fallback title if image doesn't exist
+            elements.append(Paragraph('<font color="#1E7D32"><b>Competencies likely to be overused</b></font>', 
+                                     self.styles['SubHeader']))
+        
+        elements.append(Spacer(1, 0.2*inch))
+        
+        # Create red boxes for overused competencies in tile format
+        # Each box shows: name on top, score (e.g., "5/3") below
+        red_boxes = []
+        for comp in overused_competencies:
+            name = comp.get('name', 'Unknown')
+            score = comp.get('score', 0)
+            max_score = comp.get('max_score', 3)
             
-            elements.append(Spacer(1, 0.3*inch))
+            # Create a styled red box with name and score
+            red_boxes.append(self._create_overused_box(name, score, max_score))
+        
+        # Arrange boxes in rows (max 4 per row for better fit)
+        boxes_per_row = 4
+        total_width = self.page_width - 2*self.margin
+        box_width = 1.5*inch
+        
+        row_data = []
+        current_row = []
+        for box in red_boxes:
+            current_row.append(box)
+            if len(current_row) >= boxes_per_row:
+                row_data.append(current_row)
+                current_row = []
+        
+        # Add remaining boxes in the last row
+        if current_row:
+            # Pad with empty cells
+            while len(current_row) < boxes_per_row:
+                current_row.append('')
+            row_data.append(current_row)
+        
+        if row_data:
+            # Calculate column widths - evenly spaced
+            col_widths = [box_width] * boxes_per_row
             
-            # Create red boxes for overused competencies
-            box_data = []
-            row = []
-            for comp in overused_competencies:
-                name = comp.get('name', 'Unknown')
-                score = comp.get('score', 0)
-                max_score = comp.get('max_score', 3)
-                
-                # Red box with competency info
-                box_text = f'''<font color="white" size="8"><b>{name}</b></font><br/>
-                              <font color="white" size="16"><b>{score}/{max_score}</b></font>'''
-                box_para = Paragraph(box_text, ParagraphStyle('BoxText', alignment=TA_CENTER, 
-                                                              textColor=WHITE, leading=20))
-                row.append(box_para)
-                
-                if len(row) >= 3:  # 3 boxes per row
-                    box_data.append(row)
-                    row = []
-            
-            if row:  # Add remaining boxes
-                while len(row) < 3:
-                    row.append('')
-                box_data.append(row)
-            
-            if box_data:
-                box_table = Table(box_data, colWidths=[1.8*inch] * 3, rowHeights=[0.8*inch])
-                box_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, -1), RED_WARNING),
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('TOPPADDING', (0, 0), (-1, -1), 10),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 5),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 5),
-                ]))
-                elements.append(box_table)
+            box_table = Table(row_data, colWidths=col_widths, rowHeights=[0.75*inch] * len(row_data))
+            box_table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 3),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+                ('TOPPADDING', (0, 0), (-1, -1), 3),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ]))
+            elements.append(box_table)
         
         return elements
+    
+    def _create_overused_box(self, name, score, max_score):
+        """Create a single red box for an overused competency.
+        Format: Name on top, Score/Max below (like 'Feedback (Basic)' and '5/3')
+        """
+        # Style for the name (smaller, white)
+        name_style = ParagraphStyle('OverusedName', fontSize=8, fontName='Helvetica-Bold',
+                                   textColor=WHITE, alignment=TA_CENTER, leading=10)
+        # Style for the score (larger, white, bold)
+        score_style = ParagraphStyle('OverusedScore', fontSize=14, fontName='Helvetica-Bold',
+                                    textColor=WHITE, alignment=TA_CENTER)
+        
+        # Create the inner content
+        name_para = Paragraph(name, name_style)
+        score_para = Paragraph(f'{score}/{max_score}', score_style)
+        
+        # Create inner table for layout
+        inner_table = Table([
+            [name_para],
+            [score_para]
+        ], colWidths=[1.4*inch], rowHeights=[0.25*inch, 0.35*inch])
+        
+        inner_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#DC3545')),  # Red background
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('LEFTPADDING', (0, 0), (-1, -1), 3),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ]))
+        
+        return inner_table
     
     def generate_cover_page(self, user_name, report_date=None, client_logo_path=None, cover_image_path=None):
         """Generate the cover page - returns PageBreak only, actual drawing is done in canvas callback"""
@@ -383,7 +552,10 @@ class SkillsGaugeReport:
         traj_logo_path = os.path.join(current_app.root_path, 'static', 'images', 'logo-trajectorie-codrive.png')
         
         if report_date is None:
-            report_date = datetime.now()
+            report_date = get_ist_now()
+        else:
+            # Convert to IST if provided
+            report_date = convert_to_ist(report_date) or get_ist_now()
         
         page_width, page_height = A4
         
@@ -454,7 +626,7 @@ class SkillsGaugeReport:
         
         # Report info - bottom right (white text)
         report_info = f"Report For: {user_name}"
-        date_info = f"Report Date: {report_date.strftime('%d/%m/%Y | %I:%M:%S %p')}"
+        date_info = f"Report Date: {report_date.strftime('%d/%m/%Y | %I:%M:%S %p')} IST"
         
         canvas.setFont('Helvetica', 10)
         right_x = page_width - 0.5 * inch
@@ -735,28 +907,26 @@ class SkillsGaugeReport:
         elements.append(Spacer(1, 0.2*inch))
         
         # Score table with 16PF traits - complete data with left/right descriptors
-        # Based on 16PF factor definitions
+        # If no personality data passed, skip the score table (don't use fake data)
         if not personality_data:
-            personality_data = [
-                {'left_name': 'A: Cool', 'left_desc': 'reserved, impersonal, detached formal, aloof',
-                 'right_name': 'A: Warm', 'right_desc': 'Outgoing, Kindly, Easy going, Participating, Likes people',
-                 'score': 4, 'target': 5},
-                {'left_name': 'B: Concrete', 'left_desc': 'thinking, less intelligent',
-                 'right_name': 'B: Abstract', 'right_desc': 'thinking, more intelligent and bright',
-                 'score': 6, 'target': 5},
-                {'left_name': 'C: Affected by feelings', 'left_desc': 'emotionally less stable, easily annoyed',
-                 'right_name': 'C: Emotionally stable', 'right_desc': 'mature, calm, realistic',
-                 'score': 7, 'target': 6},
-                {'left_name': 'E: Submissive', 'left_desc': 'humble, accommodating, mild, easily led',
-                 'right_name': 'E: Dominant', 'right_desc': 'assertive, aggressive, competitive, self-assured, authoritative and stubborn',
-                 'score': 5, 'target': 5},
-                {'left_name': 'F: Sober', 'left_desc': 'Restrained, prudent, taciturn, serious, introspective and pessimistic',
-                 'right_name': 'F: Enthusiastic', 'right_desc': 'spontaneous, expressive, cheerful, talkative, carefree',
-                 'score': 6, 'target': 5},
-            ]
-        
-        # Create score table - fits on one page
-        elements.extend(self._create_16pf_score_table(personality_data))
+            # Show message that 16PF analysis is not available
+            no_data_style = ParagraphStyle('NoData', fontSize=12, alignment=TA_CENTER,
+                                           textColor=colors.HexColor('#666666'), spaceAfter=20)
+            elements.append(Spacer(1, 0.5*inch))
+            elements.append(Paragraph('<i>16PF Voice Analysis data not available.</i>', no_data_style))
+            elements.append(Paragraph('<i>The voice analysis API may be unavailable or the analysis is still pending.</i>', no_data_style))
+            elements.append(Spacer(1, 0.3*inch))
+        else:
+            # Check if data is in simple format (name, score) vs full format (left_name, right_name)
+            if isinstance(personality_data, list) and len(personality_data) > 0:
+                first_item = personality_data[0]
+                if 'left_name' not in first_item and 'name' in first_item:
+                    # Convert simple format to full 16PF format
+                    scores_dict = {item.get('name'): item.get('score', 5) for item in personality_data}
+                    personality_data = convert_personality_data_to_16pf_format(scores_dict)
+            
+            # Create score table - fits on one page
+            elements.extend(self._create_16pf_score_table(personality_data))
         
         elements.append(PageBreak())
         
@@ -765,6 +935,292 @@ class SkillsGaugeReport:
         
         elements.append(PageBreak())
         return elements
+    
+    def _create_16pf_activity_score_page1(self, personality_data):
+        """Create the 16PF Activity Score page 1 (Factors A through I) - Competency Score by Activity"""
+        elements = []
+        from flask import current_app
+        
+        total_width = self.page_width - 2*self.margin
+        
+        # Header with logos
+        traj_logo = os.path.join(current_app.root_path, 'static', 'images', 'logo-trajectorie-codrive.png')
+        # Get client logo if available (passed via context)
+        elements.append(self._create_logo_header(traj_logo, None))
+        elements.append(Spacer(1, 0.2*inch))
+        
+        # Personality Fit banner
+        personality_fit_img = os.path.join(current_app.root_path, 'static', 'images', 'personality fit.png')
+        if os.path.exists(personality_fit_img):
+            banner_width = total_width
+            banner_height = banner_width / 4.82
+            banner_img = Image(personality_fit_img, width=banner_width, height=banner_height)
+            elements.append(banner_img)
+        elements.append(Spacer(1, 0.2*inch))
+        
+        # Title section with avatar
+        pf16_logo = os.path.join(current_app.root_path, 'static', 'images', '16pf logo.png')
+        logo_size = 0.8*inch
+        
+        if os.path.exists(pf16_logo):
+            avatar_img = Image(pf16_logo, width=logo_size, height=logo_size)
+        else:
+            avatar_placeholder = Table([['👤']], colWidths=[logo_size], rowHeights=[logo_size])
+            avatar_placeholder.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#E0E0E0')),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#CCCCCC')),
+            ]))
+            avatar_img = avatar_placeholder
+        
+        # Title
+        title_style = ParagraphStyle('ActivityTitle', fontSize=12, fontName='Helvetica-Bold',
+                                     textColor=WHITE, alignment=TA_CENTER)
+        title_bar = Table([[Paragraph('16 PF Trait Assessment - Details', title_style)]],
+                         colWidths=[total_width - logo_size - 0.15*inch])
+        title_bar.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), GREEN_PRIMARY),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        
+        # Combine avatar and title
+        header_table = Table([[avatar_img, title_bar]], 
+                           colWidths=[logo_size + 0.05*inch, total_width - logo_size - 0.05*inch])
+        header_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(header_table)
+        elements.append(Spacer(1, 0.3*inch))
+        
+        # Descriptors header
+        desc_style = ParagraphStyle('DescHeader', fontSize=11, fontName='Helvetica-Bold',
+                                   textColor=WHITE, alignment=TA_CENTER)
+        desc_bar = Table([[Paragraph('Descriptors: 16 Personality Factors (PF)', desc_style)]],
+                        colWidths=[total_width])
+        desc_bar.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), GREEN_PRIMARY),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        elements.append(desc_bar)
+        elements.append(Spacer(1, 0.1*inch))
+        
+        # Create the scores table
+        elements.append(self._create_16pf_activity_table(personality_data, page=1))
+        
+        return elements
+    
+    def _create_16pf_activity_score_page2(self, personality_data):
+        """Create the 16PF Activity Score page 2 (Factors L through Q4) - Competency Score by Activity"""
+        elements = []
+        from flask import current_app
+        
+        total_width = self.page_width - 2*self.margin
+        
+        # Header with logos
+        traj_logo = os.path.join(current_app.root_path, 'static', 'images', 'logo-trajectorie-codrive.png')
+        elements.append(self._create_logo_header(traj_logo, None))
+        elements.append(Spacer(1, 0.2*inch))
+        
+        # Personality Fit banner
+        personality_fit_img = os.path.join(current_app.root_path, 'static', 'images', 'personality fit.png')
+        if os.path.exists(personality_fit_img):
+            banner_width = total_width
+            banner_height = banner_width / 4.82
+            banner_img = Image(personality_fit_img, width=banner_width, height=banner_height)
+            elements.append(banner_img)
+        elements.append(Spacer(1, 0.2*inch))
+        
+        # Title section with avatar
+        pf16_logo = os.path.join(current_app.root_path, 'static', 'images', '16pf logo.png')
+        logo_size = 0.8*inch
+        
+        if os.path.exists(pf16_logo):
+            avatar_img = Image(pf16_logo, width=logo_size, height=logo_size)
+        else:
+            avatar_placeholder = Table([['👤']], colWidths=[logo_size], rowHeights=[logo_size])
+            avatar_placeholder.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#E0E0E0')),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#CCCCCC')),
+            ]))
+            avatar_img = avatar_placeholder
+        
+        # Title
+        title_style = ParagraphStyle('ActivityTitle2', fontSize=12, fontName='Helvetica-Bold',
+                                     textColor=WHITE, alignment=TA_CENTER)
+        title_bar = Table([[Paragraph('16 PF Trait Assessment - Details', title_style)]],
+                         colWidths=[total_width - logo_size - 0.15*inch])
+        title_bar.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), GREEN_PRIMARY),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        
+        # Combine avatar and title
+        header_table = Table([[avatar_img, title_bar]], 
+                           colWidths=[logo_size + 0.05*inch, total_width - logo_size - 0.05*inch])
+        header_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(header_table)
+        elements.append(Spacer(1, 0.3*inch))
+        
+        # Descriptors header
+        desc_style = ParagraphStyle('DescHeader2', fontSize=11, fontName='Helvetica-Bold',
+                                   textColor=WHITE, alignment=TA_CENTER)
+        desc_bar = Table([[Paragraph('Descriptors: 16 Personality Factors (PF)', desc_style)]],
+                        colWidths=[total_width])
+        desc_bar.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), GREEN_PRIMARY),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        elements.append(desc_bar)
+        elements.append(Spacer(1, 0.1*inch))
+        
+        # Create the scores table
+        elements.append(self._create_16pf_activity_table(personality_data, page=2))
+        
+        return elements
+    
+    def _create_16pf_activity_table(self, personality_data, page=1):
+        """Create the 16PF activity table with Trait, Score, and Rationale for score columns"""
+        total_width = self.page_width - 2*self.margin
+        
+        # Column widths: Trait (narrow), Score (narrow), Rationale (wide)
+        trait_col_width = 2.0*inch
+        score_col_width = 0.8*inch
+        rationale_col_width = total_width - trait_col_width - score_col_width
+        
+        # Define the 16 factors with their full names and alternate keys for matching
+        # Format: (display_name, primary_key, alternate_keys)
+        all_factors = [
+            ('Factor A:\nCool - warm', 'Warmth', ['Factor A', 'A', 'Warmth']),
+            ('Factor B:\nConcrete - Abstract\nthinking', 'Reasoning', ['Factor B', 'B', 'Reasoning']),
+            ('Factor C:\nAffected by Feeling -\nEmotionally Stable', 'Emotional Stability', ['Factor C', 'C', 'Emotional Stability']),
+            ('Factor E:\nSubmissive - Dominant', 'Dominance', ['Factor E', 'E', 'Dominance']),
+            ('Factor F:\nSober - Enthusiastic', 'Liveliness', ['Factor F', 'F', 'Liveliness']),
+            ('Factor G:\nExpedient -\nConscientious', 'Rule-Consciousness', ['Factor G', 'G', 'Rule-Consciousness']),
+            ('Factor H:\nShy - Bold', 'Social Boldness', ['Factor H', 'H', 'Social Boldness']),
+            ('Factor I:\nTough minded -\nTender minded', 'Sensitivity', ['Factor I', 'I', 'Sensitivity']),
+            ('Factor L:\nTrusting - Suspicious', 'Vigilance', ['Factor L', 'L', 'Vigilance']),
+            ('Factor M:\nPractical - Imaginative', 'Abstractedness', ['Factor M', 'M', 'Abstractedness']),
+            ('Factor N:\nForthright - Shrewd', 'Privateness', ['Factor N', 'N', 'Privateness']),
+            ('Factor O:\nSelf assured -\nApprehensive', 'Apprehension', ['Factor O', 'O', 'Apprehension']),
+            ('Factor Q1:\nConservative -\nExperimenting', 'Openness to Change', ['Factor Q1', 'Q1', 'Openness to Change']),
+            ('Factor Q2:\nGroup oriented -\nSelf-sufficient', 'Self-Reliance', ['Factor Q2', 'Q2', 'Self-Reliance']),
+            ('Factor Q3:\nUndisciplined -\nFollowing self-image', 'Perfectionism', ['Factor Q3', 'Q3', 'Perfectionism']),
+            ('Factor Q4:\nRelaxed - Tense', 'Tension', ['Factor Q4', 'Q4', 'Tension']),
+        ]
+        
+        # Select factors based on page
+        if page == 1:
+            factors = all_factors[:8]  # A through H (first 8)
+        else:
+            factors = all_factors[8:]  # I through Q4 (remaining 8)
+        
+        # Convert personality_data to a dict for easy lookup
+        score_dict = {}
+        if personality_data:
+            for item in personality_data:
+                if isinstance(item, dict):
+                    # Handle dict format with 'trait', 'name', or 'score'
+                    trait_name = item.get('trait', item.get('name', ''))
+                    score = item.get('score', 0)
+                elif isinstance(item, (tuple, list)) and len(item) >= 2:
+                    # Handle tuple/list format (trait_name, score, target)
+                    trait_name = item[0]
+                    score = item[1]
+                else:
+                    continue
+                
+                # Store with original key and normalized versions
+                if trait_name:
+                    score_dict[str(trait_name)] = score
+                    score_dict[str(trait_name).lower()] = score
+                    score_dict[str(trait_name).replace(' ', '').lower()] = score
+        
+        # Styles
+        header_style = ParagraphStyle('TableHeader', fontSize=10, fontName='Helvetica-Bold',
+                                     textColor=WHITE, alignment=TA_CENTER)
+        trait_style = ParagraphStyle('TraitCell', fontSize=9, fontName='Helvetica-Bold',
+                                    textColor=colors.HexColor('#006837'), alignment=TA_LEFT,
+                                    leading=11)
+        score_style = ParagraphStyle('ScoreCell', fontSize=9, alignment=TA_CENTER)
+        rationale_style = ParagraphStyle('RationaleCell', fontSize=8, alignment=TA_LEFT,
+                                        leading=10, textColor=colors.HexColor('#333333'))
+        
+        # Build table data
+        table_data = [
+            [Paragraph('Trait', header_style),
+             Paragraph('Score', header_style),
+             Paragraph('Rationale for score', header_style)]
+        ]
+        
+        for factor_name, primary_key, alternate_keys in factors:
+            # Look up score - try all possible keys
+            score = None
+            
+            # Try primary key first
+            for key_variant in [primary_key, primary_key.lower(), primary_key.replace(' ', '').lower()]:
+                if key_variant in score_dict:
+                    score = score_dict[key_variant]
+                    break
+            
+            # Try alternate keys if not found
+            if score is None:
+                for alt_key in alternate_keys:
+                    for key_variant in [alt_key, alt_key.lower(), alt_key.replace(' ', '').lower()]:
+                        if key_variant in score_dict:
+                            score = score_dict[key_variant]
+                            break
+                    if score is not None:
+                        break
+            
+            # Format score
+            if isinstance(score, (int, float)):
+                score_text = f"{score:.0f}" if score == int(score) else f"{score:.1f}"
+            else:
+                score_text = str(score) if score else ''
+            
+            # Rationale is empty for now - can be populated from API response
+            rationale_text = ''
+            
+            table_data.append([
+                Paragraph(factor_name, trait_style),
+                Paragraph(score_text, score_style),
+                Paragraph(rationale_text, rationale_style)
+            ])
+        
+        # Create table
+        activity_table = Table(table_data, colWidths=[trait_col_width, score_col_width, rationale_col_width])
+        activity_table.setStyle(TableStyle([
+            # Header row styling
+            ('BACKGROUND', (0, 0), (-1, 0), GREEN_PRIMARY),
+            ('TEXTCOLOR', (0, 0), (-1, 0), WHITE),
+            # Grid
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
+            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#999999')),
+            # Alignment
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            # Padding
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            # Alternating row colors
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F9F9F9')]),
+        ]))
+        
+        return activity_table
     
     def _create_16pf_reference_table(self):
         """Create the 16PF Low Score / High Score reference table"""
@@ -987,9 +1443,9 @@ class SkillsGaugeReport:
         
         elements.append(Spacer(1, 0.2*inch))
         
-        # Legend at bottom (centered)
+        # Legend at bottom (centered) - only User Score with circle
         legend_style = ParagraphStyle('LegendStyle', fontSize=10, alignment=TA_CENTER)
-        legend = Paragraph('◆ Target Score&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;■ User Score', legend_style)
+        legend = Paragraph('● User Score', legend_style)
         elements.append(legend)
         
         return elements
@@ -1036,16 +1492,7 @@ class SkillsGaugeReport:
             x = i * (bar_width / 5)
             d.add(Line(x, bar_y - 2, x, bar_y + bar_height + 2, strokeColor=WHITE, strokeWidth=1.5))
         
-        # Target marker (diamond) - green filled
-        target_x = (target / 10) * bar_width
-        diamond_size = 5
-        d.add(Polygon([target_x, bar_y + bar_height/2 - diamond_size,
-                       target_x + diamond_size, bar_y + bar_height/2,
-                       target_x, bar_y + bar_height/2 + diamond_size,
-                       target_x - diamond_size, bar_y + bar_height/2],
-                      fillColor=GREEN_PRIMARY, strokeColor=WHITE, strokeWidth=1))
-        
-        # User score marker (circle with border)
+        # User score marker (filled circle with border)
         score_x = (score / 10) * bar_width
         d.add(Circle(score_x, bar_y + bar_height/2, 5, fillColor=WHITE, strokeColor=colors.HexColor('#333333'), strokeWidth=2))
         
@@ -1058,23 +1505,11 @@ class SkillsGaugeReport:
         # Calculate positions within cell (0 to cell_width)
         # Score/target are on 0-10 scale, cell covers cell_start to cell_end
         
-        # Check if target is in this cell
-        if cell_start < target <= cell_end:
-            # Position within cell (0 to cell_width)
-            pos = ((target - cell_start) / 2) * cell_width
-            # Draw diamond marker
-            diamond_size = 6
-            d.add(Polygon([pos, 15 - diamond_size,
-                           pos + diamond_size, 15,
-                           pos, 15 + diamond_size,
-                           pos - diamond_size, 15],
-                          fillColor=GREEN_PRIMARY, strokeColor=None))
-        
-        # Check if score is in this cell
+        # Check if score is in this cell - draw filled circle
         if cell_start < score <= cell_end:
             pos = ((score - cell_start) / 2) * cell_width
-            # Draw square marker
-            d.add(Rect(pos - 5, 10, 10, 10, fillColor=colors.HexColor('#333333'), strokeColor=None))
+            # Draw circle marker
+            d.add(Circle(pos, 15, 5, fillColor=colors.HexColor('#333333'), strokeColor=None))
         
         return d
 
@@ -1105,16 +1540,7 @@ class SkillsGaugeReport:
             x = (i / 10) * bar_width
             d.add(Line(x, 3, x, bar_height + 7, strokeColor=WHITE, strokeWidth=1))
         
-        # Target marker (diamond)
-        target_x = (target / 10) * bar_width
-        diamond_size = 5
-        d.add(Polygon([target_x, bar_height/2 + 5 - diamond_size,
-                       target_x + diamond_size, bar_height/2 + 5,
-                       target_x, bar_height/2 + 5 + diamond_size,
-                       target_x - diamond_size, bar_height/2 + 5],
-                      fillColor=GREEN_PRIMARY, strokeColor=WHITE, strokeWidth=1))
-        
-        # Score marker (circle)
+        # Score marker (filled circle)
         score_x = (score / 10) * bar_width
         d.add(Circle(score_x, bar_height/2 + 5, 5, fillColor=WHITE, strokeColor=GREEN_PRIMARY, strokeWidth=2))
         
@@ -1240,39 +1666,25 @@ class SkillsGaugeReport:
         # Legend
         legend_style = ParagraphStyle('LegendStyle', fontSize=9, alignment=TA_LEFT)
         legend_table = Table([
-            [Paragraph('◆ Target Score', legend_style), 
-             Paragraph('○ User Score', legend_style)]
-        ], colWidths=[1.2*inch, 1.2*inch])
+            [Paragraph('● User Score', legend_style)]
+        ], colWidths=[1.2*inch])
         legend_table.setStyle(TableStyle([
             ('LEFTPADDING', (0, 0), (-1, -1), 10),
         ]))
         elements.append(legend_table)
         
-        # Overused competencies section - only show if score > target
+        # Overused competencies section - only show if raw_score > max_score
         overused = []
         if competencies:
             for comp in competencies:
-                score = comp.get('score', 0)
-                target = comp.get('target', 10)
-                if score > target:
+                raw_score = comp.get('raw_score', 0)
+                max_score = comp.get('max_score', 3)
+                if raw_score > max_score:
                     overused.append(comp)
         
         if overused:
             elements.append(Spacer(1, 0.2*inch))
             elements.extend(self._create_balance_scale_section(overused))
-        
-        # Feedback box at bottom
-        if feedback_name and feedback_score is not None:
-            elements.append(Spacer(1, 0.3*inch))
-            feedback_max_val = feedback_max if feedback_max else 3
-            feedback_box = self._create_feedback_box(feedback_name, feedback_score, feedback_max_val)
-            # Center the feedback box
-            total_width = self.page_width - 2*self.margin
-            feedback_wrapper = Table([[feedback_box]], colWidths=[total_width])
-            feedback_wrapper.setStyle(TableStyle([
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ]))
-            elements.append(feedback_wrapper)
         
         elements.append(PageBreak())
         return elements
@@ -1417,15 +1829,6 @@ class SkillsGaugeReport:
             x = i * segment_width
             d.add(Line(x, bar_y - 2, x, bar_y + bar_height + 2, strokeColor=WHITE, strokeWidth=1))
         
-        # Target marker (diamond) - green
-        target_x = (target / 100) * bar_width
-        diamond_size = 5
-        d.add(Polygon([target_x, bar_y + bar_height/2 - diamond_size,
-                       target_x + diamond_size, bar_y + bar_height/2,
-                       target_x, bar_y + bar_height/2 + diamond_size,
-                       target_x - diamond_size, bar_y + bar_height/2],
-                      fillColor=GREEN_PRIMARY, strokeColor=WHITE, strokeWidth=1))
-        
         # User score marker (circle) - white with dark border
         score_x = (score / 100) * bar_width
         d.add(Circle(score_x, bar_y + bar_height/2, 5, fillColor=WHITE, strokeColor=colors.HexColor('#333333'), strokeWidth=2))
@@ -1542,69 +1945,87 @@ class SkillsGaugeReport:
         
         elements.append(Spacer(1, 0.2*inch))
         
-        # Overused competencies section - only show if there are overused competencies
-        # Filter competencies where score > target
+        # Overused competencies section - only show if raw_score > max_score
         overused = []
         if competencies:
             for comp in competencies:
-                score = comp.get('score', 0)
-                target = comp.get('target', 10)
-                if score > target:
+                raw_score = comp.get('raw_score', 0)
+                max_score = comp.get('max_score', 3)
+                if raw_score > max_score:
                     overused.append(comp)
         
         if overused:
             elements.append(Spacer(1, 0.2*inch))
             elements.extend(self._create_balance_scale_section(overused))
         
-        # Feedback box at bottom
-        if feedback_name and feedback_score is not None:
-            elements.append(Spacer(1, 0.3*inch))
-            feedback_max_val = feedback_max if feedback_max else 3
-            feedback_box = self._create_feedback_box(feedback_name, feedback_score, feedback_max_val)
-            # Center the feedback box
-            feedback_wrapper = Table([[feedback_box]], colWidths=[total_width])
-            feedback_wrapper.setStyle(TableStyle([
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ]))
-            elements.append(feedback_wrapper)
-        
         elements.append(PageBreak())
         return elements
     
     def _create_balance_scale_section(self, overused_competencies):
-        """Create the balance scale section showing overused competencies"""
+        """Create the balance scale section showing overused competencies.
+        Only shows if there is at least one overused competency.
+        Displays the stone balance image centered, with red tiles below side by side.
+        """
         elements = []
         from flask import current_app
         
-        # Balance scale image
-        balance_img_path = os.path.join(current_app.root_path, 'static', 'images', 'balancescale.png')
+        # Only show if there are overused competencies
+        if not overused_competencies or len(overused_competencies) == 0:
+            return elements
+        
         total_width = self.page_width - 2*self.margin
         
+        # Balance scale image - centered, no text
+        balance_img_path = os.path.join(current_app.root_path, 'static', 'images', 'balancescale.png')
+        if not os.path.exists(balance_img_path):
+            balance_img_path = os.path.join(current_app.root_path, 'static', 'images', 'balance_scale.png')
+        
         if os.path.exists(balance_img_path):
-            # Use the actual balance scale image
-            img_width = 4.5*inch
-            img_height = 2.5*inch
+            # Center the image
+            img_width = 3*inch
+            img_height = 2.1*inch
             balance_img = Image(balance_img_path, width=img_width, height=img_height)
             
-            # Center the image
+            # Wrap in table to center
             img_table = Table([[balance_img]], colWidths=[total_width])
             img_table.setStyle(TableStyle([
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ]))
             elements.append(img_table)
-        else:
-            # Fallback text if image not found
-            overused_text = Paragraph(
-                '<font color="#1E7D32" size="14"><b>Competencies likely to be overused</b></font>',
-                ParagraphStyle('OverusedTitle', alignment=TA_CENTER)
-            )
-            elements.append(overused_text)
-            elements.append(Spacer(1, 0.2*inch))
+        
+        elements.append(Spacer(1, 0.15*inch))
+        
+        # Create red boxes for each overused competency - side by side
+        red_boxes = []
+        for comp in overused_competencies:
+            name = comp.get('name', 'Unknown')
+            # Use raw_score if available, otherwise use score
+            raw_score = comp.get('raw_score', comp.get('score', 0))
+            max_score = comp.get('max_score', 3)
+            red_boxes.append(self._create_overused_box(name, raw_score, max_score))
+        
+        # Arrange boxes side by side (centered)
+        num_boxes = len(red_boxes)
+        box_width = 1.6*inch
+        
+        if num_boxes > 0:
+            # Create a single row with all boxes
+            col_widths = [box_width] * num_boxes
+            box_table = Table([red_boxes], colWidths=col_widths, rowHeights=[0.8*inch])
+            box_table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+            ]))
             
-            # List overused competencies
-            for comp in overused_competencies:
-                comp_text = Paragraph(f'• {comp.get("name", "Unknown")}', self.styles['Normal'])
-                elements.append(comp_text)
+            # Wrap to center the entire row
+            wrapper = Table([[box_table]], colWidths=[total_width])
+            wrapper.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ]))
+            elements.append(wrapper)
         
         return elements
     
@@ -1633,7 +2054,8 @@ class SkillsGaugeReport:
         
         return feedback_table
 
-    def generate_competency_descriptors_page(self, competencies, client_logo_path=None, include_16pf=True):
+    def generate_competency_descriptors_page(self, competencies, client_logo_path=None, 
+                                            include_16pf=True, personality_data=None):
         """Generate Competency Descriptors pages - 16PF factors (if enabled) and competency descriptions"""
         elements = []
         from flask import current_app
@@ -1648,6 +2070,16 @@ class SkillsGaugeReport:
         
         # Only include 16PF descriptors if enabled
         if include_16pf:
+            # NEW: Add the two activity score pages first
+            # Page 1: Factors A through I with scores and rationales
+            elements.extend(self._create_16pf_activity_score_page1(personality_data))
+            elements.append(PageBreak())
+            
+            # Page 2: Factors L through Q4 with scores and rationales
+            elements.extend(self._create_16pf_activity_score_page2(personality_data))
+            elements.append(PageBreak())
+            
+            # Then the original 16PF descriptors pages
             elements.append(self._create_logo_header(traj_logo, client_logo_path))
             elements.append(Spacer(1, 0.2*inch))
             
@@ -2199,6 +2631,7 @@ def generate_roleplay_report(user_name, user_email, roleplay_name, scenario,
     # 3. Personality Fit Page (with 16PF data if available) - ONLY if 16PF is enabled
     pf16_personality_data = personality_data
     pf16_role_fit = overall_role_fit
+    pf16_analysis_available = False  # Track if we have real 16PF data
     
     if enable_16pf:
         # Try to fetch 16PF data if play_id is provided and no personality data passed
@@ -2208,36 +2641,48 @@ def generate_roleplay_report(user_name, user_email, roleplay_name, scenario,
                 pf16_result = get_16pf_analysis_by_play_id(play_id)
                 
                 if pf16_result and pf16_result.get('status') == 'completed':
-                    # Convert 16PF scores to report format
-                    pf16_personality_data = []
+                    # Get personality scores from DB result
+                    personality_scores = pf16_result.get('personality_scores', {})
                     
-                    # Add personality scores
-                    for trait, score in pf16_result.get('personality_scores', {}).items():
-                        pf16_personality_data.append({
-                            'name': trait,
-                            'score': score,
-                            'target': 70  # Default target
-                        })
-                    
-                    # Add composite scores
-                    for trait, score in pf16_result.get('composite_scores', {}).items():
-                        pf16_personality_data.append({
-                            'name': trait,
-                            'score': score,
-                            'target': 70
-                        })
-                    
-                    pf16_role_fit = pf16_result.get('overall_role_fit')
-                    print(f"[Report] Loaded 16PF data for play_id {play_id}")
+                    # Only use data if we actually have personality scores
+                    if personality_scores and len(personality_scores) > 0:
+                        # Convert to full 16PF display format with all 16 traits
+                        pf16_personality_data = convert_personality_data_to_16pf_format(personality_scores)
+                        pf16_role_fit = pf16_result.get('overall_role_fit')
+                        pf16_analysis_available = True
+                        print(f"[Report] Loaded 16PF data for play_id {play_id}: {len(pf16_personality_data)} traits")
+                    else:
+                        print(f"[Report] 16PF analysis completed but no personality scores found for play_id {play_id}")
+                elif pf16_result and pf16_result.get('status') == 'failed':
+                    print(f"[Report] 16PF analysis failed for play_id {play_id}: {pf16_result.get('error_message', 'Unknown error')}")
+                elif pf16_result and pf16_result.get('status') == 'pending':
+                    print(f"[Report] 16PF analysis still pending for play_id {play_id}")
+                else:
+                    print(f"[Report] No 16PF analysis found for play_id {play_id}")
             except Exception as e:
                 print(f"[Report] Error loading 16PF data: {str(e)}")
+        elif personality_data:
+            # If personality_data was passed but is in simple format, convert it
+            if personality_data and isinstance(personality_data, list) and len(personality_data) > 0:
+                first_item = personality_data[0]
+                if 'left_name' not in first_item and 'name' in first_item:
+                    # Simple format - convert to full format
+                    scores_dict = {item.get('name'): item.get('score', 5) for item in personality_data}
+                    pf16_personality_data = convert_personality_data_to_16pf_format(scores_dict)
+                    pf16_analysis_available = True
+                else:
+                    pf16_analysis_available = True
         
-        # Add Personality Fit page only if 16PF is enabled
-        all_elements.extend(report.generate_personality_fit_page(
-            personality_data=pf16_personality_data,
-            overall_role_fit=pf16_role_fit,
-            client_logo_path=client_logo_path
-        ))
+        
+        # Add Personality Fit page only if 16PF is enabled AND we have real data
+        if pf16_analysis_available and pf16_personality_data:
+            all_elements.extend(report.generate_personality_fit_page(
+                personality_data=pf16_personality_data,
+                overall_role_fit=pf16_role_fit,
+                client_logo_path=client_logo_path
+            ))
+        else:
+            print(f"[Report] Skipping 16PF Personality Fit page - no valid analysis data available")
     
     # 4. Competency Score by Cluster
     # Convert score_breakdown to competencies format
@@ -2329,11 +2774,12 @@ def generate_roleplay_report(user_name, user_email, roleplay_name, scenario,
     ))
     
     # 6. Competency Descriptors pages
-    # Include 16PF descriptors only if 16PF is enabled
+    # Include 16PF descriptors only if 16PF is enabled AND we have valid data
     all_elements.extend(report.generate_competency_descriptors_page(
         competencies=competencies,
         client_logo_path=client_logo_path,
-        include_16pf=enable_16pf
+        include_16pf=enable_16pf and pf16_analysis_available,
+        personality_data=pf16_personality_data if pf16_analysis_available else None
     ))
     
     # Build PDF

@@ -96,7 +96,7 @@
                         <div class="card cardcustom" id="roleplaynum{{roleplay[0]}}">
                             <div class="card-body">
                                 <h5 class="card-title">{{roleplay[0]}}. {{roleplay[1]}}</h5>
-                                <h6 class="card-subtitle mb-2 text-muted">{{roleplay[5]}}</h6>
+                                <h6 class="card-subtitle mb-2 text-muted">{{roleplay[5]|striptags|truncate(100)}}</h6>
                                 <a href="/admin/delete/{{roleplay[0]}}" class="btn btn-danger float-right" id="roleplaydelete{{roleplay[0]}}">Delete</a>
                             </div>
                         </div>

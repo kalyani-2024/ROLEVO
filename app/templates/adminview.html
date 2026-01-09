@@ -357,9 +357,7 @@
                         <div class="card mb-4">
                             <div class="card-header"><h5>Assessment Configuration</h5></div>
                             <div class="card-body">
-                                <label><input type="checkbox" name="voice_assessment_enabled" {% if config and config[11] %}checked{% endif %}> Enable Voice-based Assessment</label><br>
-                                
-                                <label for="difficulty_level" style="margin-top: 15px;">Difficulty Level:</label><br>
+                                <label for="difficulty_level">Difficulty Level:</label><br>
                                 <select id="difficulty_level" name="difficulty_level" style="width:100%;margin-bottom: 15px;">
                                     <option value="easy" {% if config and config[12] == 'easy' %}selected{% endif %}>Easy</option>
                                     <option value="medium" {% if config and config[12] == 'medium' %}selected{% endif %}>Medium</option>
@@ -544,9 +542,7 @@
                         <div class="card mb-4">
                             <div class="card-header"><h5>Assessment Configuration</h5></div>
                             <div class="card-body">
-                                <label><input type="checkbox" name="voice_assessment_enabled"> Enable Voice-based Assessment</label><br>
-                                
-                                <label for="difficulty_level" style="margin-top: 15px;">Difficulty Level:</label><br>
+                                <label for="difficulty_level">Difficulty Level:</label><br>
                                 <select id="difficulty_level" name="difficulty_level" style="width:100%;margin-bottom: 15px;">
                                     <option value="easy" selected>Easy</option>
                                     <option value="medium">Medium</option>

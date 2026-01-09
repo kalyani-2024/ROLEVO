@@ -1,4 +1,4 @@
-import openai
+from openai import OpenAI
 from typing import List
 import pandas as pd
 from app.queries import get_roleplay_details
@@ -11,7 +11,7 @@ class LLMInteractor:
         """
             Initiate the system conversation
         """
-        openai.api_key = API_KEY
+        self.client = OpenAI(api_key=API_KEY)
 
         self.normal_output_format = """
 Output format is STRICTLY as follows, you must output two things. Please maintain this format:
@@ -387,11 +387,11 @@ Rephrased Ideal Response: Put the rephrased response here
             Executes message
             and adds to history
         """
-        chat = openai.ChatCompletion.create(
+        chat = self.client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=arr,
             temperature=0.7,
-            top_p=0,
+            top_p=1,
             n=1,
             stream=False,
             presence_penalty=0,
@@ -431,9 +431,9 @@ Rephrased Ideal Response: Put the rephrased response here
         
         try:
             with open(audio_file_path, "rb") as audio_file:
-                transcript = openai.Audio.transcribe(
-                    "whisper-1",
-                    audio_file,
+                transcript = self.client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=audio_file,
                     language=lang_code  # Specify language for better accuracy
                 )
                 return transcript.text
