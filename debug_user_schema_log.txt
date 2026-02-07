@@ -1,0 +1,9 @@
+--- USER TABLE COLUMNS ---
+('id', 'int', 'NO', 'PRI', None, 'auto_increment')
+('email', 'varchar(255)', 'NO', 'UNI', None, '')
+('password', 'varchar(500)', 'NO', '', None, '')
+('is_admin', 'tinyint(1)', 'YES', '', '0', '')
+
+--- TESTING QUERY ---
+Query FAILED: 1054 (42S22): Unknown column 'name' in 'field list'
+Query 2 FAILED: 1054 (42S22): Unknown column 'created_at' in 'field list'

@@ -1,0 +1,20 @@
+{
+  "metadata_sync_errors": {
+    "invalid_data": {
+      "status": 400,
+      "response": {
+        "success": false,
+        "detail": "Invalid cluster metadata format or missing required fields"
+      }
+    }
+  },
+  "results_submission_errors": {
+    "invalid_data": {
+      "status": 400,
+      "response": {
+        "success": false,
+        "detail": "Invalid results format or missing required fields"
+      }
+    }
+  }
+}

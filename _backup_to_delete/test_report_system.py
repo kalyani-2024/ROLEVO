@@ -3,7 +3,7 @@ Test Script for Report System
 Run this to test report generation without needing a full roleplay session
 """
 
-from app.report_generator import generate_roleplay_report
+from _backup_to_delete.report_generator import generate_roleplay_report
 from app.email_service import send_report_email
 import os
 from datetime import datetime

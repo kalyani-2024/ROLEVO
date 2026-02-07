@@ -43,6 +43,24 @@ class ImageInteraction:
     issues: List[ValidationIssue]
 
 
+def is_other_label(label: str) -> bool:
+    """
+    Check if a label is a valid 'other' row label.
+    Accepts: 'other', 'other(m)', 'other(M)', 'other (m)', 'other(f)', 'other(F)', 'other (f)',
+             'other(male)', 'other(female)', etc.
+    """
+    if not label:
+        return False
+    label_lower = str(label).strip().lower()
+    # Check if it starts with 'other' and optionally has gender marker
+    if label_lower == 'other':
+        return True
+    # Check for gender markers: other(m), other(f), other (m), other (f), other(male), other(female)
+    import re
+    pattern = r'^other\s*\((m|f|male|female)\)$'
+    return bool(re.match(pattern, label_lower))
+
+
 class EnhancedExcelValidator:
     """Enhanced validator that stores all data in arrays and provides detailed validation"""
     
@@ -52,6 +70,89 @@ class EnhancedExcelValidator:
         self.roleplay_metadata = {}  # Tags sheet data stored as dict
         self.system_prompt_data = {}  # System prompt information
         self.all_issues = []     # Array of all ValidationIssue objects
+        self.master_competencies = {}  # Dict of available competencies from master file
+    
+    def load_master_competencies(self, competency_file_path: str) -> bool:
+        """
+        Load competencies from master/competency file for validation.
+        Returns True if successful, False otherwise.
+        """
+        if not competency_file_path or not os.path.exists(competency_file_path):
+            return False
+        
+        try:
+            xls = pd.ExcelFile(competency_file_path)
+            if len(xls.sheet_names) < 1:
+                return False
+            
+            df = xls.parse(0)
+            
+            # Check for required 'Abbr' column
+            if 'Abbr' not in df.columns:
+                return False
+            
+            # Build dict of competency abbreviations
+            self.master_competencies = {}
+            for idx, row in df.iterrows():
+                abbr = row.get('Abbr')
+                if pd.notna(abbr) and str(abbr).strip():
+                    self.master_competencies[str(abbr).strip()] = {
+                        'name': row.get('CompetencyType', '') if pd.notna(row.get('CompetencyType', '')) else '',
+                        'description': row.get('Description', '') if 'Description' in df.columns and pd.notna(row.get('Description', '')) else ''
+                    }
+            
+            return len(self.master_competencies) > 0
+        except Exception as e:
+            print(f"Error loading master competencies: {e}")
+            return False
+    
+    def validate_competencies_against_master(self, sheet_name: str = 'Flow'):
+        """
+        Validate that all competencies used in roleplay data exist in the master file.
+        Should be called after both roleplay parsing and master file loading.
+        """
+        if not self.master_competencies:
+            # No master file loaded, skip validation
+            return
+        
+        available_competencies = list(self.master_competencies.keys())
+        missing_competencies = {}  # Track which competencies are missing and where
+        
+        # Check each interaction's competency mappings
+        for interaction in self.roleplay_data:
+            for comp_mapping in interaction.competency_mappings:
+                # Parse competency string - format is usually "ABBR LEVEL X" or "ABBR LEVEL X:score"
+                # Can have multiple competencies separated by newlines
+                competencies_in_cell = str(comp_mapping).split('\n')
+                
+                for comp_line in competencies_in_cell:
+                    comp_line = comp_line.strip()
+                    if not comp_line:
+                        continue
+                    
+                    # Extract competency key (remove score suffix if present)
+                    # e.g., "MOTVN LEVEL 2:2" -> "MOTVN LEVEL 2"
+                    comp_parts = comp_line.split(':')
+                    comp_key = comp_parts[0].strip()
+                    
+                    if comp_key and comp_key not in self.master_competencies:
+                        # Track missing competency
+                        if comp_key not in missing_competencies:
+                            missing_competencies[comp_key] = []
+                        missing_competencies[comp_key].append(f"Interaction {interaction.interaction_number}")
+        
+        # Add validation issues for missing competencies
+        for comp_key, locations in missing_competencies.items():
+            issue = ValidationIssue(
+                level='error',
+                message=f"Competency '{comp_key}' not found in master file. Available competencies: {available_competencies}",
+                sheet_name=sheet_name,
+                row=0,
+                column='C-E',
+                cell_value=comp_key,
+                expected_value=f"One of: {', '.join(available_competencies)}"
+            )
+            self.all_issues.append(issue)
     
     def validate_roleplay_excel_detailed(self, file_path: str) -> Dict[str, Any]:
         """
@@ -278,18 +379,44 @@ class EnhancedExcelValidator:
             self.all_issues.append(issue)
     
     def _validate_flow_header(self, df: pd.DataFrame, sheet_name: str):
-        """Validate flow sheet header row"""
+        """Validate flow sheet header row - checks required columns exist and are in order"""
         if df.shape[0] == 0:
             return
         
-        expected_headers = {
-            0: "Interaction Number",
-            1: "Situation",  # Can vary
-            2: "Player Options",  # Can vary
-            5: "Tips"
+        # Get header row (first row)
+        header_row = df.iloc[0]
+        
+        # Required columns in expected order - only first 5 are strictly required, Tips is optional
+        required_columns = {
+            0: ["interaction number", "interaction", "int", "no", "#"],
+            1: ["situation", "scenario", "description", "context"],
+            2: ["player option", "option 1", "option a", "response 1", "player response"],
+            3: ["player option", "option 2", "option b", "response 2"],
+            4: ["player option", "option 3", "option c", "response 3"]
         }
         
-        # Skip header validation warnings - only report missing data
+        # Optional columns
+        optional_columns = {
+            5: ["tips", "tip", "hint", "guidance"]
+        }
+        
+        # Check required columns - these generate errors
+        for col_idx, possible_names in required_columns.items():
+            if col_idx >= df.shape[1]:
+                issue = ValidationIssue(
+                    'error', 
+                    f"Missing required column at position {col_idx + 1} ({self._num_to_col(col_idx)}). Expected one of: {', '.join(possible_names)}", 
+                    sheet_name, 1, self._num_to_col(col_idx), None,
+                    f"Column header like: {possible_names[0]}"
+                )
+                self.all_issues.append(issue)
+                continue
+        
+        # Check optional columns - only warnings, not errors
+        for col_idx, possible_names in optional_columns.items():
+            if col_idx >= df.shape[1]:
+                # Tips column doesn't exist - just a warning, not error
+                continue  # Skip - Tips is truly optional
     
     def _parse_single_interaction(self, df: pd.DataFrame, sheet_name: str, start_row: int) -> Optional[RoleplayInteraction]:
         """Parse a single interaction starting at the given row"""
@@ -303,6 +430,36 @@ class EnhancedExcelValidator:
         
         interaction_num = int(str(interaction_cell).strip())
         issues = []
+        
+        # Validate row structure - check that next two rows have proper labels
+        # Expected: Row 1 (interaction #), Row 2 (competency label), Row 3 (other label)
+        if start_row + 1 < df.shape[0]:
+            comp_row_label = df.iloc[start_row + 1, 0] if df.shape[1] > 0 else None
+            comp_row_label_str = str(comp_row_label).strip().lower() if pd.notna(comp_row_label) else ""
+            
+            # Check if competency row has wrong label (e.g., "player" instead of "competency")
+            if comp_row_label_str == "player":
+                issue = ValidationIssue(
+                    'error',
+                    f"Row {start_row + 2} has label 'Player' but should be 'competency'. Interaction {interaction_num} has rows in wrong order!",
+                    sheet_name, start_row + 2, 'A', comp_row_label,
+                    "competency"
+                )
+                issues.append(issue)
+        
+        if start_row + 2 < df.shape[0]:
+            other_row_label = df.iloc[start_row + 2, 0] if df.shape[1] > 0 else None
+            other_row_label_str = str(other_row_label).strip().lower() if pd.notna(other_row_label) else ""
+            
+            # Check if other row has wrong label
+            if "competency" in other_row_label_str or "comp" in other_row_label_str:
+                issue = ValidationIssue(
+                    'error',
+                    f"Row {start_row + 3} has label containing 'competency' but should be 'other'. Interaction {interaction_num} has rows in wrong order!",
+                    sheet_name, start_row + 3, 'A', other_row_label,
+                    "other(M) or other(F)"
+                )
+                issues.append(issue)
         
         # Parse scenario description (Column B)
         scenario_desc = ""
@@ -319,7 +476,18 @@ class EnhancedExcelValidator:
             player_cell = df.iloc[start_row, col_idx]
             
             if pd.notna(player_cell) and str(player_cell).strip():
-                player_responses.append(str(player_cell).strip())
+                cell_value = str(player_cell).strip()
+                player_responses.append(cell_value)
+                
+                # Check if this looks like a competency code in wrong column
+                if self._looks_like_competency(cell_value):
+                    issue = ValidationIssue(
+                        'error', 
+                        f"Column {col_letter} contains competency code '{cell_value}' but should contain player response text. Columns may be in wrong order!",
+                        sheet_name, start_row + 1, col_letter, cell_value,
+                        "Player response text (not competency code)"
+                    )
+                    issues.append(issue)
             else:
                 issue = ValidationIssue('error', f"Missing player response {col_idx - 1} for interaction {interaction_num}", 
                                       sheet_name, start_row + 1, col_letter, player_cell, f"Player response {col_idx - 1}")
@@ -357,7 +525,18 @@ class EnhancedExcelValidator:
                     comp_cell = df.iloc[comp_row, col_idx]
                     
                     if pd.notna(comp_cell) and str(comp_cell).strip():
-                        competency_mappings.append(str(comp_cell).strip())
+                        cell_value = str(comp_cell).strip()
+                        competency_mappings.append(cell_value)
+                        
+                        # Validate competency format - should contain "LEVEL" and abbreviation
+                        if not self._looks_like_competency(cell_value):
+                            issue = ValidationIssue(
+                                'error',
+                                f"Competency row column {col_letter} contains '{cell_value}' which doesn't look like a competency code. Expected format: 'ABBR LEVEL X' (e.g., 'MOTVN LEVEL 2'). Data may be in wrong row!",
+                                sheet_name, comp_row + 1, col_letter, cell_value,
+                                "Competency code like 'MOTVN LEVEL 2'"
+                            )
+                            issues.append(issue)
                     else:
                         issue = ValidationIssue('error', f"Missing competency mapping {col_idx - 1} for interaction {interaction_num}", 
                                               sheet_name, comp_row + 1, col_letter, comp_cell, f"Competency {col_idx - 1}")
@@ -504,6 +683,39 @@ class EnhancedExcelValidator:
             return True
         except ValueError:
             return False
+    
+    def _looks_like_competency(self, text: str) -> bool:
+        """Check if text looks like a competency code (e.g., 'MOTVN LEVEL 2', 'EMP LEVEL 1')"""
+        if not text or not isinstance(text, str):
+            return False
+        
+        text_upper = text.strip().upper()
+        
+        # Check for common competency patterns
+        competency_indicators = [
+            "LEVEL 1", "LEVEL 2", "LEVEL 3",
+            "MOTVN", "EMP", "QNING", "PERSUADE", "ADAPT",
+            "RESILIENCE", "ACUMEN", "MGMNT"
+        ]
+        
+        return any(indicator in text_upper for indicator in competency_indicators)
+    
+    def _looks_like_player_response(self, text: str) -> bool:
+        """Check if text looks like a player response (actual response text, not competency)"""
+        if not text or not isinstance(text, str):
+            return False
+        
+        text_str = text.strip()
+        
+        # Player responses are typically longer and don't contain competency keywords
+        if len(text_str) < 10:
+            return False  # Too short for a proper response
+        
+        # If it looks like a competency, it's not a player response
+        if self._looks_like_competency(text_str):
+            return False
+        
+        return True
     
     def _is_valid_image_path(self, path: str) -> bool:
         """Check if path looks like a valid image path/URL"""
@@ -806,14 +1018,14 @@ class EnhancedExcelValidator:
                 
                 if label_lower == "competency":
                     found_competency = True
-                elif label_lower == "other":
+                elif is_other_label(label):
                     found_other = True
         
         if not found_competency:
             errors.append(f"Interaction {interaction_num}: Missing 'competency' row (should be in column B of one of the next 3 rows)")
         
         if not found_other:
-            errors.append(f"Interaction {interaction_num}: Missing 'other' row (should be in column B of one of the next 3 rows)")
+            errors.append(f"Interaction {interaction_num}: Missing 'other' row (use 'other', 'other(m)', or 'other(f)' in column B)")
         
         return errors
     
@@ -924,8 +1136,8 @@ class EnhancedExcelValidator:
         
         # Validate computer response row
         other_label = df.iloc[other_row, 1] if df.shape[1] > 1 and not pd.isna(df.iloc[other_row, 1]) else ""
-        if str(other_label).strip().lower() != "other":
-            errors.append(f"Interaction {interaction_num} row {other_row+1}: Expected 'other' in column B, found '{other_label}'")
+        if not is_other_label(other_label):
+            errors.append(f"Interaction {interaction_num} row {other_row+1}: Expected 'other' (or 'other(m)'/'other(f)' for gender) in column B, found '{other_label}'")
         
         # Check computer responses in columns C, D, E - must have at least one response
         computer_response_count = 0
@@ -953,11 +1165,11 @@ class EnhancedExcelValidator:
     
     def _find_other_row(self, df: pd.DataFrame, competency_row: int, interaction_num: int) -> int:
         """Find the computer response ('other') row for an interaction"""
-        # Look in the next few rows after competency row for "other" label
+        # Look in the next few rows after competency row for "other" label (including gender markers)
         for row_idx in range(competency_row + 1, min(competency_row + 5, df.shape[0])):
             if df.shape[1] > 1:
                 label = df.iloc[row_idx, 1] if not pd.isna(df.iloc[row_idx, 1]) else ""
-                if str(label).strip().lower() == "other":
+                if is_other_label(label):
                     return row_idx
         return None
     
@@ -988,12 +1200,23 @@ class EnhancedExcelValidator:
 
 
 # Updated main validation function with strict structural requirements
-def validate_excel_files_detailed(roleplay_path: str, image_path: str = None) -> Tuple[bool, str, Dict[str, Any]]:
+def validate_excel_files_detailed(roleplay_path: str, image_path: str = None, competency_file_path: str = None) -> Tuple[bool, str, Dict[str, Any]]:
     """
     Enhanced validation with strict structural requirements and detailed error reporting
+    Args:
+        roleplay_path: Path to the roleplay Excel file
+        image_path: Optional path to the image Excel file  
+        competency_file_path: Optional path to the competency/master Excel file for validating competency mappings
     Returns: (is_valid, summary_message, full_validation_data)
     """
     validator = EnhancedExcelValidator()
+    
+    # Load master competencies if provided (for competency validation)
+    if competency_file_path:
+        loaded = validator.load_master_competencies(competency_file_path)
+        print(f"🔍 Competency master file loading: {competency_file_path}")
+        print(f"   Loaded successfully: {loaded}")
+        print(f"   Available competencies: {list(validator.master_competencies.keys())}")
     
     # First: Validate strict structural requirements
     structural_errors = validator.validate_structural_requirements(roleplay_path, image_path)
@@ -1013,6 +1236,14 @@ def validate_excel_files_detailed(roleplay_path: str, image_path: str = None) ->
     
     # If structure is valid, proceed with content validation
     roleplay_result = validator.validate_roleplay_excel_detailed(roleplay_path)
+    
+    # Validate competencies against master file (if master was loaded)
+    if competency_file_path and validator.master_competencies:
+        print(f"🔍 Running competency validation against master file...")
+        validator.validate_competencies_against_master()
+        # Update roleplay_result with any new competency validation errors
+        roleplay_result = validator._generate_result()
+        print(f"   Competency validation errors: {len([e for e in validator.all_issues if 'not found in master' in e.message])}")
     
     # Validate image Excel if provided
     if image_path:

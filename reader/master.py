@@ -17,29 +17,33 @@ class MasterLoader:
     def get_competencies_as_list(self) -> dict:
         """
         Returns Competency Abbr mapped to CompetencyType, as a dict
+        Handles optional columns: Description, Score 1, Score 2, Score 3
         """
         mapping_dict = self.data.set_index('Abbr')['CompetencyType'].to_dict()
-        mapping_dict2 = self.data.set_index('Abbr')['Description'].to_dict()
-        score1 = self.data.set_index('Abbr')['Score 1'].to_dict()
-        score2 = self.data.set_index('Abbr')['Score 2'].to_dict()
-        score3 = self.data.set_index('Abbr')['Score 3'].to_dict()
+        # Handle optional columns safely
+        mapping_dict2 = self.data.set_index('Abbr')['Description'].to_dict() if 'Description' in self.data.columns else {}
+        score1 = self.data.set_index('Abbr')['Score 1'].to_dict() if 'Score 1' in self.data.columns else {}
+        score2 = self.data.set_index('Abbr')['Score 2'].to_dict() if 'Score 2' in self.data.columns else {}
+        score3 = self.data.set_index('Abbr')['Score 3'].to_dict() if 'Score 3' in self.data.columns else {}
         r_dict = {}
         for x in mapping_dict:
             data_dict = {}
             data_dict["name"] = mapping_dict[x]
-            data_dict["description"] = mapping_dict2[x]
-            
+            data_dict["description"] = mapping_dict2.get(x, "")
             # Convert examples to strings to handle Excel cells containing numbers
             # This prevents "'float' object is not subscriptable" errors
             examples = []
-            for score_dict, score_label in [(score1, "Score 1"), (score2, "Score 2"), (score3, "Score 3")]:
-                value = score_dict.get(x)
-                if pd.isna(value):  # Handle NaN/None
-                    examples.append(f"{score_label} example not provided")
+            for score_dict, score_label in [
+                (score1, "Score 1"), (score2, "Score 2"), (score3, "Score 3")
+            ]:
+                if score_dict:
+                    value = score_dict.get(x)
+                    if pd.isna(value) if value is not None else True:
+                        examples.append(f"{score_label} example not provided")
+                    else:
+                        examples.append(str(value))
                 else:
-                    examples.append(str(value))  # Convert to string (handles float, int, str)
-            
+                    examples.append(f"{score_label} example not provided")
             data_dict["examples"] = examples
             r_dict[x] = data_dict
-        
         return r_dict

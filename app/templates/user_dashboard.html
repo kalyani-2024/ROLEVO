@@ -378,103 +378,10 @@
 <div class="dashboard-container">
     {% if clusters %}
         {% for cluster in clusters %}
-        <!-- Cluster Title -->
-        <h1 class="cluster-title-main">{{ cluster.name }}</h1>
-
-        <!-- Info Bar with white background -->
-        <div class="info-bar-container">
-            <div class="info-bar-wrapper">
-                <!-- Duration -->
-                <div class="info-item">
-                    <div class="info-icon-wrapper">
-                        <i class="far fa-clock info-icon"></i>
-                    </div>
-                    <div class="info-content">
-                        <div class="info-label">Duration</div>
-                        <div class="info-value">60:00</div>
-                    </div>
-                </div>
-                
-                <!-- Conversations -->
-                <div class="conversations-wrapper">
-                    <div class="info-item">
-                        <div class="info-icon-wrapper">
-                            <i class="fas fa-comments info-icon"></i>
-                        </div>
-                        <div class="info-content">
-                            <div class="info-label">No. of Conversations</div>
-                            <div class="info-value">{{ cluster.roleplays|length }}</div>
-                        </div>
-                    </div>
-                    <div class="batch-info">{{ cluster.type if cluster.type else 'Managerial & Sales batch' }}</div>
-                </div>
-
-                <!-- Click Before Starting Button - Links to detailed cluster view -->
-                <a href="{{ url_for('user_cluster_view', user_id=user[0], cluster_id=cluster.id) }}" class="click-before-btn" style="text-decoration: none;">
-                    <span class="hand-emoji">👆</span>
-                    Click Before Starting
-                </a>
-            </div>
-        </div>
-
-        <!-- Roleplays Grid -->
-        {% if cluster.roleplays %}
-        <div class="roleplays-grid">
-            {% for roleplay in cluster.roleplays %}
-            <div class="roleplay-card">
-                <!-- Avatar with concentric circles -->
-                <div class="roleplay-avatar"></div>
-
-                <!-- Roleplay Name -->
-                <div class="roleplay-name">{{ roleplay[1] }}</div>
-                
-                <!-- Person Name (character name the user will interact with) -->
-                <div class="roleplay-role">{{ roleplay[6] if roleplay|length > 6 and roleplay[6] else 'Role Player' }}</div>
-                
-                <!-- Difficulty Section -->
-                <div class="difficulty-section">
-                    <div class="difficulty-label">Difficulty Level</div>
-                    
-                    <!-- Semicircle Gauge and Badge -->
-                    <div class="difficulty-meter">
-                        <!-- Semicircle Gauge SVG -->
-                        <div class="difficulty-gauge">
-                            <svg viewBox="0 0 100 55" style="overflow: visible;">
-                                <!-- Green section (Easy) -->
-                                <path d="M 10 50 A 40 40 0 0 1 35 18" 
-                                      fill="none" 
-                                      stroke="#22c55e" 
-                                      stroke-width="10"
-                                      stroke-linecap="round"/>
-                                <!-- Yellow section (Medium) -->
-                                <path d="M 38 16 A 40 40 0 0 1 62 16" 
-                                      fill="none" 
-                                      stroke="#eab308" 
-                                      stroke-width="10"
-                                      stroke-linecap="round"/>
-                                <!-- Red section (Hard) -->
-                                <path d="M 65 18 A 40 40 0 0 1 90 50" 
-                                      fill="none" 
-                                      stroke="#ef4444" 
-                                      stroke-width="10"
-                                      stroke-linecap="round"/>
-                                <!-- Needle pointing to green (easy) -->
-                                <line x1="50" y1="50" x2="28" y2="28" 
-                                      stroke="#374151" 
-                                      stroke-width="3"
-                                      stroke-linecap="round"/>
-                                <!-- Center circle -->
-                                <circle cx="50" cy="50" r="4" fill="#374151"/>
-                            </svg>
-                        </div>
-                        
-                        <!-- Easy Badge -->
-                        <span class="difficulty-badge easy">Easy</span>
-                    </div>
-                </div>
+    
 
                 <!-- Start Button - Opens cluster view which handles roleplay selection -->
-                <a href="{{ url_for('user_cluster_view', user_id=user[0], cluster_id=cluster[0]) }}" class="start-button">
+                <a href="{{ url_for('user_cluster_view', user_id=user[0], cluster_id=cluster.id) }}" class="start-button">
                     VIEW CLUSTER
                     <i class="fas fa-play-circle"></i>
                 </a>

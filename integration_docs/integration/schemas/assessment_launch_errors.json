@@ -1,0 +1,23 @@
+{
+  "cluster_not_found": {
+    "status": 404,
+    "response": {
+      "success": false,
+      "detail": "Cluster not found: b4bf406c-4f9"
+    }
+  },
+  "invalid_token": {
+    "status": 401,
+    "response": {
+      "success": false,
+      "detail": "Authentication token is invalid or expired"
+    }
+  },
+  "missing_required_fields": {
+    "status": 400,
+    "response": {
+      "success": false,
+      "detail": "Missing required fields: user_id, user_name, assessment_cluster_id, auth_token, return_url"
+    }
+  }
+}

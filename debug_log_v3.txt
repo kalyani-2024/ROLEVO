@@ -1,0 +1,16 @@
+Starting debug script v3 (Full Cycle)...
+App context pushed.
+Creating dummy user: debug_user_1768933546@example.com
+Created User ID: 8 (type: <class 'int'>)
+Creating dummy cluster: Debug Cluster 1768933546
+Created Cluster ID: 17 (type: <class 'int'>)
+Assigning user to cluster...
+Assignment success: True
+Verifying in DB directly...
+Fetching cluster users via get_cluster_users...
+Cluster Users Found: 1
+ERROR: tuple index out of range
+Traceback (most recent call last):
+  File "C:\Users\lenovo\OneDrive\Desktop\Rolevo-flaskapp-firas\Rolevo-flaskapp-firas\debug_cluster_users_v3.py", line 68, in <module>
+    f.write(f"  Found User: ID={u[0]} (type: {type(u[0])}), Name={u[2]}\n")
+IndexError: tuple index out of range

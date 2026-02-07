@@ -1,6 +1,6 @@
 from flask import render_template, request, session, redirect, url_for, flash, abort, send_file, jsonify
 import mysql.connector
-from app import app
+from app import app, csrf
 from app.forms import PostForm
 import openai
 import reader.master #abstract this
@@ -23,6 +23,7 @@ from functools import wraps
 from app.report_generator_v2 import generate_roleplay_report
 from app.email_service import send_report_email
 from app.persona360_service import get_persona360_service, analyze_audio_for_16pf
+from app.api_integration import sync_cluster_metadata_to_q3
 
 load_dotenv(find_dotenv())
 openai.api_key = os.getenv('OPENAI_API_KEY')
@@ -250,17 +251,25 @@ def post_attempt_data(play_id):
         thread = threading.Thread(target=generate_and_send_report_async, args=(play_id, user_id))
         thread.daemon = True
         thread.start()
-        print(f"Started background report generation for play_id {play_id}, user_id {user_id}")
+        print(f"Started background report generation for play_id {play_id}, user_id {user_id}", flush=True)
     except Exception as e:
-        print(f"Error starting report generation thread: {str(e)}")
+        print(f"Error starting report generation thread: {str(e)}", flush=True)
     
     # Trigger 16PF voice analysis if enabled for this roleplay
+    print(f"[16PF] About to check 16PF analysis trigger...", flush=True)
     try:
         roleplay_id = play_info[4] if play_info else None  # roleplay_id is at index 4
+        print(f"[16PF] Extracted roleplay_id={roleplay_id} from play_info", flush=True)
         if roleplay_id:
+            print(f"[16PF] Calling trigger_16pf_analysis_if_enabled...", flush=True)
             trigger_16pf_analysis_if_enabled(play_id, user_id, roleplay_id)
+            print(f"[16PF] trigger_16pf_analysis_if_enabled completed", flush=True)
+        else:
+            print(f"[16PF] ❌ No roleplay_id found in play_info", flush=True)
     except Exception as e:
-        print(f"Error triggering 16PF analysis: {str(e)}")
+        print(f"[16PF] ❌ Error triggering 16PF analysis: {str(e)}", flush=True)
+        import traceback
+        traceback.print_exc()
 
 
 def merge_audio_files_for_play(play_id):
@@ -268,11 +277,21 @@ def merge_audio_files_for_play(play_id):
     
     Returns the path to the merged audio file, or None if no files to merge.
     """
+    import re
+    import subprocess
+    
     try:
+        print(f"[16PF] ========== MERGE AUDIO FILES ==========", flush=True)
+        print(f"[16PF] merge_audio_files_for_play called for play_id={play_id}", flush=True)
         user_recordings_dir = os.path.join(app.root_path, 'static', 'user_recordings')
+        print(f"[16PF] Looking for recordings in: {user_recordings_dir}", flush=True)
         if not os.path.exists(user_recordings_dir):
-            print(f"[16PF] User recordings directory does not exist")
+            print(f"[16PF] User recordings directory does not exist: {user_recordings_dir}", flush=True)
             return None
+        
+        # List ALL files in directory for debugging
+        all_files = os.listdir(user_recordings_dir)
+        print(f"[16PF] All files in user_recordings ({len(all_files)}): {all_files[:20]}", flush=True)  # Show first 20
         
         # Find all audio files for this play_id
         audio_files = []
@@ -281,24 +300,55 @@ def merge_audio_files_for_play(play_id):
                 # Match patterns: user_audio_play{id}_int... or play{id}_ or play_{id}
                 if f'play{play_id}_' in filename or f'play_{play_id}' in filename:
                     file_path = os.path.join(user_recordings_dir, filename)
+                    file_size = os.path.getsize(file_path)
                     # Get modification time for sorting
-                    audio_files.append((file_path, os.path.getmtime(file_path)))
+                    audio_files.append((file_path, os.path.getmtime(file_path), file_size))
+                    print(f"[16PF] Found matching file: {filename} (size: {file_size} bytes)", flush=True)
         
         if not audio_files:
-            print(f"[16PF] No audio files found for play_id {play_id}")
+            print(f"[16PF] ❌ No audio files found for play_id {play_id}", flush=True)
+            print(f"[16PF] Searched for patterns: 'play{play_id}_' or 'play_{play_id}'")
             return None
         
+        # Create merged audio directory early
+        merged_dir = os.path.join(app.root_path, 'static', 'merged_audio')
+        os.makedirs(merged_dir, exist_ok=True)
+        print(f"[16PF] Merged audio directory: {merged_dir}")
+        
         if len(audio_files) == 1:
-            # Only one file, no need to merge
-            print(f"[16PF] Single audio file found: {audio_files[0][0]}")
-            return audio_files[0][0]
+            # Only one file - convert to mp3 for API compatibility
+            single_file = audio_files[0][0]
+            print(f"[16PF] Single audio file found: {single_file}")
+            
+            # Convert single webm to mp3 for API compatibility
+            if single_file.endswith('.webm'):
+                try:
+                    merged_filename = f"merged_play{play_id}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.mp3"
+                    merged_path = os.path.join(merged_dir, merged_filename)
+                    
+                    # Try ffmpeg conversion first
+                    result = subprocess.run([
+                        'ffmpeg', '-y', '-i', single_file,
+                        '-acodec', 'libmp3lame', '-ab', '128k', merged_path
+                    ], capture_output=True, text=True, timeout=60)
+                    
+                    if result.returncode == 0 and os.path.exists(merged_path):
+                        print(f"[16PF] ✅ Converted single webm to mp3: {merged_path}")
+                        return merged_path
+                    else:
+                        print(f"[16PF] ffmpeg conversion failed: {result.stderr}")
+                        # Fall back to original file
+                        return single_file
+                except Exception as conv_err:
+                    print(f"[16PF] Conversion error: {conv_err}, returning original file")
+                    return single_file
+            else:
+                return single_file
         
         # Sort by filename to maintain interaction order (int1, int2, int3, etc.)
-        # or fallback to modification time (oldest first)
         def get_interaction_num(file_tuple):
             filename = os.path.basename(file_tuple[0])
             # Extract interaction number from filename like "user_audio_play258_int3_..."
-            import re
             match = re.search(r'_int(\d+)_', filename)
             if match:
                 return int(match.group(1))
@@ -310,28 +360,81 @@ def merge_audio_files_for_play(play_id):
         
         print(f"[16PF] Found {len(file_paths)} audio files to merge for play_id {play_id}")
         for i, fp in enumerate(file_paths):
-            print(f"[16PF]   {i+1}. {os.path.basename(fp)}")
-        
-        # Create merged audio directory
-        merged_dir = os.path.join(app.root_path, 'static', 'merged_audio')
-        os.makedirs(merged_dir, exist_ok=True)
+            print(f"[16PF]   {i+1}. {os.path.basename(fp)} ({os.path.getsize(fp)} bytes)")
         
         merged_filename = f"merged_play{play_id}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.mp3"
         merged_path = os.path.join(merged_dir, merged_filename)
         
-        # ===== METHOD 1: Use pydub (Python-based, no external dependencies) =====
+        # ===== METHOD 1: Use ffmpeg directly to convert and merge (most reliable) =====
+        try:
+            print(f"[16PF] METHOD 1: Trying ffmpeg direct merge with re-encoding...")
+            
+            # First, convert all webm files to wav for easier merging
+            temp_wav_files = []
+            for i, fp in enumerate(file_paths):
+                temp_wav = os.path.join(merged_dir, f"temp_{play_id}_{i}.wav")
+                result = subprocess.run([
+                    'ffmpeg', '-y', '-i', fp, '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '1', temp_wav
+                ], capture_output=True, text=True, timeout=60)
+                
+                if result.returncode == 0 and os.path.exists(temp_wav):
+                    temp_wav_files.append(temp_wav)
+                    print(f"[16PF]   Converted {os.path.basename(fp)} to wav")
+                else:
+                    print(f"[16PF]   ⚠️ Failed to convert {os.path.basename(fp)}: {result.stderr[:200] if result.stderr else 'unknown error'}")
+            
+            if temp_wav_files:
+                # Create concat list file
+                list_file = os.path.join(merged_dir, f"filelist_{play_id}.txt")
+                with open(list_file, 'w') as f:
+                    for temp_wav in temp_wav_files:
+                        f.write(f"file '{temp_wav}'\n")
+                
+                # Concat wav files and convert to mp3
+                result = subprocess.run([
+                    'ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', list_file,
+                    '-acodec', 'libmp3lame', '-ab', '128k', merged_path
+                ], capture_output=True, text=True, timeout=120)
+                
+                # Cleanup temp files
+                for temp_wav in temp_wav_files:
+                    try:
+                        os.remove(temp_wav)
+                    except:
+                        pass
+                try:
+                    os.remove(list_file)
+                except:
+                    pass
+                
+                if result.returncode == 0 and os.path.exists(merged_path):
+                    merged_size = os.path.getsize(merged_path)
+                    print(f"[16PF] ✅ Successfully merged {len(file_paths)} files into: {merged_path} ({merged_size} bytes)")
+                    return merged_path
+                else:
+                    print(f"[16PF] ffmpeg merge failed: {result.stderr[:500] if result.stderr else 'unknown error'}")
+            else:
+                print(f"[16PF] No temp wav files created, ffmpeg method failed")
+                
+        except FileNotFoundError:
+            print("[16PF] ffmpeg not found in PATH")
+        except Exception as ffmpeg_err:
+            print(f"[16PF] ffmpeg error: {ffmpeg_err}")
+            import traceback
+            traceback.print_exc()
+        
+        # ===== METHOD 2: Use pydub (requires ffmpeg for webm) =====
         try:
             from pydub import AudioSegment
             
-            print(f"[16PF] Merging audio files using pydub...")
+            print(f"[16PF] METHOD 2: Trying pydub merge...")
             
             # Combine all audio files
             combined = None
             for i, fp in enumerate(file_paths):
                 try:
-                    # Load audio file (pydub auto-detects format)
+                    # Load audio file
                     if fp.endswith('.webm'):
-                        # For webm, we need to specify format
                         audio = AudioSegment.from_file(fp, format="webm")
                     elif fp.endswith('.mp3'):
                         audio = AudioSegment.from_mp3(fp)
@@ -349,63 +452,30 @@ def merge_audio_files_for_play(play_id):
                     
                     print(f"[16PF]   Added segment {i+1}: {os.path.basename(fp)} ({len(audio)}ms)")
                 except Exception as seg_error:
-                    print(f"[16PF]   Warning: Could not load {os.path.basename(fp)}: {seg_error}")
+                    print(f"[16PF]   ⚠️ Could not load {os.path.basename(fp)}: {seg_error}")
                     continue
             
             if combined is not None and len(combined) > 0:
                 # Export as MP3
                 combined.export(merged_path, format="mp3")
-                print(f"[16PF] Successfully merged {len(file_paths)} files into: {merged_path}")
-                print(f"[16PF] Total duration: {len(combined) / 1000:.1f} seconds")
+                merged_size = os.path.getsize(merged_path)
+                print(f"[16PF] ✅ Successfully merged {len(file_paths)} files into: {merged_path}")
+                print(f"[16PF] Total duration: {len(combined) / 1000:.1f} seconds, size: {merged_size} bytes")
                 return merged_path
             else:
                 print(f"[16PF] pydub: No audio segments could be combined")
                 
         except ImportError:
-            print(f"[16PF] pydub not installed, trying ffmpeg...")
+            print(f"[16PF] pydub not installed")
         except Exception as pydub_error:
-            print(f"[16PF] pydub merge failed: {pydub_error}, trying ffmpeg...")
+            print(f"[16PF] pydub merge failed: {pydub_error}")
+            import traceback
+            traceback.print_exc()
         
-        # ===== METHOD 2: Use ffmpeg if available =====
+        # ===== METHOD 3: Raw webm concatenation (may work for same-codec files) =====
         try:
-            import subprocess
+            print(f"[16PF] METHOD 3: Trying raw webm concatenation...")
             
-            # Create a file list for ffmpeg concat
-            list_file = os.path.join(merged_dir, f"filelist_{play_id}.txt")
-            with open(list_file, 'w') as f:
-                for fp in file_paths:
-                    # Escape path for ffmpeg
-                    escaped_path = fp.replace("'", "'\\''")
-                    f.write(f"file '{escaped_path}'\n")
-            
-            # Run ffmpeg to concatenate
-            result = subprocess.run([
-                'ffmpeg', '-y', '-f', 'concat', '-safe', '0',
-                '-i', list_file, '-c', 'copy', merged_path.replace('.mp3', '.webm')
-            ], capture_output=True, text=True, timeout=60)
-            
-            # Clean up list file
-            try:
-                os.remove(list_file)
-            except:
-                pass
-            
-            merged_webm = merged_path.replace('.mp3', '.webm')
-            if result.returncode == 0 and os.path.exists(merged_webm):
-                print(f"[16PF] Successfully merged audio files with ffmpeg: {merged_webm}")
-                return merged_webm
-            else:
-                print(f"[16PF] ffmpeg merge failed: {result.stderr}")
-        except FileNotFoundError:
-            print("[16PF] ffmpeg not found")
-        except Exception as e:
-            print(f"[16PF] ffmpeg error: {e}")
-        
-        # ===== FALLBACK: Concatenate raw bytes (basic, may have audio glitches) =====
-        try:
-            print(f"[16PF] Using fallback: concatenating raw audio bytes...")
-            
-            # Just concatenate the webm files (works for same-format files)
             fallback_path = os.path.join(merged_dir, f"merged_play{play_id}_raw.webm")
             with open(fallback_path, 'wb') as outfile:
                 for i, fp in enumerate(file_paths):
@@ -413,18 +483,19 @@ def merge_audio_files_for_play(play_id):
                         outfile.write(infile.read())
             
             if os.path.exists(fallback_path) and os.path.getsize(fallback_path) > 0:
-                print(f"[16PF] Created raw concatenated file: {fallback_path}")
+                fallback_size = os.path.getsize(fallback_path)
+                print(f"[16PF] ✅ Created raw concatenated file: {fallback_path} ({fallback_size} bytes)")
                 return fallback_path
         except Exception as raw_error:
             print(f"[16PF] Raw concatenation failed: {raw_error}")
         
         # Last resort: return the largest file
         largest_file = max(file_paths, key=lambda x: os.path.getsize(x))
-        print(f"[16PF] Fallback: Using largest single audio file: {largest_file}")
+        print(f"[16PF] ⚠️ Fallback: Using largest single audio file: {largest_file}")
         return largest_file
         
     except Exception as e:
-        print(f"[16PF] Error in merge_audio_files_for_play: {str(e)}")
+        print(f"[16PF] ❌ Error in merge_audio_files_for_play: {str(e)}")
         import traceback
         traceback.print_exc()
         return None
@@ -432,29 +503,28 @@ def merge_audio_files_for_play(play_id):
 
 def trigger_16pf_analysis_if_enabled(play_id, user_id, roleplay_id):
     """Check if 16PF analysis is enabled for this roleplay and trigger it if so."""
+    print(f"\n[16PF] ========== TRIGGER 16PF ANALYSIS ==========", flush=True)
+    print(f"[16PF] play_id={play_id}, user_id={user_id}, roleplay_id={roleplay_id}", flush=True)
     try:
         # Get 16PF configuration for this roleplay
         pf16_config = get_16pf_config_for_roleplay(roleplay_id)
+        print(f"[16PF] Config retrieved: {pf16_config}", flush=True)
         
         if not pf16_config:
-            print(f"[16PF] No config found for roleplay {roleplay_id}")
+            print(f"[16PF] ❌ No config found for roleplay {roleplay_id}", flush=True)
             return
         
         if not pf16_config.get('enable_16pf_analysis'):
-            print(f"[16PF] Analysis disabled for roleplay {roleplay_id}")
+            print(f"[16PF] ❌ Analysis disabled for roleplay {roleplay_id} (enable_16pf_analysis={pf16_config.get('enable_16pf_analysis')})", flush=True)
             return
         
         analysis_source = pf16_config.get('pf16_analysis_source', 'none')
         if analysis_source == 'none':
-            print(f"[16PF] Analysis source is 'none' for roleplay {roleplay_id}")
+            print(f"[16PF] ❌ Analysis source is 'none' for roleplay {roleplay_id}", flush=True)
             return
         
-        send_audio = pf16_config.get('pf16_send_audio_for_analysis', True)
-        if not send_audio:
-            print(f"[16PF] Audio sending disabled for roleplay {roleplay_id}")
-            return
-        
-        print(f"[16PF] Triggering analysis for play_id={play_id}, source={analysis_source}")
+        # If 16PF is enabled, automatically send audio for analysis (no separate check needed)
+        print(f"[16PF] ✅ Triggering analysis for play_id={play_id}, source={analysis_source}", flush=True)
         
         # Get user info for age/gender (from session or defaults)
         user_age = session.get('user_age', pf16_config.get('pf16_default_age', 30))
@@ -464,13 +534,18 @@ def trigger_16pf_analysis_if_enabled(play_id, user_id, roleplay_id):
         merged_audio = merge_audio_files_for_play(play_id)
         
         # Find the audio file(s) for this play session
+        print(f"[16PF] Attempting to merge audio files...", flush=True)
         audio_file_path = merged_audio or get_audio_file_for_play(play_id)
+        print(f"[16PF] merged_audio={merged_audio}, final audio_file_path={audio_file_path}")
         
         if not audio_file_path:
-            print(f"[16PF] No audio file found for play_id {play_id}")
+            print(f"[16PF] ❌ No audio file found for play_id {play_id}")
             return
         
+        print(f"[16PF] Audio file exists: {os.path.exists(audio_file_path)}, size: {os.path.getsize(audio_file_path) if os.path.exists(audio_file_path) else 'N/A'}")
+        
         # Create a pending analysis record
+        print(f"[16PF] Creating analysis record...")
         analysis_id = save_16pf_analysis_result(
             play_id=play_id,
             user_id=user_id,
@@ -480,22 +555,26 @@ def trigger_16pf_analysis_if_enabled(play_id, user_id, roleplay_id):
             user_gender=user_gender,
             analysis_source=analysis_source
         )
+        print(f"[16PF] Analysis record created: analysis_id={analysis_id}")
         
         if not analysis_id:
-            print(f"[16PF] Failed to create analysis record")
+            print(f"[16PF] ❌ Failed to create analysis record")
             return
         
         # Run analysis in background thread
+        print(f"[16PF] Starting background analysis thread...")
         thread = threading.Thread(
             target=run_16pf_analysis_async,
             args=(analysis_id, audio_file_path, user_age, user_gender, analysis_source)
         )
         thread.daemon = True
         thread.start()
-        print(f"[16PF] Started background analysis thread for analysis_id {analysis_id}")
+        print(f"[16PF] ✅ Started background analysis thread for analysis_id {analysis_id}")
         
     except Exception as e:
-        print(f"[16PF] Error in trigger_16pf_analysis_if_enabled: {str(e)}")
+        import traceback
+        print(f"[16PF] ❌ Error in trigger_16pf_analysis_if_enabled: {str(e)}")
+        print(f"[16PF] Traceback: {traceback.format_exc()}")
 
 
 def get_audio_file_for_play(play_id):
@@ -647,6 +726,7 @@ def run_16pf_analysis_async(analysis_id, audio_file_path, user_age, user_gender,
 
 
 @app.route("/api/upload-user-audio", methods=['POST'])
+@csrf.exempt
 def upload_user_audio():
     """
     Upload user's recorded audio for 16PF analysis.
@@ -697,6 +777,151 @@ def upload_user_audio():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route("/api/debug-16pf/<int:play_id>")
+def debug_16pf(play_id):
+    """Debug endpoint to check 16PF audio files and configuration for a play session."""
+    import subprocess
+    
+    result = {
+        "play_id": play_id,
+        "user_recordings": [],
+        "merged_audio": [],
+        "ffmpeg_available": False,
+        "pydub_available": False,
+        "16pf_config": None,
+        "analysis_records": [],
+        "errors": []
+    }
+    
+    try:
+        # Check ffmpeg
+        try:
+            ffmpeg_result = subprocess.run(['ffmpeg', '-version'], capture_output=True, text=True, timeout=5)
+            result["ffmpeg_available"] = ffmpeg_result.returncode == 0
+            if ffmpeg_result.returncode == 0:
+                result["ffmpeg_version"] = ffmpeg_result.stdout.split('\n')[0] if ffmpeg_result.stdout else "unknown"
+        except FileNotFoundError:
+            result["ffmpeg_available"] = False
+            result["errors"].append("ffmpeg not found in PATH")
+        except Exception as e:
+            result["errors"].append(f"ffmpeg check error: {str(e)}")
+        
+        # Check pydub
+        try:
+            from pydub import AudioSegment
+            result["pydub_available"] = True
+        except ImportError:
+            result["pydub_available"] = False
+            result["errors"].append("pydub not installed")
+        
+        # Check user recordings
+        recordings_dir = os.path.join(app.root_path, 'static', 'user_recordings')
+        if os.path.exists(recordings_dir):
+            for filename in os.listdir(recordings_dir):
+                if f'play{play_id}_' in filename or f'play_{play_id}' in filename:
+                    file_path = os.path.join(recordings_dir, filename)
+                    result["user_recordings"].append({
+                        "filename": filename,
+                        "size": os.path.getsize(file_path),
+                        "modified": datetime.datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat()
+                    })
+        else:
+            result["errors"].append("user_recordings directory does not exist")
+        
+        # Check merged audio
+        merged_dir = os.path.join(app.root_path, 'static', 'merged_audio')
+        if os.path.exists(merged_dir):
+            for filename in os.listdir(merged_dir):
+                if f'play{play_id}' in filename:
+                    file_path = os.path.join(merged_dir, filename)
+                    result["merged_audio"].append({
+                        "filename": filename,
+                        "size": os.path.getsize(file_path),
+                        "modified": datetime.datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat()
+                    })
+        else:
+            result["merged_audio_dir_exists"] = False
+        
+        # Get 16PF config for the roleplay associated with this play
+        try:
+            conn = mysql.connector.connect(
+                host=os.getenv('DB_HOST', 'localhost'),
+                user=os.getenv('DB_USER', 'root'),
+                password=os.getenv('DB_PASSWORD'),
+                database=os.getenv('DB_NAME', 'roleplay')
+            )
+            cur = conn.cursor(dictionary=True)
+            
+            # Get play info
+            cur.execute("SELECT * FROM play WHERE id = %s", (play_id,))
+            play_info = cur.fetchone()
+            result["play_info"] = play_info
+            
+            if play_info:
+                roleplay_id = play_info.get('roleplay_id')
+                
+                # Get 16PF config - use columns that definitely exist
+                try:
+                    cur.execute("""
+                        SELECT enable_16pf_analysis, pf16_analysis_source, pf16_send_audio_for_analysis,
+                               pf16_default_age
+                        FROM roleplay_config WHERE roleplay_id = %s
+                    """, (roleplay_id,))
+                    config = cur.fetchone()
+                    result["16pf_config"] = config
+                except Exception as cfg_err:
+                    result["errors"].append(f"Config query error: {str(cfg_err)}")
+                
+                # Get analysis records
+                try:
+                    cur.execute("""
+                        SELECT * FROM pf16_analysis_results WHERE play_id = %s ORDER BY created_at DESC
+                    """, (play_id,))
+                    analyses = cur.fetchall()
+                    # Convert datetime objects for JSON
+                    for analysis in analyses:
+                        for key, value in analysis.items():
+                            if isinstance(value, datetime.datetime):
+                                analysis[key] = value.isoformat()
+                    result["analysis_records"] = analyses
+                except Exception as analysis_err:
+                    result["errors"].append(f"Analysis records query error: {str(analysis_err)}")
+            
+            cur.close()
+            conn.close()
+        except Exception as db_err:
+            result["errors"].append(f"Database error: {str(db_err)}")
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        result["errors"].append(f"General error: {str(e)}")
+        return jsonify(result)
+
+
+@app.route("/api/test-merge/<int:play_id>")
+def test_merge(play_id):
+    """Test endpoint to manually trigger audio merge for a play session."""
+    try:
+        merged_path = merge_audio_files_for_play(play_id)
+        if merged_path:
+            return jsonify({
+                "success": True,
+                "merged_path": merged_path,
+                "file_size": os.path.getsize(merged_path) if os.path.exists(merged_path) else 0
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "No audio files found or merge failed"
+            })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        })
+
+
 def create_chat_entry(user_text, response_text):
     chathistory_id = query_create_chat_entry(user_text, response_text)
     return chathistory_id
@@ -710,9 +935,13 @@ def create_score_breakdown(scoremaster_id, score_name, score):
 
 @app.route("/make_audio/", methods=["GET"])
 def make_audio():
+    print(f"\n[MAKE_AUDIO] ========== ENDPOINT CALLED ==========")
+    print(f"[MAKE_AUDIO] Request args: {request.args}")
     try:
         text = request.args.get('text', '')
+        print(f"[MAKE_AUDIO] Text length: {len(text)}, preview: {text[:50] if text else 'EMPTY'}...")
         if not text:
+            print(f"[MAKE_AUDIO] ERROR: No text provided")
             return "No text provided", 400
 
         # Create cache directory
@@ -726,7 +955,7 @@ def make_audio():
         gender = request.args.get('gender', 'female').lower()
         character = request.args.get('character', '').strip()
         
-        # Map language names to gTTS language codes
+        # Map language names to language codes
         language_map = {
             'English': 'en',
             'Hindi': 'hi',
@@ -743,130 +972,68 @@ def make_audio():
         
         lang_code = language_map.get(selected_language, 'en')
         
-        # Determine TLD (top-level domain) for voice gender
-        # gTTS uses different TLDs for different regional voices
-        # Note: gTTS doesn't have true gender voices, but different regions have different pitch/tone
-        tld = 'com'  # Default
-        slow = False  # Speech rate
-        
-        # Gender-based voice selection using regional variants and speech rate
-        # Using only reliable TLDs that Google supports
-        if gender == 'male':
-            # Male voices: Use TLDs that are reliable and have deeper tone
-            if lang_code == 'en':
-                tld = 'co.in'  # Indian English (deeper, clearer)
-                slow = False
-            elif lang_code == 'hi':
-                tld = 'co.in'  # Indian Hindi
-                slow = False
-            else:
-                tld = 'com'
-                slow = False
-        else:  # female (default)
-            # Female voices: Use standard TLDs
-            if lang_code == 'en':
-                tld = 'com'  # US English (standard)
-                slow = False
-            elif lang_code == 'hi':
-                tld = 'co.in'  # Indian Hindi
-                slow = False
-            else:
-                tld = 'com'
-                slow = False
-        
         # Create unique filename based on text content, language, and gender/character
-        # Use a safer hash to avoid negative numbers
         text_hash = abs(hash(text)) % (10 ** 10)
-        # Include gender and character in filename for proper caching
-        gender_char = f"{gender}_{character}" if character else gender
+        # Sanitize character for filename
+        if character:
+            import re
+            safe_char = re.sub(r"[^A-Za-z0-9._-]", "_", character)
+            gender_char = f"{gender}_{safe_char}"
+        else:
+            gender_char = gender
         filename = f'speech_{text_hash}_{lang_code}_{gender_char}.mp3'
         filepath = os.path.join(cache_dir, filename)
         
         # Check if audio file already exists in cache
         if not os.path.exists(filepath):
             try:
+                # Use AWS Polly for TTS
+                from app.tts_service import generate_polly_audio, select_voice_for_character
                 
-                # Add timeout to gTTS generation (max 10 seconds)
-                import signal
+                # Check AWS credentials
+                aws_key = os.getenv('AWS_ACCESS_KEY_ID')
+                aws_secret = os.getenv('AWS_SECRET_ACCESS_KEY')
+                if not aws_key or not aws_secret:
+                    print(f"[MAKE_AUDIO] ERROR: AWS credentials not configured!")
+                    print(f"[MAKE_AUDIO] AWS_ACCESS_KEY_ID: {'SET' if aws_key else 'MISSING'}")
+                    print(f"[MAKE_AUDIO] AWS_SECRET_ACCESS_KEY: {'SET' if aws_secret else 'MISSING'}")
+                    return "AWS credentials not configured. Please contact administrator.", 500
                 
-                def timeout_handler(signum, frame):
-                    raise TimeoutError("Audio generation timeout")
+                # Select voice using the centralized voice selection
+                selected_voice = select_voice_for_character(
+                    character if character else 'default',
+                    gender,
+                    selected_language
+                )
                 
-                # Set timeout for Windows (use threading for cross-platform compatibility)
-                import threading
+                print(f"[MAKE_AUDIO] Generating audio with AWS Polly: voice={selected_voice}, gender={gender}, lang={selected_language}")
                 
-                generation_error = None
-                tts_method_used = None
+                # Generate audio using AWS Polly
+                generate_polly_audio(text, selected_voice, filepath)
                 
-                def generate_tts():
-                    nonlocal generation_error, tts_method_used
-                    
-                    # OpenAI TTS ONLY - no fallbacks
-                    from openai import OpenAI
-                    import os as oai_os
-                    
-                    api_key = oai_os.getenv('OPENAI_API_KEY')
-                    if not api_key:
-                        generation_error = ValueError("No OPENAI_API_KEY set")
-                        return
-                    
-                    client = OpenAI(api_key=api_key)
-                    
-                    # OpenAI TTS voices:
-                    # Male voices: echo (deep), onyx (authoritative), fable (British)
-                    # Female voices: nova (warm), shimmer (expressive), alloy (neutral)
-                    male_voices = ['echo', 'onyx', 'fable']
-                    female_voices = ['nova', 'shimmer', 'alloy']
-                    
-                    # Select voice based on gender and character name
-                    character_lower = character.lower().strip() if character else ''
-                    char_sum = sum(ord(c) for c in character_lower) if character_lower else 0
-                    
-                    if gender.lower() == 'male':
-                        voice_index = char_sum % len(male_voices)
-                        selected_voice = male_voices[voice_index]
-                    else:
-                        voice_index = char_sum % len(female_voices)
-                        selected_voice = female_voices[voice_index]
-                    
-                    # Generate audio using OpenAI TTS
-                    response = client.audio.speech.create(
-                        model="tts-1",
-                        voice=selected_voice,
-                        input=text
-                    )
-                    
-                    # Save the audio
-                    response.stream_to_file(filepath)
-                    
-                    if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
-                        tts_method_used = 'openai-tts'
-                
-                # Run TTS generation in thread with timeout (15 seconds for fallback)
-                tts_thread = threading.Thread(target=generate_tts)
-                tts_thread.daemon = True
-                tts_thread.start()
-                tts_thread.join(timeout=15)  # 15 second timeout (allows time for fallback)
-                
-                if tts_thread.is_alive():
-                    return "Audio generation timed out. Please try again.", 504
-                
-                if generation_error:
-                    raise generation_error
-                    
                 if not os.path.exists(filepath):
+                    print(f"[MAKE_AUDIO] ERROR: Audio file was not created at {filepath}")
                     return "Audio file generation failed", 500
                     
+                print(f"[MAKE_AUDIO] ✅ Audio generated successfully: {filepath}")
+                    
             except Exception as e:
+                import traceback
                 error_msg = str(e)
+                print(f"[MAKE_AUDIO] AWS Polly error: {error_msg}")
+                print(f"[MAKE_AUDIO] Traceback: {traceback.format_exc()}")
                 
-                # Return a more user-friendly error
-                if 'timeout' in error_msg.lower():
+                # Check for specific AWS errors
+                if 'credentials' in error_msg.lower() or 'NoCredentialsError' in error_msg:
+                    return "AWS credentials are invalid or expired. Please contact administrator.", 500
+                elif 'timeout' in error_msg.lower():
                     return "Audio generation is taking too long. Please try again.", 504
-                elif 'network' in error_msg.lower() or 'connection' in error_msg.lower() or 'getaddrinfo' in error_msg:
-                    return "Network error. Audio generation fallback activated.", 503
+                elif 'network' in error_msg.lower() or 'connection' in error_msg.lower():
+                    return "Network error during audio generation.", 503
                 else:
                     return f"Audio generation failed: {error_msg}", 500
+        else:
+            print(f"[MAKE_AUDIO] Using cached audio: {filepath}")
         
         # Return cached file
         return send_file(
@@ -878,6 +1045,7 @@ def make_audio():
         )
         
     except Exception as e:
+        print(f"[MAKE_AUDIO] Exception: {e}")
         return str(e), 500
 
 
@@ -1275,14 +1443,55 @@ def get_roleplay_competencies():
     return competency_descriptions
 
 @app.route("/chatbot/<path:roleplay_id>/<signed_int:interaction_num>", methods=['GET', 'POST'])
-
+@csrf.exempt
 def chatbot(roleplay_id, interaction_num):
+    import traceback as tb
+    print(f"\n{'#'*80}")
+    print(f"# CHATBOT ROUTE - {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"# roleplay_id={roleplay_id}, interaction_num={interaction_num}")
+    print(f"# Session keys: {list(session.keys())}")
+    print(f"{'#'*80}")
+    
     # Load competencies from file path (not stored in session anymore)
     roleplay_competencies = get_roleplay_competencies()
     
-    reader_obj = reader.excel.ExcelReader(session["exr_param0"], roleplay_competencies, session["exr_param2"])
-    interactor_obj = interface.interact.LLMInteractor(openai.api_key, reader_obj.get_system_prompt(), session['roleplay_id'])
-    ai_obj = interface.openai.Conversation(reader_obj, interactor_obj)
+    # Check required session parameters
+    exr_param0 = session.get('exr_param0')
+    exr_param2 = session.get('exr_param2')
+    print(f"[CHATBOT] exr_param0={exr_param0}")
+    print(f"[CHATBOT] exr_param2={exr_param2}")
+    
+    if not exr_param0:
+        print(f"[CHATBOT] ❌ ERROR: exr_param0 is missing from session!")
+        flash('Your session has expired. Please start the roleplay again.', 'warning')
+        return redirect(url_for('index'))
+    
+    if not os.path.exists(exr_param0):
+        print(f"[CHATBOT] ❌ ERROR: exr_param0 file does not exist: {exr_param0}")
+        flash('Roleplay data file not found. Please contact support.', 'danger')
+        return redirect(url_for('index'))
+    
+    if exr_param2 and not os.path.exists(exr_param2):
+        print(f"[CHATBOT] ⚠️ WARNING: exr_param2 file does not exist: {exr_param2}")
+    
+    try:
+        reader_obj = reader.excel.ExcelReader(exr_param0, roleplay_competencies, exr_param2)
+        print(f"[CHATBOT] ✅ ExcelReader created successfully")
+    except Exception as e:
+        print(f"[CHATBOT] ❌ ExcelReader FAILED: {e}")
+        print(f"[CHATBOT] Traceback:\n{tb.format_exc()}")
+        flash('Error loading roleplay data.', 'danger')
+        return render_template('500.html'), 500
+    
+    try:
+        interactor_obj = interface.interact.LLMInteractor(openai.api_key, reader_obj.get_system_prompt(), session.get('roleplay_id', roleplay_id))
+        ai_obj = interface.openai.Conversation(reader_obj, interactor_obj)
+        print(f"[CHATBOT] ✅ LLMInteractor and Conversation created")
+    except Exception as e:
+        print(f"[CHATBOT] ❌ LLMInteractor/Conversation FAILED: {e}")
+        print(f"[CHATBOT] Traceback:\n{tb.format_exc()}")
+        flash('Error initializing AI conversation.', 'danger')
+        return render_template('500.html'), 500
 
     # Special handling for completion (interaction_num = -1)
     # Update session interaction_number to match URL parameter for completion flow
@@ -1290,7 +1499,11 @@ def chatbot(roleplay_id, interaction_num):
         session['interaction_number'] = -1
         print(f"🏁 Completion URL detected: Setting session interaction_number to -1")
     
-    if roleplay_id == session['roleplay_id'] and interaction_num == session['interaction_number'] and session['user_id']:
+    print(f"[CHATBOT] Checking session match: URL roleplay_id={roleplay_id}, session roleplay_id={session.get('roleplay_id')}")
+    print(f"[CHATBOT] URL interaction_num={interaction_num}, session interaction_number={session.get('interaction_number')}")
+    print(f"[CHATBOT] session user_id={session.get('user_id')}")
+    
+    if roleplay_id == session.get('roleplay_id') and interaction_num == session.get('interaction_number') and session.get('user_id'):
         form = PostForm()
         resp = False
         if form.validate_on_submit():
@@ -1653,6 +1866,9 @@ def chatbot(roleplay_id, interaction_num):
                 context["dialogue_segments"] = []  # Empty for single voice
         if context["data"] == False:
             
+            print(f"[16PF] ========== ROLEPLAY COMPLETED ==========")
+            print(f"[16PF] play_id={session.get('play_id')}, calling post_attempt_data...")
+            
             # Post attempt data to external API
             post_attempt_data(session['play_id'])
             
@@ -1705,6 +1921,35 @@ def chatbot(roleplay_id, interaction_num):
                 conn.close()
                 print(f"Updated play {session['play_id']} status to 'completed'")
                 print(f"🔢 Attempts: max={max_attempts}, completed={completed_attempts}, viewed_optimal={has_viewed_optimal}")
+                
+                # Send callback to external platform (Q3/AIO integration) ONLY if ALL cluster roleplays are done
+                try:
+                    from app.api_integration import send_results_to_aio, check_all_cluster_roleplays_completed
+                    
+                    cluster_id = session.get('cluster_id')
+                    user_id = session.get('user_id')
+                    
+                    # Check if all roleplays in the cluster are completed
+                    all_done = check_all_cluster_roleplays_completed(cluster_id, user_id)
+                    print(f"[CALLBACK] Cluster {cluster_id} all roleplays completed: {all_done}")
+                    
+                    if all_done:
+                        callback_sent = send_results_to_aio(
+                            play_id=session['play_id'],
+                            user_id=user_id,
+                            roleplay_id=session.get('roleplay_id'),
+                            scores=context.get('scores', {})
+                        )
+                        if callback_sent:
+                            print("✅ Callback sent to external platform successfully")
+                        else:
+                            print("⚠️ No callback URL configured or callback failed")
+                    else:
+                        print("⏳ Waiting for all cluster roleplays to be completed before sending callback")
+                except Exception as callback_err:
+                    print(f"❌ Error sending callback: {callback_err}")
+                    import traceback
+                    traceback.print_exc()
             except Exception as e:
                 print(f"Error updating play status: {str(e)}")
                 max_attempts = 1
@@ -1720,7 +1965,10 @@ def chatbot(roleplay_id, interaction_num):
             # Set completion message and home URL for overlay
             user_id = session.get('user_id')
             cluster_id = session.get('cluster_id', 1)
-            context["home_url"] = url_for('user_cluster_view', user_id=user_id, cluster_id=cluster_id)
+            if session.get('is_integration_session') and session.get('return_url'):
+                context["home_url"] = session['return_url']
+            else:
+                context["home_url"] = url_for('user_cluster_view', user_id=user_id, cluster_id=cluster_id)
             
             # Attempts and retry logic
             attempts_remaining = max(0, max_attempts - completed_attempts)
@@ -1769,9 +2017,17 @@ def chatbot(roleplay_id, interaction_num):
         context["max_interaction_time"] = session.get('max_interaction_time', 300)
         context["max_total_time"] = session.get('max_total_time', 1800)
         
+        # Pass play_id and interaction_number to template for 16PF audio upload
+        context["play_id"] = session.get('play_id', '')
+        context["interaction_number"] = session.get('interaction_number', 1)
+        print(f"[16PF] Chatbot route: play_id={context['play_id']}, interaction_number={context['interaction_number']}")
+        
         # Pass 16PF configuration to template for audio recording
         pf16_config = get_16pf_config_for_roleplay(roleplay_id)
+        print(f"[16PF] Chatbot route: roleplay_id={roleplay_id}, pf16_config={pf16_config}")
         context["enable_16pf_analysis"] = pf16_config.get('enable_16pf_analysis', False) if pf16_config else False
+        context["pf16_send_audio"] = pf16_config.get('pf16_send_audio_for_analysis', False) if pf16_config else False
+        print(f"[16PF] Chatbot route: enable_16pf_analysis={context['enable_16pf_analysis']}, pf16_send_audio={context['pf16_send_audio']}")
         
         # Ensure interaction_elapsed_time is set (in case it wasn't set above)
         if "interaction_elapsed_time" not in context:
@@ -1780,84 +2036,84 @@ def chatbot(roleplay_id, interaction_num):
         # PRE-GENERATE AUDIO: Create audio files before rendering template so they're cached when page loads
         # This eliminates the delay when loading the audio player
         try:
-            from openai import OpenAI
-            import os as oai_os
+            from app.tts_service import generate_polly_audio, select_voice_for_character
+            import re
             
-            api_key = oai_os.getenv('OPENAI_API_KEY')
-            if api_key:
-                client = OpenAI(api_key=api_key)
-                
-                # OpenAI TTS voice mapping
-                male_voices = ['echo', 'onyx', 'fable']
-                female_voices = ['nova', 'shimmer', 'alloy']
+            # Get language code
+            language_map = {
+                'English': 'en', 'Hindi': 'hi', 'Tamil': 'ta', 'Telugu': 'te',
+                'Kannada': 'kn', 'Marathi': 'mr', 'Bengali': 'bn', 'Malayalam': 'ml',
+                'French': 'fr', 'Arabic': 'ar', 'Gujarati': 'gu'
+            }
+            lang_code = language_map.get(selected_language, 'en')
             
-                # Get language code
-                language_map = {
-                    'English': 'en', 'Hindi': 'hi', 'Tamil': 'ta', 'Telugu': 'te',
-                    'Kannada': 'kn', 'Marathi': 'mr', 'Bengali': 'bn', 'Malayalam': 'ml',
-                    'French': 'fr', 'Arabic': 'ar', 'Gujarati': 'gu'
-                }
-                lang_code = language_map.get(selected_language, 'en')
-                
-                # Create cache directory
-                cache_dir = os.path.join(app.root_path, 'static', 'audio_cache')
-                os.makedirs(cache_dir, exist_ok=True)
-                
-                # Pre-generate audio for TEAM roleplays (multiple segments)
-                dialogue_segments = context.get('dialogue_segments', [])
-                if dialogue_segments and len(dialogue_segments) > 0:
-                    for segment in dialogue_segments:
-                        segment_text = segment.get('text', '')
-                        segment_gender = segment.get('gender', 'male')
-                        segment_speaker = segment.get('speaker', '')
-                        
-                        if segment_text:
-                            # Generate filename (same logic as make_audio route)
-                            text_hash = abs(hash(segment_text)) % (10 ** 10)
-                            gender_char = f"{segment_gender}_{segment_speaker}" if segment_speaker else segment_gender
-                            filename = f'speech_{text_hash}_{lang_code}_{gender_char}.mp3'
-                            filepath = os.path.join(cache_dir, filename)
-                            
-                            # Generate audio if not cached - use OpenAI TTS
-                            if not os.path.exists(filepath):
-                                # Select voice based on gender and character
-                                character_lower = segment_speaker.lower().strip() if segment_speaker else ''
-                                char_sum = sum(ord(c) for c in character_lower) if character_lower else 0
-                                
-                                if segment_gender.lower() == 'male':
-                                    voice_index = char_sum % len(male_voices)
-                                    selected_voice = male_voices[voice_index]
-                                else:
-                                    voice_index = char_sum % len(female_voices)
-                                    selected_voice = female_voices[voice_index]
-                                
-                                response = client.audio.speech.create(
-                                    model="tts-1",
-                                    voice=selected_voice,
-                                    input=segment_text
-                                )
-                                response.stream_to_file(filepath)
-                else:
-                    # Single speaker - pre-generate main audio
-                    audio_text = context.get('comp_dialogue') or context.get('scenario', '')
-                    if audio_text:
-                        text_hash = abs(hash(audio_text)) % (10 ** 10)
-                        filename = f'speech_{text_hash}_{lang_code}.mp3'
+            # Create cache directory
+            cache_dir = os.path.join(app.root_path, 'static', 'audio_cache')
+            os.makedirs(cache_dir, exist_ok=True)
+            
+            # Pre-generate audio for TEAM roleplays (multiple segments)
+            dialogue_segments = context.get('dialogue_segments', [])
+            if dialogue_segments and len(dialogue_segments) > 0:
+                for segment in dialogue_segments:
+                    segment_text = segment.get('text', '')
+                    segment_gender = segment.get('gender', 'male')
+                    segment_speaker = segment.get('speaker', '')
+                    
+                    if segment_text:
+                        # Generate filename (same logic as make_audio route)
+                        text_hash = abs(hash(segment_text)) % (10 ** 10)
+                        # Sanitize speaker name for filename
+                        if segment_speaker:
+                            safe_speaker = re.sub(r"[^A-Za-z0-9._-]", "_", segment_speaker)
+                            gender_char = f"{segment_gender}_{safe_speaker}"
+                        else:
+                            gender_char = segment_gender
+                        filename = f'speech_{text_hash}_{lang_code}_{gender_char}.mp3'
                         filepath = os.path.join(cache_dir, filename)
                         
+                        # Generate audio if not cached - use AWS Polly TTS
                         if not os.path.exists(filepath):
-                            # Default to male voice for single speaker
-                            response = client.audio.speech.create(
-                                model="tts-1",
-                                voice="echo",
-                                input=audio_text
+                            selected_voice = select_voice_for_character(
+                                segment_speaker if segment_speaker else 'default',
+                                segment_gender,
+                                selected_language
                             )
-                            response.stream_to_file(filepath)
-        except Exception:
+                            generate_polly_audio(segment_text, selected_voice, filepath)
+            else:
+                # Single speaker - pre-generate main audio
+                audio_text = context.get('comp_dialogue') or context.get('scenario', '')
+                audio_gender = context.get('gender', 'male')
+                audio_character = context.get('character', '')
+                
+                if audio_text:
+                    text_hash = abs(hash(audio_text)) % (10 ** 10)
+                    # Sanitize character for filename
+                    if audio_character:
+                        safe_char = re.sub(r"[^A-Za-z0-9._-]", "_", audio_character)
+                        gender_char = f"{audio_gender}_{safe_char}"
+                    else:
+                        gender_char = audio_gender
+                    filename = f'speech_{text_hash}_{lang_code}_{gender_char}.mp3'
+                    filepath = os.path.join(cache_dir, filename)
+                    
+                    if not os.path.exists(filepath):
+                        selected_voice = select_voice_for_character(
+                            audio_character if audio_character else 'default',
+                            audio_gender,
+                            selected_language
+                        )
+                        generate_polly_audio(audio_text, selected_voice, filepath)
+        except Exception as e:
+            print(f"[CHATBOT] TTS pre-gen error: {e}")
             pass  # Will generate on demand
 
+        print(f"[CHATBOT] ✅ Rendering chatbot.html successfully")
         return render_template("chatbot.html", context = context, form = form)
     else:
+        print(f"[CHATBOT] ❌ Session mismatch - returning 404")
+        print(f"[CHATBOT]   Expected roleplay_id={session.get('roleplay_id')}, got {roleplay_id}")
+        print(f"[CHATBOT]   Expected interaction_number={session.get('interaction_number')}, got {interaction_num}")
+        print(f"[CHATBOT]   user_id={session.get('user_id')}")
         return render_template('404.html', title='Error')
 
 @app.route('/admin/register', methods=['GET', 'POST'])
@@ -2337,7 +2593,7 @@ def upload_files():
                 # Success with data summary - no improvement suggestions
                 roleplay_interactions = len(validation_data.get('roleplay_data', []))
                 
-                flash(f"✅ Roleplay Excel validated successfully! Found {roleplay_interactions} interactions")
+                flash(f"✅ Roleplay Excel validated successfully!")
 
         except Exception as e:
             if os.path.exists(roleplay_file_path):
@@ -2511,6 +2767,7 @@ def thinking():
 
 
 @app.route("/mark_optimal_viewed/<int:play_id>", methods=['POST'])
+@csrf.exempt
 def mark_optimal_viewed(play_id):
     """Mark that the user has viewed the optimal roleplay video"""
     try:
@@ -2676,6 +2933,40 @@ def _process_ai_and_update_session():
             from app.queries import mark_play_completed
             if 'play_id' in session:
                 mark_play_completed(session['play_id'])
+                
+                # Send callback to external platform (Q3/AIO integration) ONLY if ALL cluster roleplays are done
+                try:
+                    from app.api_integration import send_results_to_aio, check_all_cluster_roleplays_completed
+                    
+                    cluster_id = session.get('cluster_id')
+                    user_id = session.get('user_id')
+                    
+                    # Check if all roleplays in the cluster are completed
+                    all_done = check_all_cluster_roleplays_completed(cluster_id, user_id)
+                    print(f"[CALLBACK] Cluster {cluster_id} all roleplays completed: {all_done}")
+                    
+                    if all_done:
+                        scores_data = {
+                            'overall_score': 0,
+                            'feedback': ''
+                        }
+                        callback_sent = send_results_to_aio(
+                            play_id=session['play_id'],
+                            user_id=user_id,
+                            roleplay_id=session.get('roleplay_id'),
+                            scores=scores_data
+                        )
+                        if callback_sent:
+                            print("✅ Callback sent to external platform successfully")
+                        else:
+                            print("⚠️ No callback URL configured or callback failed")
+                    else:
+                        print("⏳ Waiting for all cluster roleplays to be completed before sending callback")
+                except Exception as callback_err:
+                    print(f"❌ Error sending callback: {callback_err}")
+                    import traceback
+                    traceback.print_exc()
+
             
             # Redirect back to chatbot page to show completion overlay
             redirect_url = url_for('chatbot', roleplay_id=session['roleplay_id'], interaction_num=session['interaction_number'])
@@ -2684,8 +2975,11 @@ def _process_ai_and_update_session():
         return True, redirect_url, None
 
     except Exception as e:
-        print(e)
-        return False, None, "Sorry something went wrong!"
+        import traceback
+        print(f"❌ Error processing user input: {str(e)}")
+        traceback.print_exc()
+        # Provide a more user-friendly message that doesn't disrupt the flow
+        return False, None, "I didn't quite catch that. Could you please try again?"
 
 # Cluster Management Routes
 
@@ -2732,12 +3026,16 @@ def admin_cluster_edit(cluster_id):
     if cluster_users is None:
         cluster_users = []
     
+    # Pre-calculate assigned user IDs for simple template lookup
+    assigned_user_ids = [cu[0] for cu in cluster_users]
+    
     return render_template('admin_cluster_form.html', 
                          cluster=cluster, 
                          roleplays=roleplays, 
                          cluster_roleplays=cluster_roleplays,
                          users=users,
-                         cluster_users=cluster_users)
+                         cluster_users=cluster_users,
+                         assigned_user_ids=assigned_user_ids)
 
 @app.route('/admin/clusters', methods=['POST'])
 @admin_required
@@ -2787,6 +3085,10 @@ def admin_cluster_create():
                 result = assign_cluster_to_user(int(user_id), cluster_id)
                 print(f"DEBUG: Result of assigning cluster to user {user_id}: {result}")
             
+            try:
+                sync_cluster_metadata_to_q3(cluster_id)
+            except Exception as sync_err:
+                print(f"Q3 metadata sync (update) failed: {sync_err}")
             flash('Cluster updated successfully!')
             
         else:  # Create new cluster
@@ -2813,6 +3115,10 @@ def admin_cluster_create():
                     result = assign_cluster_to_user(int(user_id), new_cluster_id)
                     print(f"DEBUG: Result of assigning cluster to user {user_id}: {result}")
                 
+                try:
+                    sync_cluster_metadata_to_q3(new_cluster_id)
+                except Exception as sync_err:
+                    print(f"Q3 metadata sync (create) failed: {sync_err}")
                 flash('Cluster created successfully!')
             else:
                 flash('Failed to create cluster')
@@ -2849,58 +3155,104 @@ def admin_users():
 @admin_required
 def admin_user_detail(user_id):
     """View and manage user's cluster assignments"""
-    user = get_user(user_id)
-    if not user:
-        flash('User not found')
+    import traceback as tb
+    print(f"\n[ADMIN_USER_DETAIL] Starting for user_id={user_id}")
+    
+    try:
+        user = get_user(user_id)
+        if not user:
+            flash('User not found')
+            return redirect(url_for('admin_users'))
+        print(f"[ADMIN_USER_DETAIL] User found: {user}")
+        
+        # Get all clusters
+        all_clusters = get_clusters()
+        if all_clusters is None:
+            all_clusters = []
+        print(f"[ADMIN_USER_DETAIL] All clusters: {len(all_clusters)}")
+        
+        # Get user's assigned clusters
+        user_clusters = get_user_clusters(user_id)
+        if user_clusters is None:
+            user_clusters = []
+        print(f"[ADMIN_USER_DETAIL] User clusters: {len(user_clusters)}")
+        
+        # Create a set of assigned cluster IDs for easy lookup
+        assigned_cluster_ids = {cluster[0] for cluster in user_clusters}
+        
+        # Get user's attempted roleplays with status
+        print(f"[ADMIN_USER_DETAIL] Connecting to database...")
+        conn = mysql.connector.connect(
+            host=os.getenv('DB_HOST', 'localhost'),
+            user=os.getenv('DB_USER', 'root'),
+            password=os.getenv('DB_PASSWORD'),
+            database=os.getenv('DB_NAME', 'roleplay')
+        )
+        cur = conn.cursor(dictionary=True)
+        
+        print(f"[ADMIN_USER_DETAIL] Querying attempted roleplays...")
+        # Modified query to handle cases where cluster_id might be NULL
+        cur.execute("""
+            SELECT p.id, p.roleplay_id, p.cluster_id, p.status, p.start_time, p.end_time,
+                   r.name as roleplay_name, r.person_name, 
+                   COALESCE(rc.name, 'No Cluster') as cluster_name,
+                   ROUND(AVG(sm.overall_score)) as score_total
+            FROM play p
+            JOIN roleplay r ON p.roleplay_id = r.id
+            LEFT JOIN roleplay_cluster rc ON p.cluster_id = rc.id
+            LEFT JOIN chathistory ch ON ch.play_id = p.id
+            LEFT JOIN scoremaster sm ON sm.chathistory_id = ch.id
+            WHERE p.user_id = %s AND p.status IN ('completed', 'optimal_viewed')
+            GROUP BY p.id, p.roleplay_id, p.cluster_id, p.status, p.start_time, p.end_time,
+                     r.name, r.person_name, rc.name
+            ORDER BY p.start_time DESC
+        """, (user_id,))
+        
+        attempted_roleplays = cur.fetchall()
+        print(f"[ADMIN_USER_DETAIL] Found {len(attempted_roleplays)} attempted roleplays")
+        cur.close()
+        
+        # Calculate cluster completion status for each assigned cluster
+        cluster_completion_status = {}
+        for cluster in user_clusters:
+            cluster_id = cluster[0]
+            # Count total roleplays in this cluster (via cluster_roleplay junction table)
+            cur2 = conn.cursor()
+            cur2.execute("""
+                SELECT COUNT(*) FROM cluster_roleplay WHERE cluster_id = %s
+            """, (cluster_id,))
+            total_roleplays = cur2.fetchone()[0]
+            
+            # Count completed roleplays for this user in this cluster
+            cur2.execute("""
+                SELECT COUNT(DISTINCT roleplay_id) FROM play 
+                WHERE user_id = %s AND cluster_id = %s AND status IN ('completed', 'optimal_viewed')
+            """, (user_id, cluster_id))
+            completed_roleplays = cur2.fetchone()[0]
+            cur2.close()
+            
+            cluster_completion_status[cluster_id] = {
+                'total': total_roleplays,
+                'completed': completed_roleplays,
+                'is_complete': completed_roleplays >= total_roleplays if total_roleplays > 0 else False
+            }
+        
+        print(f"[ADMIN_USER_DETAIL] Cluster completion status: {cluster_completion_status}")
+        conn.close()
+        
+        print(f"[ADMIN_USER_DETAIL] ✅ Rendering template")
+        return render_template('admin_user_detail.html', 
+                             user=user, 
+                             all_clusters=all_clusters,
+                             user_clusters=user_clusters,
+                             assigned_cluster_ids=assigned_cluster_ids,
+                             attempted_roleplays=attempted_roleplays,
+                             cluster_completion_status=cluster_completion_status)
+    except Exception as e:
+        print(f"[ADMIN_USER_DETAIL] ❌ ERROR: {e}")
+        print(f"[ADMIN_USER_DETAIL] Traceback:\n{tb.format_exc()}")
+        flash(f'Error loading user details: {str(e)}', 'danger')
         return redirect(url_for('admin_users'))
-    
-    # Get all clusters
-    all_clusters = get_clusters()
-    if all_clusters is None:
-        all_clusters = []
-    
-    # Get user's assigned clusters
-    user_clusters = get_user_clusters(user_id)
-    if user_clusters is None:
-        user_clusters = []
-    
-    # Create a set of assigned cluster IDs for easy lookup
-    assigned_cluster_ids = {cluster[0] for cluster in user_clusters}
-    
-    # Get user's attempted roleplays with status
-    conn = mysql.connector.connect(
-        host=os.getenv('DB_HOST', 'localhost'),
-        user=os.getenv('DB_USER', 'root'),
-        password=os.getenv('DB_PASSWORD'),
-        database=os.getenv('DB_NAME', 'roleplay')
-    )
-    cur = conn.cursor(dictionary=True)
-    
-    cur.execute("""
-        SELECT p.id, p.roleplay_id, p.cluster_id, p.status, p.start_time, p.end_time,
-               r.name as roleplay_name, r.person_name, rc.name as cluster_name,
-               ROUND(AVG(sm.overall_score)) as score_total
-        FROM play p
-        JOIN roleplay r ON p.roleplay_id = r.id
-        JOIN roleplay_cluster rc ON p.cluster_id = rc.id
-        LEFT JOIN chathistory ch ON ch.play_id = p.id
-        LEFT JOIN scoremaster sm ON sm.chathistory_id = ch.id
-        WHERE p.user_id = %s AND p.status IN ('completed', 'optimal_viewed')
-        GROUP BY p.id, p.roleplay_id, p.cluster_id, p.status, p.start_time, p.end_time,
-                 r.name, r.person_name, rc.name
-        ORDER BY p.start_time DESC
-    """, (user_id,))
-    
-    attempted_roleplays = cur.fetchall()
-    cur.close()
-    conn.close()
-    
-    return render_template('admin_user_detail.html', 
-                         user=user, 
-                         all_clusters=all_clusters,
-                         user_clusters=user_clusters,
-                         assigned_cluster_ids=assigned_cluster_ids,
-                         attempted_roleplays=attempted_roleplays)
 
 @app.route('/admin/users/<int:user_id>/assign-cluster', methods=['POST'])
 @admin_required
@@ -3668,9 +4020,13 @@ def download_report(play_id):
         interactions = report[0]
         score_breakdown_list = report[1]  # This has name, score, total_possible
         overall_score_dict = report[2].get('overall_score', {"score": 0, "total": 0})
-        overall_score = float(overall_score_dict.get('score', 0))
+        raw_score = float(overall_score_dict.get('score', 0))
+        total_possible = float(overall_score_dict.get('total', 1))  # Avoid division by zero
+        # Convert to percentage (0-100)
+        overall_score = (raw_score / total_possible * 100) if total_possible > 0 else 0
         
         print(f"DEBUG: Score breakdown list: {score_breakdown_list}")
+        print(f"DEBUG: Overall score: raw={raw_score}, total={total_possible}, percentage={overall_score:.2f}%")
         
         # Generate PDF report - pass the raw score breakdown list (with play_id for 16PF data)
         from app.report_generator_v2 import generate_roleplay_report
@@ -3704,6 +4060,139 @@ def download_report(play_id):
         traceback.print_exc()
         flash(f'Error downloading report: {str(e)}')
         return redirect(request.referrer or url_for('index'))
+
+
+@app.route('/download_cluster_report/<int:user_id>/<int:cluster_id>', methods=['GET'])
+@admin_required
+def download_cluster_report(user_id, cluster_id):
+    """Download cluster history report PDF combining all completed roleplays in a cluster"""
+    try:
+        print(f"\n=== DOWNLOAD CLUSTER REPORT DEBUG ===")
+        print(f"User ID: {user_id}, Cluster ID: {cluster_id}")
+        
+        conn = mysql.connector.connect(
+            host=os.getenv('DB_HOST', 'localhost'),
+            user=os.getenv('DB_USER', 'root'),
+            password=os.getenv('DB_PASSWORD'),
+            database=os.getenv('DB_NAME', 'roleplay')
+        )
+        cur = conn.cursor(dictionary=True)
+        
+        # Get user info
+        cur.execute("SELECT id, email FROM user WHERE id = %s", (user_id,))
+        user = cur.fetchone()
+        if not user:
+            flash('User not found')
+            return redirect(request.referrer or url_for('admin'))
+        
+        user_email = user['email']
+        user_name = user_email.split('@')[0]
+        
+        # Get cluster info
+        cur.execute("SELECT id, name FROM roleplay_cluster WHERE id = %s", (cluster_id,))
+        cluster = cur.fetchone()
+        if not cluster:
+            flash('Cluster not found')
+            return redirect(request.referrer or url_for('admin'))
+        
+        cluster_name = cluster['name']
+        
+        # Get all completed play sessions for this user in this cluster
+        cur.execute("""
+            SELECT p.id as play_id, p.status, p.start_time, p.end_time,
+                   r.id as roleplay_id, r.name as roleplay_name, r.scenario
+            FROM play p
+            JOIN roleplay r ON p.roleplay_id = r.id
+            JOIN cluster_roleplay cr ON r.id = cr.roleplay_id AND cr.cluster_id = %s
+            WHERE p.user_id = %s AND p.status = 'completed'
+            ORDER BY p.start_time DESC
+        """, (cluster_id, user_id))
+        
+        completed_plays = cur.fetchall()
+        
+        if not completed_plays:
+            flash('No completed roleplays found for this cluster')
+            return redirect(request.referrer or url_for('admin'))
+        
+        print(f"Found {len(completed_plays)} completed plays for cluster")
+        
+        # Build roleplay reports data for each completed play
+        from app.queries import query_showreport
+        roleplay_reports_data = []
+        
+        for play in completed_plays:
+            play_id = play['play_id']
+            roleplay_name = play['roleplay_name']
+            scenario = play['scenario']
+            
+            # Get report data
+            report = query_showreport(play_id)
+            if not report or len(report) < 3:
+                print(f"Skipping play_id {play_id} - no report data")
+                continue
+            
+            interactions = report[0]
+            score_breakdown = report[1]
+            overall_score_dict = report[2].get('overall_score', {"score": 0, "total": 0})
+            raw_score = float(overall_score_dict.get('score', 0))
+            total_possible = float(overall_score_dict.get('total', 1))
+            overall_score = (raw_score / total_possible * 100) if total_possible > 0 else 0
+            
+            # Calculate time taken
+            actual_time_taken = "0Hr : 0Min"
+            if play['start_time'] and play['end_time']:
+                duration = play['end_time'] - play['start_time']
+                total_seconds = duration.total_seconds()
+                hours = int(total_seconds // 3600)
+                minutes = int((total_seconds % 3600) // 60)
+                actual_time_taken = f"{hours}Hr : {minutes}Min"
+            
+            roleplay_reports_data.append({
+                'roleplay_name': roleplay_name,
+                'scenario': scenario,
+                'overall_score': overall_score,
+                'score_breakdown': score_breakdown,
+                'interactions': interactions,
+                'actual_time_taken': actual_time_taken,
+                'play_id': play_id
+            })
+        
+        if not roleplay_reports_data:
+            flash('Could not generate report data for completed roleplays')
+            return redirect(request.referrer or url_for('admin'))
+        
+        cur.close()
+        conn.close()
+        
+        # Generate cluster report PDF
+        from app.report_generator_v2 import generate_cluster_summary_report
+        report_path = generate_cluster_summary_report(
+            user_name=user_name,
+            user_email=user_email,
+            cluster_name=cluster_name,
+            cluster_id=cluster_id,
+            roleplay_reports_data=roleplay_reports_data
+        )
+        
+        if not report_path or not os.path.exists(report_path):
+            flash('Error generating cluster report')
+            return redirect(request.referrer or url_for('admin'))
+        
+        # Send file for download
+        return send_file(
+            report_path,
+            as_attachment=True,
+            download_name=f"cluster_report_{cluster_name.replace(' ', '_')}_{user_name}.pdf",
+            mimetype='application/pdf'
+        )
+        
+    except Exception as e:
+        print(f"Error downloading cluster report: {str(e)}")
+        import traceback
+        print("Full traceback:")
+        traceback.print_exc()
+        flash(f'Error downloading cluster report: {str(e)}')
+        return redirect(request.referrer or url_for('admin'))
 
 
 def generate_and_send_report_async(play_id, user_id_override=None):
@@ -3825,11 +4314,14 @@ def generate_and_send_report_async(play_id, user_id_override=None):
             # report[2] is final_score dict with structure: {"overall_score": {"score": X, "total": Y}}
             final_score_data = report[2] if len(report) > 2 else {}
             overall_score_dict = final_score_data.get('overall_score', {"score": 0, "total": 0}) if isinstance(final_score_data, dict) else {"score": 0, "total": 0}
-            overall_score = overall_score_dict.get('score', 0) if isinstance(overall_score_dict, dict) else 0
+            raw_score = overall_score_dict.get('score', 0) if isinstance(overall_score_dict, dict) else 0
+            total_possible = overall_score_dict.get('total', 1) if isinstance(overall_score_dict, dict) else 1
+            # Convert to percentage (0-100)
+            overall_score = (float(raw_score) / float(total_possible) * 100) if total_possible > 0 else 0
             
             # score_breakdown_list is already in the correct format: list of {"name": X, "score": Y, "total_possible": Z}
             # Just pass it directly to the report generator
-            print(f"DEBUG: Report data - interactions={len(interactions)}, overall_score={overall_score}")
+            print(f"DEBUG: Report data - interactions={len(interactions)}, overall_score={overall_score:.2f}% (raw={raw_score}, total={total_possible})")
             print(f"DEBUG: score_breakdown_list = {score_breakdown_list}")
             print(f"DEBUG: Number of competency breakdowns = {len(score_breakdown_list) if score_breakdown_list else 0}")
             

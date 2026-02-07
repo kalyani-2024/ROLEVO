@@ -1,0 +1,9 @@
+Starting debug script v2...
+App context pushed.
+--- DEBUGGING DATA ---
+Total Users: 6
+First user ID: 6, type: <class 'int'>
+Total Clusters: 1
+Testing with Cluster ID: 15 (type: <class 'int'>)
+Cluster Users: 0
+No users assigned to this cluster.

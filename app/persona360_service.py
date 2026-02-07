@@ -7,15 +7,28 @@ API Documentation:
 - Method: POST (multipart/form-data)
 - Parameters:
   - file: Audio/video file for analysis
-  - mode: "audio_only" for voice-based analysis
+  - mode: "audio", "video", or "multimodal"
   - age: User's age (string)
   - gender: "Male" or "Female"
 """
 
 import os
+import socket
 import requests
 from typing import Dict, Optional, Tuple, Any
 import json
+
+
+# Custom DNS resolution - fallback to known IP if DNS fails
+def _resolve_persona360_host():
+    """Try to resolve the Persona360 host, fall back to known IP if DNS fails."""
+    hostname = "api.persona360.rapeti.dev"
+    try:
+        socket.gethostbyname(hostname)
+        return hostname  # DNS works, use hostname
+    except socket.gaierror:
+        print(f"[Persona360] DNS resolution failed for {hostname}, using direct IP")
+        return "217.164.6.105"  # Known IP fallback
 
 
 class Persona360Service:
@@ -91,16 +104,36 @@ class Persona360Service:
         self.api_key = api_key or os.getenv('PERSONA360_API_KEY', '')
         self.timeout = int(os.getenv('PERSONA360_TIMEOUT', 120))  # 2 minute timeout for audio processing
     
-    def analyze_audio(self, file_path: str, age: int = 30, gender: str = "Male",
-                      mode: str = "audio_only") -> Tuple[bool, Dict[str, Any]]:
+    def _get_api_url_with_fallback(self) -> Tuple[str, Dict[str, str]]:
+        """
+        Get the API URL, falling back to direct IP if DNS fails.
+        Returns (url, extra_headers) where extra_headers contains Host header if using IP.
+        """
+        original_url = self.api_url
+        extra_headers = {}
+        
+        # Check if we can resolve the hostname
+        if "api.persona360.rapeti.dev" in original_url:
+            resolved_host = _resolve_persona360_host()
+            if resolved_host != "api.persona360.rapeti.dev":
+                # DNS failed, use IP with Host header
+                url = original_url.replace("api.persona360.rapeti.dev", resolved_host)
+                extra_headers["Host"] = "api.persona360.rapeti.dev:8290"
+                print(f"[Persona360] Using fallback IP: {url}")
+                return url, extra_headers
+        
+        return original_url, extra_headers
+    
+    def analyze_audio(self, file_path: str, age: int = None, gender: str = None,
+                      mode: str = "audio") -> Tuple[bool, Dict[str, Any]]:
         """
         Analyze audio file for 16PF personality traits.
         
         Args:
             file_path: Path to the audio/video file
-            age: User's age (default: 30)
-            gender: "Male" or "Female" (default: "Male")
-            mode: Analysis mode - "audio_only" or "video" (default: "audio_only")
+            age: User's age (optional - not required by API)
+            gender: "Male" or "Female" (optional - not required by API)
+            mode: Analysis mode - "audio", "video", or "multimodal" (default: "audio")
         
         Returns:
             Tuple of (success: bool, result: dict)
@@ -111,27 +144,32 @@ class Persona360Service:
         if not os.path.exists(file_path):
             return False, {"error": f"File not found: {file_path}"}
         
-        # Validate gender
-        gender = gender.capitalize()
-        if gender not in ["Male", "Female"]:
-            gender = "Male"  # Default to Male if invalid
-        
         try:
+            # Get URL with DNS fallback
+            api_url, extra_headers = self._get_api_url_with_fallback()
+            
             # Prepare the request
             headers = {
                 "accept": "application/json"
             }
+            headers.update(extra_headers)
             
             # Add API key if configured
             if self.api_key:
-                headers["Authorization"] = f"Bearer {self.api_key}"
+                headers["x-api-key"] = self.api_key
             
-            # Prepare form data
+            # Prepare form data - only include mode, age and gender are optional
             data = {
-                "mode": mode,
-                "age": str(age),
-                "gender": gender
+                "mode": mode
             }
+            
+            # Only add age and gender if provided
+            if age is not None:
+                data["age"] = str(age)
+            if gender is not None:
+                gender = gender.capitalize()
+                if gender in ["Male", "Female"]:
+                    data["gender"] = gender
             
             # Open file and send request
             with open(file_path, "rb") as audio_file:
@@ -140,10 +178,11 @@ class Persona360Service:
                 }
                 
                 print(f"[Persona360] Sending audio for analysis: {file_path}")
-                print(f"[Persona360] Parameters: age={age}, gender={gender}, mode={mode}")
+                print(f"[Persona360] API URL: {api_url}")
+                print(f"[Persona360] Parameters: {data}")
                 
                 response = requests.post(
-                    self.api_url,
+                    api_url,
                     headers=headers,
                     files=files,
                     data=data,
@@ -268,38 +307,34 @@ class Persona360Service:
                 result["analysis_confidence"] = api_response[conf_key]
                 break
         
-        # If the API returns scores directly at the root level, try to map them
-        if not result["personality_scores"] and not result["composite_scores"]:
-            print(f"[Persona360] No personality/composite scores found in standard keys, checking root level...")
+        print(f"[Persona360] FINAL parsed personality_scores: {result['personality_scores']}")
+        print(f"[Persona360] FINAL parsed composite_scores: {result['composite_scores']}")
+        print(f"[Persona360] FINAL overall_role_fit: {result['overall_role_fit']}")
+        
+        # If the API returns scores directly at the root level and we haven't found them yet, try to map them
+        if not result["personality_scores"]:
+            print(f"[Persona360] No personality scores found in standard keys, checking root level...")
             # Try to find any score-like values in the response
             for key, value in api_response.items():
-                print(f"[Persona360] Checking key '{key}': value={value}, type={type(value)}")
+                # print(f"[Persona360] Checking key '{key}': value={value}, type={type(value)}")
                 if isinstance(value, (int, float)) and 0 <= value <= 100:
                     # Normalize key name
                     normalized_key = key.replace("_", " ").title()
+                    
+                    # Direct match or case-insensitive match
                     if normalized_key in self.PERSONALITY_FACTORS:
                         result["personality_scores"][normalized_key] = value
                         print(f"[Persona360] Mapped '{key}' -> personality_scores['{normalized_key}'] = {value}")
                     elif normalized_key in self.COMPOSITE_SCORES:
                         result["composite_scores"][normalized_key] = value
                         print(f"[Persona360] Mapped '{key}' -> composite_scores['{normalized_key}'] = {value}")
-                    else:
-                        # Add to composite scores as a custom metric
-                        result["composite_scores"][normalized_key] = value
-                        print(f"[Persona360] Mapped '{key}' -> composite_scores['{normalized_key}'] = {value} (custom)")
-                elif isinstance(value, dict):
-                    # Check if this dict contains score-like values
-                    print(f"[Persona360] Found nested dict at key '{key}' with keys: {list(value.keys())}")
-                    for sub_key, sub_value in value.items():
-                        if isinstance(sub_value, (int, float)):
-                            normalized_sub_key = sub_key.replace("_", " ").title()
-                            result["personality_scores"][normalized_sub_key] = sub_value
-                            print(f"[Persona360] Mapped from nested: {key}.{sub_key} -> {normalized_sub_key} = {sub_value}")
-        
-        print(f"[Persona360] FINAL parsed personality_scores: {result['personality_scores']}")
-        print(f"[Persona360] FINAL parsed composite_scores: {result['composite_scores']}")
-        print(f"[Persona360] FINAL overall_role_fit: {result['overall_role_fit']}")
-        
+                    
+                    # Also check against FACTOR_CODE_TO_NAME (e.g. key="A" -> Warmth)
+                    elif key in self.FACTOR_CODE_TO_NAME:
+                        full_name = self.FACTOR_CODE_TO_NAME[key]
+                        result["personality_scores"][full_name] = value
+                        print(f"[Persona360] Mapped code '{key}' -> personality_scores['{full_name}'] = {value}")
+                        
         return result
     
     def get_personality_for_report(self, analysis_result: Dict) -> list:
@@ -354,14 +389,14 @@ def get_persona360_service() -> Persona360Service:
     return _persona360_service
 
 
-def analyze_audio_for_16pf(file_path: str, age: int = 30, gender: str = "Male") -> Tuple[bool, Dict]:
+def analyze_audio_for_16pf(file_path: str, age: int = None, gender: str = None) -> Tuple[bool, Dict]:
     """
     Convenience function to analyze audio for 16PF traits.
     
     Args:
         file_path: Path to audio/video file
-        age: User's age
-        gender: "Male" or "Female"
+        age: User's age (optional)
+        gender: "Male" or "Female" (optional)
     
     Returns:
         Tuple of (success, result_dict)

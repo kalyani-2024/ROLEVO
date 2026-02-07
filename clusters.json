@@ -1,0 +1,211 @@
+{
+  "clusters": [
+    {
+      "cluster_id": "ddad93e3-324",
+      "cluster_name": "17thDec cluster",
+      "roleplays": [
+        {
+          "competencies": [
+            {
+              "competency_code": "EMP LEVEL 2",
+              "competency_name": "Empathy Level 2"
+            },
+            {
+              "competency_code": "PERSUADE LEVEL 2",
+              "competency_name": "Persuasion- Win/Win mindset Level 2"
+            },
+            {
+              "competency_code": "QNING LEVEL 2",
+              "competency_name": "Questioning Level 2"
+            },
+            {
+              "competency_code": "MOTVN LEVEL 2",
+              "competency_name": "Motivating Level 2"
+            }
+          ],
+          "max_time_minutes": 15,
+          "roleplay_id": "RP_22P91IFO",
+          "roleplay_name": "17thDec test"
+        },
+        {
+          "competencies": [
+            {
+              "competency_code": "EMP LEVEL 2",
+              "competency_name": "Empathy Level 2"
+            },
+            {
+              "competency_code": "PERSUADE LEVEL 2",
+              "competency_name": "Persuasion- Win/Win mindset Level 2"
+            },
+            {
+              "competency_code": "QNING LEVEL 2",
+              "competency_name": "Questioning Level 2"
+            },
+            {
+              "competency_code": "MOTVN LEVEL 2",
+              "competency_name": "Motivating Level 2"
+            }
+          ],
+          "max_time_minutes": 15,
+          "roleplay_id": "RP_A1R95UQK",
+          "roleplay_name": "17thDec test - multi"
+        },
+        {
+          "competencies": [
+            {
+              "competency_code": "EMP LEVEL 2",
+              "competency_name": "Empathy Level 2"
+            },
+            {
+              "competency_code": "PERSUADE LEVEL 2",
+              "competency_name": "Persuasion- Win/Win mindset Level 2"
+            },
+            {
+              "competency_code": "QNING LEVEL 2",
+              "competency_name": "Questioning Level 2"
+            },
+            {
+              "competency_code": "MOTVN LEVEL 2",
+              "competency_name": "Motivating Level 2"
+            }
+          ],
+          "max_time_minutes": 15,
+          "roleplay_id": "RP_JP4KNTS9",
+          "roleplay_name": "17thDec test - audio"
+        }
+      ],
+      "total_roleplays": 3,
+      "total_time_minutes": 45
+    },
+    {
+      "cluster_id": "6650b144-3dc",
+      "cluster_name": "api testing",
+      "roleplays": [
+        {
+          "competencies": [
+            {
+              "competency_code": "EMP LEVEL 2",
+              "competency_name": "Empathy Level 2"
+            },
+            {
+              "competency_code": "PERSUADE LEVEL 2",
+              "competency_name": "Persuasion- Win/Win mindset Level 2"
+            },
+            {
+              "competency_code": "QNING LEVEL 2",
+              "competency_name": "Questioning Level 2"
+            },
+            {
+              "competency_code": "MOTVN LEVEL 2",
+              "competency_name": "Motivating Level 2"
+            }
+          ],
+          "max_time_minutes": 15,
+          "roleplay_id": "RP_ISHNV9BS",
+          "roleplay_name": "Audio - Sales Manager Feedback about Absenteeism"
+        },
+        {
+          "competencies": [
+            {
+              "competency_code": "EMP LEVEL 2",
+              "competency_name": "Empathy Level 2"
+            },
+            {
+              "competency_code": "PERSUADE LEVEL 2",
+              "competency_name": "Persuasion- Win/Win mindset Level 2"
+            },
+            {
+              "competency_code": "QNING LEVEL 2",
+              "competency_name": "Questioning Level 2"
+            },
+            {
+              "competency_code": "MOTVN LEVEL 2",
+              "competency_name": "Motivating Level 2"
+            }
+          ],
+          "max_time_minutes": 15,
+          "roleplay_id": "RP_OKX2JLLI",
+          "roleplay_name": "Text - Sales Manager Feedback about Poor Performance"
+        }
+      ],
+      "total_roleplays": 2,
+      "total_time_minutes": 30
+    },
+    {
+      "cluster_id": "8538239a-0c8",
+      "cluster_name": "Testing cluster assignment",
+      "roleplays": [],
+      "total_roleplays": 0,
+      "total_time_minutes": 0
+    },
+    {
+      "cluster_id": "8381d923-6ca",
+      "cluster_name": "Testing RP 20thJan",
+      "roleplays": [
+        {
+          "competencies": [
+            {
+              "competency_code": "EMP LEVEL 2",
+              "competency_name": "Empathy Level 2"
+            },
+            {
+              "competency_code": "PERSUADE LEVEL 2",
+              "competency_name": "Persuasion- Win/Win mindset Level 2"
+            },
+            {
+              "competency_code": "QNING LEVEL 2",
+              "competency_name": "Questioning Level 2"
+            },
+            {
+              "competency_code": "MOTVN LEVEL 2",
+              "competency_name": "Motivating Level 2"
+            }
+          ],
+          "max_time_minutes": 15,
+          "roleplay_id": "RP_ISHNV9BS",
+          "roleplay_name": "Audio - Sales Manager Feedback about Absenteeism"
+        },
+        {
+          "competencies": [
+            {
+              "competency_code": "EMP LEVEL 2",
+              "competency_name": "Empathy Level 2"
+            },
+            {
+              "competency_code": "PERSUADE LEVEL 2",
+              "competency_name": "Persuasion- Win/Win mindset Level 2"
+            },
+            {
+              "competency_code": "QNING LEVEL 2",
+              "competency_name": "Questioning Level 2"
+            },
+            {
+              "competency_code": "MOTVN LEVEL 2",
+              "competency_name": "Motivating Level 2"
+            }
+          ],
+          "max_time_minutes": 15,
+          "roleplay_id": "RP_OKX2JLLI",
+          "roleplay_name": "Text - Sales Manager Feedback about Poor Performance"
+        }
+      ],
+      "total_roleplays": 2,
+      "total_time_minutes": 30
+    },
+    {
+      "cluster_id": "498caa45-c46",
+      "cluster_name": "Testing training 20thJan",
+      "roleplays": [],
+      "total_roleplays": 0,
+      "total_time_minutes": 0
+    },
+    {
+      "cluster_id": "d35d6602-846",
+      "cluster_name": "Training test cluster_12th Jan",
+      "roleplays": [],
+      "total_roleplays": 0,
+      "total_time_minutes": 0
+    }
+  ],
+  "success": true
+}

@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 <!-- TTS Controls Removed - No multilanguage support - Simple Audio Only -->
 
 {% block head %}
@@ -7,30 +7,93 @@
 <link href="{{url_for('static', filename='css/slick.css')}}" rel="stylesheet">
 <link href="{{url_for('static', filename='css/style.css')}}" rel="stylesheet">
 <link href="{{url_for('static', filename='css/slick-theme.css')}}" rel="stylesheet">
+<link href="{{url_for('static', filename='css/font-min-override.css')}}" rel="stylesheet">
 <script src="{{url_for('static', filename='js/fontawesome.js')}}" crossorigin="anonymous"></script>
 
-<style>     
-    body{background: url("{{url_for('static', filename='images/login_page_bg.jpg')}}");}
-</style>
-<style type="text/css">.jqstooltip { position: absolute;left: 0px;top: 0px;visibility: hidden;background: rgb(0, 0, 0) transparent;background-color: rgba(0,0,0,0.6);filter:progid:DXImageTransform.Microsoft.gradient(startColorstr=#99000000, endColorstr=#99000000);-ms-filter: "progid:DXImageTransform.Microsoft.gradient(startColorstr=#99000000, endColorstr=#99000000)";color: white;font: 10px arial, san serif;text-align: left;white-space: nowrap;padding: 5px;border: 1px solid white;z-index: 10000;}.jqsfield { color: white;font: 10px arial, san serif;text-align: left;}</style>
 <style>
-    .canvasjs-chart-credit{display:none;}
-    .modal-content .col-md-3 img{margin:0 auto;}
-    @media (min-width:769px) and (max-width:1024px){
-        .detail-page-button-leaderboard .leaderboard-icon{width:39px!important;}
-        .detail-page-button-leaderboard .leaderboard-icon img{width:30px!important;}
-        .score-title{font-size:14px!important;}
-        .time-progress-counter{width:90%!important;}
-        .leaderboard-title{font-size:10px!important;}
+    body {
+        background: url("{{url_for('static', filename='images/login_page_bg.jpg')}}");
     }
-    @media (min-device-width:769px) and (max-device-width:1024px){
-        .detail-page-button-leaderboard .leaderboard-icon{width:39px!important;}
-        .detail-page-button-leaderboard .leaderboard-icon img{width:30px!important;}
-        .score-title{font-size:1rem!important;}
-        .time-progress-counter{width:90%!important;}
-        .leaderboard-title{font-size:1rem!important;}
+</style>
+<style type="text/css">
+    .jqstooltip {
+        position: absolute;
+        left: 0px;
+        top: 0px;
+        visibility: hidden;
+        background: rgb(0, 0, 0) transparent;
+        background-color: rgba(0, 0, 0, 0.6);
+        filter: progid:DXImageTransform.Microsoft.gradient(startColorstr=#99000000, endColorstr=#99000000);
+        -ms-filter: "progid:DXImageTransform.Microsoft.gradient(startColorstr=#99000000, endColorstr=#99000000)";
+        color: white;
+        font: 10px arial, san serif;
+        text-align: left;
+        white-space: nowrap;
+        padding: 5px;
+        border: 1px solid white;
+        z-index: 10000;
     }
-    .compdisplayoneline{
+
+    .jqsfield {
+        color: white;
+        font: 10px arial, san serif;
+        text-align: left;
+    }
+</style>
+<style>
+    .canvasjs-chart-credit {
+        display: none;
+    }
+
+    .modal-content .col-md-3 img {
+        margin: 0 auto;
+    }
+
+    @media (min-width:769px) and (max-width:1024px) {
+        .detail-page-button-leaderboard .leaderboard-icon {
+            width: 39px !important;
+        }
+
+        .detail-page-button-leaderboard .leaderboard-icon img {
+            width: 30px !important;
+        }
+
+        .score-title {
+            font-size: 14px !important;
+        }
+
+        .time-progress-counter {
+            width: 90% !important;
+        }
+
+        .leaderboard-title {
+            font-size: 10px !important;
+        }
+    }
+
+    @media (min-device-width:769px) and (max-device-width:1024px) {
+        .detail-page-button-leaderboard .leaderboard-icon {
+            width: 39px !important;
+        }
+
+        .detail-page-button-leaderboard .leaderboard-icon img {
+            width: 30px !important;
+        }
+
+        .score-title {
+            font-size: 1rem !important;
+        }
+
+        .time-progress-counter {
+            width: 90% !important;
+        }
+
+        .leaderboard-title {
+            font-size: 1rem !important;
+        }
+    }
+
+    .compdisplayoneline {
         white-space: pre;
         margin: 0;
         display: inline-block;
@@ -43,7 +106,8 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 30px;
-        margin: 0 auto;  /* Changed from 30px auto to 0 auto */
+        margin: 0 auto;
+        /* Changed from 30px auto to 0 auto */
         max-width: 1200px;
         align-items: start;
     }
@@ -64,12 +128,15 @@
         background: white;
         border-radius: 15px;
         padding: 20px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         border: 1px solid #074924;
-        height: 400px; /* Match the image container height */
-        overflow-y: auto; /* Enable vertical scrolling */
+        height: 400px;
+        /* Match the image container height */
+        overflow-y: auto;
+        /* Enable vertical scrolling */
         display: flex;
-        align-items: flex-start; /* Align text to top instead of center */
+        align-items: flex-start;
+        /* Align text to top instead of center */
     }
 
     .scenario-text {
@@ -83,7 +150,7 @@
         width: 100%;
     }
 
-        .audio-controls {
+    .audio-controls {
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -107,11 +174,12 @@
         background: white;
         border-radius: 15px;
         padding: 0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         border: 1px solid #074924;
         width: 100%;
         max-width: 400px;
-        height: 485px;  /* Extended to match text block + audio controls height (400px + 65px + 20px margin) */
+        height: 485px;
+        /* Extended to match text block + audio controls height (400px + 65px + 20px margin) */
         display: flex;
         align-items: center;
         justify-content: center;
@@ -129,7 +197,8 @@
     /* Updated Form Styles with Audio Recording */
     #mainform {
         position: relative;
-        margin-top: 6px; /* Remove any top margin */
+        margin-top: 6px;
+        /* Remove any top margin */
     }
 
     #mainform textarea {
@@ -140,9 +209,9 @@
         padding: 20px 20px 50px 20px;
         font-size: 16px;
         line-height: 1.5;
-        min-height: 177px; 
-        max-height: 177px; 
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        min-height: 177px;
+        max-height: 177px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         background: white;
     }
 
@@ -182,7 +251,7 @@
         justify-content: center;
         font-size: 18px;
         transition: all 0.3s ease;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
 
     .audio-record-btn:hover {
@@ -199,9 +268,11 @@
         0% {
             box-shadow: 0 0 0 0 rgba(253, 126, 20, 0.4);
         }
+
         70% {
             box-shadow: 0 0 0 10px rgba(253, 126, 20, 0);
         }
+
         100% {
             box-shadow: 0 0 0 0 rgba(253, 126, 20, 0);
         }
@@ -216,50 +287,52 @@
     }
 
     /* Add this to your existing styles */
-.audio-rerecord-btn {
-    position: absolute;
-    bottom: 15px;
-    left: 70px; /* Position next to record button */
-    width: 40px;
-    height: 40px;
-    background: #6c757d;
-    border: none;
-    border-radius: 50%;
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
+    .audio-rerecord-btn {
+        position: absolute;
+        bottom: 15px;
+        left: 70px;
+        /* Position next to record button */
+        width: 40px;
+        height: 40px;
+        background: #6c757d;
+        border: none;
+        border-radius: 50%;
+        color: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
 
-.audio-rerecord-btn:hover {
-    background: #5a6268;
-    transform: scale(1.05);
-}
+    .audio-rerecord-btn:hover {
+        background: #5a6268;
+        transform: scale(1.05);
+    }
 
-.audio-rerecord-btn.active {
-    background: #28a745;
-}
+    .audio-rerecord-btn.active {
+        background: #28a745;
+    }
 
-/* Responsive Design */
+    /* Responsive Design */
     @media (max-width: 1024px) {
         .scenario-section {
             gap: 25px;
             margin: 20px 10px;
         }
-        
+
         .scenario-text-block {
             height: 400px;
             overflow-y: auto;
             padding: 20px;
         }
-        
+
         .image-container {
             max-width: 350px;
-            height: 485px;  /* Keep extended height on tablets */
+            height: 485px;
+            /* Keep extended height on tablets */
         }
     }
 
@@ -269,35 +342,36 @@
             gap: 20px;
             margin: 20px 10px;
         }
-        
+
         .scenario-left {
             order: 1;
         }
-        
+
         .scenario-right {
             order: 2;
         }
-        
+
         .scenario-text-block {
             height: 300px;
             overflow-y: auto;
             padding: 20px;
         }
-        
+
         .scenario-text {
             font-size: 1rem;
         }
-        
+
         .image-container {
             max-width: 100%;
-            height: 365px;  /* Adjusted for mobile (300px text + 65px audio) */
+            height: 365px;
+            /* Adjusted for mobile (300px text + 65px audio) */
             padding: 15px;
         }
-        
+
         .audio-controls {
             padding: 12px;
         }
-        
+
         .scenario-audio {
             height: 40px;
         }
@@ -308,20 +382,21 @@
             gap: 15px;
             margin: 15px 5px;
         }
-        
+
         .scenario-text-block {
             padding: 15px;
             height: 250px;
         }
-        
+
         .scenario-text {
             font-size: 1rem;
             line-height: 1.5;
         }
-        
+
         .image-container {
             padding: 12px;
-            height: 315px;  /* Adjusted for small mobile (250px text + 65px audio) */
+            height: 315px;
+            /* Adjusted for small mobile (250px text + 65px audio) */
         }
 
         .audio-controls {
@@ -335,7 +410,8 @@
         }
 
         .tip-column img {
-            height: 100px !important; /* Match mobile textarea height */
+            height: 100px !important;
+            /* Match mobile textarea height */
         }
 
         #mainform button[type="submit"] {
@@ -358,7 +434,7 @@
         .scenario-left {
             min-height: 300px;
         }
-        
+
         .scenario-right {
             min-height: 300px;
         }
@@ -375,7 +451,7 @@
         left: 50%;
         top: 50%;
         transform: translate(-50%, -50%);
-        background: rgba(255,255,255,0.9);
+        background: rgba(255, 255, 255, 0.9);
         padding: 5px 10px;
         border-radius: 4px;
         font-size: 1rem;
@@ -393,10 +469,11 @@
 
     /* Add this new class to control the row spacing */
     .row[style*="margin-top:30px"] {
-        margin-top: 0px !important;  /* Remove the top margin from the row */
+        margin-top: 0px !important;
+        /* Remove the top margin from the row */
     }
 
-  /* Completion Overlay Styles */
+    /* Completion Overlay Styles */
     .completion-overlay {
         position: fixed;
         top: 0;
@@ -416,8 +493,13 @@
     }
 
     @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
     }
 
     .completion-content {
@@ -425,17 +507,18 @@
         border-radius: 20px;
         padding: 40px 60px;
         text-align: center;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
         animation: slideUp 0.5s ease-out;
         max-width: 500px;
     }
 
     @keyframes slideUp {
-        from { 
+        from {
             opacity: 0;
             transform: translateY(30px);
         }
-        to { 
+
+        to {
             opacity: 1;
             transform: translateY(0);
         }
@@ -446,7 +529,7 @@
         color: #28a745;
         margin-bottom: 20px;
     }
-    
+
     .completion-content .btn i {
         font-size: 18px;
         margin-right: 8px;
@@ -473,112 +556,138 @@
         display: inline-block;
     }
 
-  /* Replace the existing tip-column styles with this updated version */
-.tip-column {
-    display: block;
-    margin-top: 0 !important; /* Remove any top margin */
-    height: 190px; /* Match the textarea height exactly */
-    display: flex;
-    align-items: stretch; /* Ensure full height usage */
-}
+    /* Replace the existing tip-column styles with this updated version */
+    .tip-column {
+        display: block;
+        margin-top: 0 !important;
+        /* Remove any top margin */
+        height: 190px;
+        /* Match the textarea height exactly */
+        display: flex;
+        align-items: stretch;
+        /* Ensure full height usage */
+    }
 
-.tip-column img {
-    width: 100%;
-    height: 200px !important; /* Match the textarea height */
-    object-fit: contain;
-    border-radius: 10px;
-    cursor: pointer;
-}
+    .tip-column img {
+        width: 100%;
+        height: 200px !important;
+        /* Match the textarea height */
+        object-fit: contain;
+        border-radius: 10px;
+        cursor: pointer;
+    }
 
-/* Make sure the form and tip are in a flex container */
-.form-tip-row {
-    display: flex;
-    gap: 20px;
-    align-items: flex-start;
-}
+    /* Make sure the form and tip are in a flex container */
+    .form-tip-row {
+        display: flex;
+        gap: 20px;
+        align-items: flex-start;
+    }
 
-.form-tip-row .col-md-9 {
-    flex: 3;
-}
+    .form-tip-row .col-md-9 {
+        flex: 3;
+    }
 
-.form-tip-row .col-md-3 {
-    flex: 1;
-}
+    .form-tip-row .col-md-3 {
+        flex: 1;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 
-    <!-- old ripple preloader removed; new transparent overlay widget is used instead -->
-    <div id="main-wrapper" data-layout="horizontal" data-navbarbg="skin1" data-sidebartype="full" data-boxed-layout="boxed">
-        <header class="topbar topline" data-navbarbg="skin1"></header>
-        <div class="page-wrapper" style="display: block;">
-            <nav class="navbar top-navbar navbar-expand-md navbar-dark" style="border-bottom:1px solid #e2e3e5;">
-                <div class="navbar-header">
-                    <a class="navbar-brand" href="{{ url_for('index') }}">
-                        <b class="logo-icon">
-                            <img src="{{url_for('static', filename='images/logo-trajectorie-codrive.png')}}" alt="Trajectorie : CODrive" width="130" class="light-logo">
-                        </b>
-                    </a>
-                    <a class="nav-toggler waves-effect waves-light d-block d-md-none" href="javascript:void(0)" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><i class="ti-menu ti-close"></i></a>
-                </div>
-                <div class="navbar-collapse collapse" id="navbarSupportedContent">
-                    <ul class="navbar-nav float-left mr-auto">
-                        <li class="nav-item d-none d-md-block"><a class="nav-link sidebartoggler waves-effect waves-light" href="javascript:void(0)" data-sidebartype="mini-sidebar"><i class="mdi mdi-menu font-24"></i></a></li>
-                        <li class="nav-item search-box"> <a class="nav-link waves-effect waves-dark" href="javascript:void(0)"><i class="ti-search"></i></a>
-                            <form class="app-search position-absolute">
-                                <input type="text" class="form-control" placeholder="Search &amp; enter"> <a class="srh-btn"><i class="ti-close"></i></a>
-                            </form>
-                        </li>
-                    </ul>
-                    
-                    <!-- NEW: Timer Display - Positioned separately -->
-                    <div style="position: absolute; left: 50%; transform: translateX(-50%); top: 10px; z-index: 1000;">
-                        <div style="background: rgba(255,255,255,0.95); padding: 12px 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
-                            <div style="display: flex; gap: 25px; align-items: center;">
-                                <!-- Total Roleplay Time Left -->
+<!-- old ripple preloader removed; new transparent overlay widget is used instead -->
+<div id="main-wrapper" data-layout="horizontal" data-navbarbg="skin1" data-sidebartype="full" data-boxed-layout="boxed">
+    <header class="topbar topline" data-navbarbg="skin1"></header>
+    <div class="page-wrapper" style="display: block;">
+        <nav class="navbar top-navbar navbar-expand-md navbar-dark" style="border-bottom:1px solid #e2e3e5;">
+            <div class="navbar-header">
+                <a class="navbar-brand" href="{{ url_for('index') }}">
+                    <b class="logo-icon">
+                        <img src="{{url_for('static', filename='images/logo-trajectorie-codrive.png')}}"
+                            alt="Trajectorie : CODrive" width="130" class="light-logo">
+                    </b>
+                </a>
+                <a class="nav-toggler waves-effect waves-light d-block d-md-none" href="javascript:void(0)"
+                    data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent"
+                    aria-expanded="false" aria-label="Toggle navigation"><i class="ti-menu ti-close"></i></a>
+            </div>
+            <div class="navbar-collapse collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav float-left mr-auto">
+                    <li class="nav-item d-none d-md-block"><a class="nav-link sidebartoggler waves-effect waves-light"
+                            href="javascript:void(0)" data-sidebartype="mini-sidebar"><i
+                                class="mdi mdi-menu font-24"></i></a></li>
+                    <li class="nav-item search-box"> <a class="nav-link waves-effect waves-dark"
+                            href="javascript:void(0)"><i class="ti-search"></i></a>
+                        <form class="app-search position-absolute">
+                            <input type="text" class="form-control" placeholder="Search &amp; enter"> <a
+                                class="srh-btn"><i class="ti-close"></i></a>
+                        </form>
+                    </li>
+                </ul>
+
+                <!-- NEW: Timer Display - Positioned separately -->
+                <div style="position: absolute; left: 50%; transform: translateX(-50%); top: 10px; z-index: 1000;">
+                    <div
+                        style="background: rgba(255,255,255,0.95); padding: 12px 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+                        <div style="display: flex; gap: 25px; align-items: center;">
+                            <!-- Total Roleplay Time Left -->
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="color: #555; font-size: 1rem; font-weight: 600;">⏳ Total Roleplay Time
+                                    Left:</span>
+                                <span id="totalTimer"
+                                    style="color: #ef4444; font-weight: bold; font-size: 17px;">30:00</span>
+                            </div>
+
+                            <!-- Vertical Divider -->
+                            <div style="width: 1px; height: 45px; background: rgba(0,0,0,0.15);"></div>
+
+                            <!-- Current Interaction Time with Progress Bar -->
+                            <div style="display: flex; flex-direction: column; gap: 5px; min-width: 320px;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
-                                    <span style="color: #555; font-size: 1rem; font-weight: 600;">⏳ Total Roleplay Time Left:</span>
-                                    <span id="totalTimer" style="color: #ef4444; font-weight: bold; font-size: 17px;">30:00</span>
+                                    <span style="color: #555; font-size: 1rem; font-weight: 600;">🕐 Current Interaction
+                                        Time Left:</span>
+                                    <span id="interactionTimer"
+                                        style="color: #10b981; font-weight: bold; font-size: 17px; margin-left: auto;">5:00</span>
                                 </div>
-                                
-                                <!-- Vertical Divider -->
-                                <div style="width: 1px; height: 45px; background: rgba(0,0,0,0.15);"></div>
-                                
-                                <!-- Current Interaction Time with Progress Bar -->
-                                <div style="display: flex; flex-direction: column; gap: 5px; min-width: 320px;">
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <span style="color: #555; font-size: 1rem; font-weight: 600;">🕐 Current Interaction Time Left:</span>
-                                        <span id="interactionTimer" style="color: #10b981; font-weight: bold; font-size: 17px; margin-left: auto;">5:00</span>
-                                    </div>
-                                    <div style="background: rgba(0,0,0,0.1); height: 10px; border-radius: 5px; overflow: hidden;">
-                                        <div id="interactionProgressBar" style="background: linear-gradient(90deg, #10b981 0%, #34d399 100%); height: 100%; width: 100%; transition: width 1s linear, background 0.3s ease; border-radius: 5px;"></div>
+                                <div
+                                    style="background: rgba(0,0,0,0.1); height: 10px; border-radius: 5px; overflow: hidden;">
+                                    <div id="interactionProgressBar"
+                                        style="background: linear-gradient(90deg, #10b981 0%, #34d399 100%); height: 100%; width: 100%; transition: width 1s linear, background 0.3s ease; border-radius: 5px;">
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
-                    <ul class="navbar-nav float-right">
-                         <li class="nav-item trajectorie_text_green_color" style="margin-right:10px;line-height: 40px;">
-                            {{username}} &nbsp;
-		        	<img src="{{url_for('static', filename='images/placeholder-1-1.webp')}}" width="40" height="40" align="middle" class="rounded-circle">
-		        	    </li>                     
-                        <li class="nav-item" style="margin-right:5px;"><a href="{{ url_for('index') }}" data-method="post"><button type="button" class="btn btn-home-trajectorie btn-circle" style="width: 35px!important; height: 35px!important;line-height:24px!important;"><i class="fas fa-home trajectorie_text_green_color"></i> </button></a></li>
-		        	    <li class="nav-item"><a href="{{ url_for('index') }}" class="btn btn-rounded btn-green-trajectorie" data-method="post" style="padding: 4px 18px!important;" id="logout"><i class="fas fa-power-off"></i>&nbsp;Logout</a></li>	                        
-                    </ul>
                 </div>
-            </nav>
-            <div class="container-fluid" style="padding-left: 5px; padding-right: 5px;">
-                <div class="row">
-                    {% if context.cluster_type == 'assessment' %}
-                    <div class="col-md-1"></div>
-                    <div class="col-md-10">
+
+                <ul class="navbar-nav float-right">
+                    <li class="nav-item trajectorie_text_green_color" style="margin-right:10px;line-height: 40px;">
+                        {{username}} &nbsp;
+                        <img src="{{url_for('static', filename='images/placeholder-1-1.webp')}}" width="40" height="40"
+                            align="middle" class="rounded-circle">
+                    </li>
+                    <li class="nav-item" style="margin-right:5px;"><a href="{{ url_for('index') }}"
+                            data-method="post"><button type="button" class="btn btn-home-trajectorie btn-circle"
+                                style="width: 35px!important; height: 35px!important;line-height:24px!important;"><i
+                                    class="fas fa-home trajectorie_text_green_color"></i> </button></a></li>
+                    <li class="nav-item"><a href="{{ url_for('index') }}" class="btn btn-rounded btn-green-trajectorie"
+                            data-method="post" style="padding: 4px 18px!important;" id="logout"><i
+                                class="fas fa-power-off"></i>&nbsp;Logout</a></li>
+                </ul>
+            </div>
+        </nav>
+        <br><br>
+        <div class="container-fluid" style="padding-left: 5px; padding-right: 5px;">
+            <div class="row">
+                {% if context.cluster_type == 'assessment' %}
+                <div class="col-md-1"></div>
+                <div class="col-md-10">
                     {% else %}
                     <div class="col-md-9">
-                    {% endif %}
+                        {% endif %}
                         <div class="row">
-				            <div class="col-md-12">
+                            <div class="col-md-12">
                                 <div style="margin:0 auto;">
                                     <!-- Clean Scenario Section - Image Left, Text Right -->
                                     <div class="scenario-section">
@@ -588,336 +697,429 @@
                                                 <img src="{{context.image}}" alt="Scenario Image">
                                             </div>
                                         </div>
-                                        
+
                                         <!-- Right Side: Text + Audio -->
                                         <div class="scenario-right">
                                             <!-- Scenario Text Block -->
                                             <div class="scenario-text-block">
                                                 {% if 'comp_dialogue' in context %}
-                                                    <div class="scenario-text">{{context.comp_dialogue}}</div>
+                                                <div class="scenario-text">{{context.comp_dialogue}}</div>
                                                 {% else %}
-                                                    <div class="scenario-text">{{context.scenario|safe}}</div>
+                                                <div class="scenario-text">{{context.scenario|safe}}</div>
                                                 {% endif %}
                                             </div>
-                                            
+
                                             <!-- Audio Controls -->
                                             <div class="audio-controls">
                                                 <!-- Debug: Gender={{ context.gender }}, Segments={{ context.dialogue_segments|length if context.dialogue_segments else 0 }} -->
-                                                {% if context.dialogue_segments and context.dialogue_segments|length > 0 %}
-                                                    <!-- Multi-speaker audio: Play each segment sequentially -->
-                                                    <div id="multi-audio-player">
-                                                        <div id="speaker-display" style="margin-bottom: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px;">
-                                                            <strong>🔊 Now Playing:</strong> <span id="current-speaker-name">Click play to start</span>
-                                                        </div>
-                                                        <audio id="team-audio-player" class="scenario-audio" controls style="width: 100%;">
-                                                            Your browser does not support the audio element.
-                                                        </audio>
-                                                        <!-- Preload all audio URLs as data -->
-                                                        <script>
-                                                            window.teamAudioSegments = [
-                                                                {% for segment in context.dialogue_segments %}
-                                                                {
-                                                                    speaker: "{{ segment.speaker|e }}",
-                                                                    gender: "{{ segment.gender|e }}",
-                                                                    url: "/make_audio/?text={{ segment.text|urlencode }}&gender={{ segment.gender|urlencode }}&character={{ segment.speaker|urlencode }}"
-                                                                }{% if not loop.last %},{% endif %}
-                                                                {% endfor %}
-                                                            ];
-                                                        </script>
+                                                {% if context.dialogue_segments and context.dialogue_segments|length > 0
+                                                %}
+                                                <!-- Multi-speaker audio: Play each segment sequentially -->
+                                                <div id="multi-audio-player">
+                                                    <!-- Hidden speaker display for internal tracking only -->
+                                                    <div id="speaker-display" style="display: none;">
+                                                        <strong>ðŸ”Š Now Playing:</strong> <span
+                                                            id="current-speaker-name">Click play to start</span>
                                                     </div>
-                                                    <script>
-                                                        // Team audio player - sequential playback with visible controls
-                                                        (function initTeamAudio() {
-                                                            const segments = window.teamAudioSegments || [];
-                                                            const speakerDisplay = document.getElementById('current-speaker-name');
-                                                            const audioPlayer = document.getElementById('team-audio-player');
-                                                            
-                                                            if (segments.length === 0 || !audioPlayer) {
-                                                                if (!audioPlayer) {
-                                                                    document.addEventListener('DOMContentLoaded', initTeamAudio);
-                                                                }
-                                                                return;
-                                                            }
-                                                            
-                                                            let currentIndex = 0;
-                                                            let isPlaying = false;
-                                                            
-                                                            function loadAndPlaySegment(index) {
-                                                                if (index >= segments.length) {
-                                                                    speakerDisplay.textContent = '✓ All dialogue completed';
-                                                                    isPlaying = false;
-                                                                    return;
-                                                                }
-                                                                
-                                                                const seg = segments[index];
-                                                                currentIndex = index;
-                                                                isPlaying = true;
-                                                                
-                                                                // Update speaker display
-                                                                speakerDisplay.textContent = seg.speaker + ' (' + (index + 1) + '/' + segments.length + ')';
-                                                                
-                                                                // Load the audio into the visible player
-                                                                audioPlayer.src = seg.url;
-                                                                audioPlayer.load();
-                                                                
-                                                                // Play when ready
-                                                                audioPlayer.oncanplay = function() {
-                                                                    audioPlayer.play().catch(function(e) {
-                                                                        speakerDisplay.textContent = seg.speaker + ' - Click play button to start';
-                                                                    });
-                                                                };
-                                                                
-                                                                // When this segment ends, play next
-                                                                audioPlayer.onended = function() {
-                                                                    // Small pause between speakers for distinction
-                                                                    setTimeout(function() {
-                                                                        loadAndPlaySegment(index + 1);
-                                                                    }, 300);
-                                                                };
-                                                                
-                                                                // Handle errors - skip to next
-                                                                audioPlayer.onerror = function() {
-                                                                    console.log('Audio error for segment ' + index + ', skipping...');
-                                                                    setTimeout(function() {
-                                                                        loadAndPlaySegment(index + 1);
-                                                                    }, 100);
-                                                                };
-                                                            }
-                                                            
-                                                            // Start with first segment
-                                                            loadAndPlaySegment(0);
-                                                            
-                                                            // Also handle manual play button clicks for restart
-                                                            audioPlayer.addEventListener('play', function() {
-                                                                if (!isPlaying && currentIndex >= segments.length) {
-                                                                    // Restart from beginning if all completed
-                                                                    loadAndPlaySegment(0);
-                                                                }
-                                                            });
-                                                        })();
-                                                    </script>
-                                                {% else %}
-                                                    <!-- Single speaker audio: Play entire dialogue at once -->
-                                                    <audio id="spkr" class="scenario-audio" controls autoplay>
-                                                        {% if 'comp_dialogue' in context %}
-                                                            {% if context.character %}
-                                                                <source src="{{ url_for('make_audio', text=context.comp_dialogue|string, gender=context.gender, character=context.character) }}" type="audio/mpeg">
-                                                            {% else %}
-                                                                <source src="{{ url_for('make_audio', text=context.comp_dialogue|string, gender=context.gender) }}" type="audio/mpeg">
-                                                            {% endif %}
-                                                        {% else %}
-                                                            {% if context.character %}
-                                                                <source src="{{ url_for('make_audio', text=context.scenario|string, gender=context.gender, character=context.character) }}" type="audio/mpeg">
-                                                            {% else %}
-                                                                <source src="{{ url_for('make_audio', text=context.scenario|string, gender=context.gender) }}" type="audio/mpeg">
-                                                            {% endif %}
-                                                        {% endif %}
+                                                    <audio id="team-audio-player" class="scenario-audio" controls
+                                                        style="width: 100%;">
                                                         Your browser does not support the audio element.
                                                     </audio>
+                                                    <!-- Preload all audio URLs as data -->
+                                                    <script>
+                                                        window.teamAudioSegments = [
+                                                            {% for segment in context.dialogue_segments %}
+                                                        {
+                                                            speaker: "{{ segment.speaker|e }}",
+                                                                gender: "{{ segment.gender|e }}",
+                                                                    url: "/make_audio/?text={{ segment.text|urlencode }}&gender={{ segment.gender|urlencode }}&character={{ segment.speaker|urlencode }}"
+                                                        } {% if not loop.last %}, {% endif %}
+                                                        {% endfor %}
+                                                            ];
+                                                    </script>
+                                                </div>
+                                                <script>
+                                                    // Team audio player - sequential playback with visible controls
+                                                    (function initTeamAudio() {
+                                                        // Abort flag for external control
+                                                        window._teamAudioAbort = window._teamAudioAbort || false;
+                                                        window._teamAudioTimeouts = window._teamAudioTimeouts || [];
+                                                        window.stopTeamAudio = window.stopTeamAudio || function () {
+                                                            window._teamAudioAbort = true;
+                                                            // clear scheduled timeouts
+                                                            try { (window._teamAudioTimeouts || []).forEach(function (t) { clearTimeout(t); }); } catch (e) { }
+                                                            window._teamAudioTimeouts = [];
+                                                            const teamAudio = document.getElementById('team-audio-player');
+                                                            if (teamAudio) {
+                                                                try { teamAudio.muted = true; } catch (e) { }
+                                                                try { teamAudio.pause(); } catch (e) { }
+                                                                try { teamAudio.currentTime = 0; } catch (e) { }
+                                                                try { teamAudio.removeAttribute('src'); } catch (e) { }
+                                                                try { teamAudio.load(); } catch (e) { }
+                                                                try { if (teamAudio.parentNode) teamAudio.parentNode.removeChild(teamAudio); } catch (e) { }
+                                                            }
+                                                        };
+
+                                                        const segments = window.teamAudioSegments || [];
+                                                        const speakerDisplay = document.getElementById('current-speaker-name');
+                                                        const audioPlayer = document.getElementById('team-audio-player');
+
+                                                        if (segments.length === 0 || !audioPlayer) {
+                                                            if (!audioPlayer) {
+                                                                document.addEventListener('DOMContentLoaded', initTeamAudio);
+                                                            }
+                                                            return;
+                                                        }
+
+                                                        let currentIndex = 0;
+                                                        let isPlaying = false;
+
+                                                        function loadAndPlaySegment(index) {
+                                                            if (window._teamAudioAbort) {
+                                                                isPlaying = false;
+                                                                if (speakerDisplay) speakerDisplay.textContent = '';
+                                                                return;
+                                                            }
+
+                                                            if (index >= segments.length) {
+                                                                if (speakerDisplay) speakerDisplay.textContent = 'âœ“ All dialogue completed';
+                                                                isPlaying = false;
+                                                                return;
+                                                            }
+
+                                                            const seg = segments[index];
+                                                            currentIndex = index;
+                                                            isPlaying = true;
+
+                                                            // Update speaker display
+                                                            if (speakerDisplay) speakerDisplay.textContent = seg.speaker + ' (' + (index + 1) + '/' + segments.length + ')';
+
+                                                            // Load the audio into the visible player
+                                                            audioPlayer.src = seg.url;
+                                                            audioPlayer.load();
+
+                                                            // Play when ready
+                                                            audioPlayer.oncanplay = function () {
+                                                                if (window._teamAudioAbort) return;
+                                                                audioPlayer.play().catch(function (e) {
+                                                                    if (speakerDisplay) speakerDisplay.textContent = seg.speaker + ' - Click play button to start';
+                                                                });
+                                                            };
+
+                                                            // When this segment ends, play next
+                                                            audioPlayer.onended = function () {
+                                                                if (window._teamAudioAbort) return;
+                                                                // Small pause between speakers for distinction
+                                                                var t = setTimeout(function () {
+                                                                    if (!window._teamAudioAbort) loadAndPlaySegment(index + 1);
+                                                                }, 300);
+                                                                window._teamAudioTimeouts.push(t);
+                                                            };
+
+                                                            // Handle errors - skip to next
+                                                            audioPlayer.onerror = function () {
+                                                                console.log('Audio error for segment ' + index + ', skipping...');
+                                                                var t = setTimeout(function () {
+                                                                    if (!window._teamAudioAbort) loadAndPlaySegment(index + 1);
+                                                                }, 100);
+                                                                window._teamAudioTimeouts.push(t);
+                                                            };
+                                                        }
+
+                                                        // Start with first segment
+                                                        if (!window._teamAudioAbort) loadAndPlaySegment(0);
+
+                                                        // Also handle manual play button clicks for restart
+                                                        audioPlayer.addEventListener('play', function () {
+                                                            if (window._teamAudioAbort) return;
+                                                            if (!isPlaying && currentIndex >= segments.length) {
+                                                                // Restart from beginning if all completed
+                                                                loadAndPlaySegment(0);
+                                                            }
+                                                        });
+                                                    })();
+                                                </script>
+                                                {% else %}
+                                                <!-- Single speaker audio: Play entire dialogue at once -->
+                                                <audio id="spkr" class="scenario-audio" controls autoplay>
+                                                    {% if 'comp_dialogue' in context %}
+                                                    {% if context.character %}
+                                                    <source
+                                                        src="{{ url_for('make_audio', text=context.comp_dialogue|string, gender=context.gender, character=context.character) }}"
+                                                        type="audio/mpeg">
+                                                    {% else %}
+                                                    <source
+                                                        src="{{ url_for('make_audio', text=context.comp_dialogue|string, gender=context.gender) }}"
+                                                        type="audio/mpeg">
+                                                    {% endif %}
+                                                    {% else %}
+                                                    {% if context.character %}
+                                                    <source
+                                                        src="{{ url_for('make_audio', text=context.scenario|string, gender=context.gender, character=context.character) }}"
+                                                        type="audio/mpeg">
+                                                    {% else %}
+                                                    <source
+                                                        src="{{ url_for('make_audio', text=context.scenario|string, gender=context.gender) }}"
+                                                        type="audio/mpeg">
+                                                    {% endif %}
+                                                    {% endif %}
+                                                    Your browser does not support the audio element.
+                                                </audio>
+                                                <script>
+                                                    // Debug: Log audio element status
+                                                    (function() {
+                                                        var audioEl = document.getElementById('spkr');
+                                                        if (audioEl) {
+                                                            var source = audioEl.querySelector('source');
+                                                            console.log('[DEBUG AUDIO] Audio element found');
+                                                            console.log('[DEBUG AUDIO] Source URL:', source ? source.src : 'NO SOURCE');
+                                                            audioEl.addEventListener('loadstart', function() { console.log('[DEBUG AUDIO] loadstart event'); });
+                                                            audioEl.addEventListener('canplay', function() { console.log('[DEBUG AUDIO] canplay event'); });
+                                                            audioEl.addEventListener('error', function(e) { 
+                                                                console.error('[DEBUG AUDIO] error event:', audioEl.error); 
+                                                            });
+                                                        } else {
+                                                            console.log('[DEBUG AUDIO] No audio element with id=spkr found');
+                                                        }
+                                                    })();
+                                                </script>
                                                 {% endif %}
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-					        </div>
-			            </div>
-			            <div class="row" style="margin-top:15px;" id="detail">  <!-- Changed from 30px to 15px -->
+                            </div>
+                        </div>
+                        <div class="row" style="margin-top:15px;" id="detail"> <!-- Changed from 30px to 15px -->
                             <div class="col-md-12">
                                 {% with messages = get_flashed_messages() %}
-                                    {% if messages %}
-                                            {% for message in messages %}
-                                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                                                {{ message }}
-                                                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                                                    <span aria-hidden="true">&times;</span>
-                                                </button>
-                                            </div>
-                                            {% endfor %}
-                                    {% endif %}
+                                {% if messages %}
+                                {% for message in messages %}
+                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                {% endfor %}
+                                {% endif %}
                                 {% endwith %}
 
                                 {% for error in form.post.errors %}
-                                    <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                                        {{ error }}
-                                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                                            <span aria-hidden="true">&times;</span>
-                                        </button>
-                                    </div>
+                                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                                    {{ error }}
+                                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
                                 {% endfor %}
                             </div>
                             {% if not final and not context.is_final %}
                             {% if context.cluster_type and context.cluster_type != 'assessment' %}
-                            <div class="col-md-3 tip-column" style="cursor: pointer; margin-top: 0 !important; padding-top: 0 !important;">
-    <img src="{{url_for('static', filename='images/NAT.png')}}" 
-         style="width: 100%; height: 190px !important; object-fit: contain;" 
-         data-target="#needatip" 
-         data-toggle="modal">
+                            <div class="col-md-3 tip-column"
+                                style="cursor: pointer; margin-top: 0 !important; padding-top: 0 !important;">
+                                <img src="{{url_for('static', filename='images/NAT.png')}}"
+                                    style="width: 100%; height: 190px !important; object-fit: contain;"
+                                    data-target="#needatip" data-toggle="modal">
 
-    <div id="needatip" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" style="display: none;"
-        aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content" style="border-radius:25px!important;">
-    
-                <div class="row">
-                    <div class="col-md-3"
-                        style="background:#158044;border-top-left-radius:25px!important;border-bottom-left-radius:25px!important;position: relative;display: flex;align-items: center;min-height:200px;">
-                        <img src="{{url_for('static', filename='images/NAT.png')}}"
-                            width="140" align="middle">
-                    </div>
-                    <div class="col-md-9">
-                        <div class="modal-header"
-                            style="border-top-left-radius:25px!important;border-top-right-radius:25px!important;background:#ffffff;">
-    
-                            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-                        </div>
-                        <div class="modal-body">
-                            <div id="tip_div">
-                                <p><span style="font-size: 1rem;">{{context.tip}}</span><br></p>
+                                <div id="needatip" class="modal fade" tabindex="-1" role="dialog"
+                                    aria-labelledby="myModalLabel" style="display: none;" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content" style="border-radius:25px!important;">
+
+                                            <div class="row">
+                                                <div class="col-md-3"
+                                                    style="background:#158044;border-top-left-radius:25px!important;border-bottom-left-radius:25px!important;position: relative;display: flex;align-items: center;min-height:200px;">
+                                                    <img src="{{url_for('static', filename='images/NAT.png')}}"
+                                                        width="140" align="middle">
+                                                </div>
+                                                <div class="col-md-9">
+                                                    <div class="modal-header"
+                                                        style="border-top-left-radius:25px!important;border-top-right-radius:25px!important;background:#ffffff;">
+
+                                                        <button type="button" class="close" data-dismiss="modal"
+                                                            aria-hidden="true">Ã—</button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <div id="tip_div">
+                                                            <p><span style="font-size: 1rem;">{{context.tip}}</span><br>
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <!-- /.modal-content -->
+                                    </div>
+                                    <!-- /.modal-dialog -->
+                                </div>
                             </div>
-                        </div>
-    
-                    </div>
-                </div>
-            </div>
-            <!-- /.modal-content -->
-        </div>
-        <!-- /.modal-dialog -->
-    </div>
-</div>
                             {% endif %}
-                            <div class="{% if context.cluster_type and context.cluster_type == 'assessment' %}col-md-12{% else %}col-md-9{% endif %}">
+                            <div
+                                class="{% if context.cluster_type and context.cluster_type == 'assessment' %}col-md-12{% else %}col-md-9{% endif %}">
                                 <form action="" method="post" novalidate id="form">
                                     {{ form.hidden_tag() }}
                                     <p id="mainform">
                                         {% if context.is_final %}
-                                        {{ form.post(cols=40, rows=6, placeholder="Roleplay completed - awaiting final response", id="maintextarea", disabled=true, readonly=true) }}
+                                        {{ form.post(cols=40, rows=6, placeholder="Roleplay completed - awaiting final
+                                        response", id="maintextarea", disabled=true, readonly=true) }}
                                         {% else %}
-                                        {{ form.post(cols=40, rows=6, placeholder="Type here what you would say now", id="maintextarea") }}
+                                        {{ form.post(cols=40, rows=6, placeholder="Type here what you would say now",
+                                        id="maintextarea") }}
                                         {% endif %}
                                         {% if context.voice_enabled %}
-                                        <button type="button" class="audio-record-btn" id="recordBtn" title="Start Recording" {% if context.is_final %}disabled style="opacity: 0.5; cursor: not-allowed;"{% endif %}>
+                                        <button type="button" class="audio-record-btn" id="recordBtn"
+                                            title="Start Recording" {% if context.is_final %}disabled
+                                            style="opacity: 0.5; cursor: not-allowed;" {% endif %}>
                                             <i class="fas fa-microphone"></i>
                                         </button>
-                                        <button type="button" class="audio-rerecord-btn" id="rerecordBtn" title="Clear & Re-record" style="display: none;" {% if context.is_final %}disabled{% endif %}>
+                                        <button type="button" class="audio-rerecord-btn" id="rerecordBtn"
+                                            title="Clear & Re-record" style="display: none;" {% if context.is_final
+                                            %}disabled{% endif %}>
                                             <i class="fas fa-redo"></i>
                                         </button>
                                         {% endif %}
-                                        
 
-                                        
-                                        <button type="submit" {% if context.is_final %}disabled style="opacity: 0.5; cursor: not-allowed;"{% endif %}><i class="fa fa-paper-plane" aria-hidden="true"></i></button>
+
+
+                                        <button type="submit" {% if context.is_final %}disabled
+                                            style="opacity: 0.5; cursor: not-allowed;" {% endif %}><i
+                                                class="fa fa-paper-plane" aria-hidden="true"></i></button>
                                     </p>
                                 </form>
                             </div>
                             {% else %}
                             <div class="col-md-12" style="text-align: center;">
                                 <h3>Conversation Ended</h3><br>
-                                <button type="button" class="btn btn-rounded btn-green-trajectorie" onclick="showCompletionOverlay()" style="padding: 12px 40px; font-size: 16px;">
+                                <button type="button" class="btn btn-rounded btn-green-trajectorie"
+                                    onclick="showCompletionOverlay()" style="padding: 12px 40px; font-size: 16px;">
                                     <i class="fas fa-check"></i> OK
                                 </button>
                             </div>
                             {% endif %}
-                        </div>  
+                        </div>
                     </div>
-                
+
                     <!-- DEBUG: Show cluster type: {{ context.cluster_type if context.cluster_type else 'NOT SET' }} -->
                     <!-- Final: {{ context.is_final or final }} -->
-                    
+
                     {% if context.cluster_type != 'assessment' %}
                     <!-- TRAINING MODE: Show score panels on right side -->
                     <div class="col-md-3">
-                        <div class="card bg-white text-dark marginadjust-detail-page" style="border-radius:15px;border:1px solid #074924;height: 14%;margin-bottom: 5%;">
-		                    <div class="card-body" style="padding: 10px;">
-		    		            <div class="row">
+                        <div class="card bg-white text-dark marginadjust-detail-page"
+                            style="border-radius:15px;border:1px solid #074924;min-height: 100px;margin-bottom: 5%;">
+                            <div class="card-body" style="padding: 10px;">
+                                <div class="row">
                                     <div class="col-md-12">
-                                        <h4 class="text-links-green align-items-center" style="margin-top:5px;font-size: 1rem;font-weight: bold;padding-left: 0px;text-align: center;margin-bottom:5px;">CURRENT INTERACTION SCORE</h4>				
+                                        <h4 class="text-links-green align-items-center"
+                                            style="margin-top:5px;font-size: 1rem;font-weight: bold;padding-left: 0px;text-align: center;margin-bottom:5px;">
+                                            CURRENT INTERACTION SCORE</h4>
                                     </div>
                                     <div class="col-md-12">
-                                        {% if 'score' in context %}	
-                                            <div class="detail-page-button-star">
-                                                <div class="star-icon">
-                                                    {% if context.score >= 1 %}
-                                                        <i class="fas fa-star star-size red-colored-star"></i> 
-                                                    {% else %}
-                                                        <i class="fas fa-star star-size"></i> 
-                                                    {% endif %}
-                                                </div>
-                                                <div class="star-icon">
-                                                    {% if context.score >= 2 %}
-                                                        <i class="fas fa-star star-size red-colored-star"></i> 
-                                                    {% else %}
-                                                        <i class="fas fa-star star-size"></i> 
-                                                    {% endif %}
-                                                </div>
-                                                <div class="star-icon">
-                                                    {% if context.score >= 3 %}
-                                                        <i class="fas fa-star star-size red-colored-star"></i> 
-                                                    {% else %}
-                                                        <i class="fas fa-star star-size"></i> 
-                                                    {% endif %}
-                                                </div>	
+                                        {% if 'score' in context %}
+                                        <div class="detail-page-button-star">
+                                            <div class="star-icon">
+                                                {% if context.score >= 1 %}
+                                                <i class="fas fa-star star-size red-colored-star"></i>
+                                                {% else %}
+                                                <i class="fas fa-star star-size"></i>
+                                                {% endif %}
                                             </div>
+                                            <div class="star-icon">
+                                                {% if context.score >= 2 %}
+                                                <i class="fas fa-star star-size red-colored-star"></i>
+                                                {% else %}
+                                                <i class="fas fa-star star-size"></i>
+                                                {% endif %}
+                                            </div>
+                                            <div class="star-icon">
+                                                {% if context.score >= 3 %}
+                                                <i class="fas fa-star star-size red-colored-star"></i>
+                                                {% else %}
+                                                <i class="fas fa-star star-size"></i>
+                                                {% endif %}
+                                            </div>
+                                        </div>
                                         {% endif %}
                                     </div>
-					            </div>
-		                    </div>
-		                </div>
+                                </div>
+                            </div>
+                        </div>
                         {% if context.cluster_type and context.cluster_type != 'assessment' %}
-                        <div class="card bg-white text-dark marginadjust-detail-page" style="border-radius:15px;border:1px solid #074924;height: 38%;margin-bottom: 5%;">
-		                    <div class="card-body" style="padding: 10px;overflow-y: scroll;">
-		    		            <div class="row">
+                        <div class="card bg-white text-dark marginadjust-detail-page"
+                            style="border-radius:15px;border:1px solid #074924;height: 38%;margin-bottom: 5%;">
+                            <div class="card-body" style="padding: 10px;overflow-y: scroll;">
+                                <div class="row">
                                     <div class="col-md-12">
-                                        <h4 class="text-links-green align-items-center" style="margin-top:5px;font-size: 1rem;font-weight: bold;padding-left: 0px;text-align: center;">COMPETENCY DISPLAYED NOW</h4>				
+                                        <h4 class="text-links-green align-items-center"
+                                            style="margin-top:5px;font-size: 1rem;font-weight: bold;padding-left: 0px;text-align: center;">
+                                            COMPETENCY DISPLAYED NOW</h4>
                                     </div>
                                     <div class="col-md-12" style="margin-top:10px;">
-                                        {% if 'last_round_result' in context %}	
-                                            {% for comp in context.last_round_result %}
-                                                <div class="compdisplayoneline">{{comp}}</div>
-                                                <br>
-                                                <div style="width: 100%;height: 15px;background-color:#cccccc;margin-top: 2.5px;margin-bottom: 7.5px;">
-                                                    {% if context.last_round_result[comp] == 0 %}
-                                                        <div style="width:0%;height:100%;background-color:green;border-radius: 5px;"></div>
-                                                    {% elif context.last_round_result[comp] == 1 %}
-                                                        <div style="width:33%;height:100%;background-color:green;border-radius: 5px;"></div>
-                                                    {% elif context.last_round_result[comp] == 2 %}
-                                                        <div style="width:66%;height:100%;background-color:green;border-radius: 5px;"></div>
-                                                    {% elif context.last_round_result[comp] == 3 %}
-                                                        <div style="width:100%;height:100%;background-color:green;border-radius: 5px;"></div>
-                                                    {% endif %}
-                                                </div>
-                                            {% endfor %}
+                                        {% if 'last_round_result' in context %}
+                                        {% for comp in context.last_round_result %}
+                                        <div class="compdisplayoneline">{{comp}}</div>
+                                        <br>
+                                        <div
+                                            style="width: 100%;height: 15px;background-color:#cccccc;margin-top: 2.5px;margin-bottom: 7.5px;">
+                                            {% if context.last_round_result[comp] == 0 %}
+                                            <div
+                                                style="width:0%;height:100%;background-color:green;border-radius: 5px;">
+                                            </div>
+                                            {% elif context.last_round_result[comp] == 1 %}
+                                            <div
+                                                style="width:33%;height:100%;background-color:green;border-radius: 5px;">
+                                            </div>
+                                            {% elif context.last_round_result[comp] == 2 %}
+                                            <div
+                                                style="width:66%;height:100%;background-color:green;border-radius: 5px;">
+                                            </div>
+                                            {% elif context.last_round_result[comp] == 3 %}
+                                            <div
+                                                style="width:100%;height:100%;background-color:green;border-radius: 5px;">
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
                                         {% endif %}
                                     </div>
-					            </div>
-		                    </div>
-		                </div>
-		                {% endif %}
-		                {% if context.cluster_type and context.cluster_type != 'assessment' %}
-                        <div class="card bg-white text-dark marginadjust-detail-page" style="border-radius:15px;border:1px solid #074924;height: 42%;">
-		                    <div class="card-body" style="padding: 10px;overflow-y: scroll;">
-		    		            <div class="row">
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if context.cluster_type and context.cluster_type != 'assessment' %}
+                        <div class="card bg-white text-dark marginadjust-detail-page"
+                            style="border-radius:15px;border:1px solid #074924;height: 42%;">
+                            <div class="card-body" style="padding: 10px;overflow-y: scroll;">
+                                <div class="row">
                                     <div class="col-md-12">
-                                        <h4 class="text-links-green align-items-center" style="margin-top:5px;font-size: 1rem;font-weight: bold;padding-left: 0px;text-align: center;">COMPETENCY SCORE SO FAR</h4>				
+                                        <h4 class="text-links-green align-items-center"
+                                            style="margin-top:5px;font-size: 1rem;font-weight: bold;padding-left: 0px;text-align: center;">
+                                            COMPETENCY SCORE SO FAR</h4>
                                     </div>
                                     <div class="col-md-12" style="margin-top:10px;">
-                                        {% if 'cumul_score' in context %}	
+                                        {% if 'cumul_score' in context %}
                                         {% for comp in context.cumul_score %}
-                                                <div class="compdisplayoneline">{{comp}}</div>
-                                                <br>
-                                                <div style="width: 100%;height: 15px;background-color:#cccccc;margin-top: 2.5px;margin-bottom: 7.5px;">
-                                                    <div style="width:{{context.cumul_score[comp]['score']/context.cumul_score[comp]['total']*100}}%;height:100%;background-color:green;border-radius: 5px;"></div>
-                                                </div>
-                                            {% endfor %}
+                                        <div class="compdisplayoneline">{{comp}}</div>
+                                        <br>
+                                        <div
+                                            style="width: 100%;height: 15px;background-color:#cccccc;margin-top: 2.5px;margin-bottom: 7.5px;">
+                                            <div
+                                                style="width:{{context.cumul_score[comp]['score']/context.cumul_score[comp]['total']*100}}%;height:100%;background-color:green;border-radius: 5px;">
+                                            </div>
+                                        </div>
+                                        {% endfor %}
                                         {% endif %}
                                     </div>
-					            </div>
-		                    </div>
-		                </div>
-		                {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                     {% endif %}
                     <!-- END: Right sidebar (training mode only) -->
-                    
+
                     {% if context.cluster_type == 'assessment' %}
                     <div class="col-md-1"></div>
                     <!-- ASSESSMENT MODE: No score panels, balanced layout -->
@@ -937,29 +1139,32 @@
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                background: rgba(255, 255, 255, 0.315); /* light faded white so page is visible */
+                background: rgba(255, 255, 255, 0.315);
+                /* light faded white so page is visible */
                 backdrop-filter: blur(3px);
                 -webkit-backdrop-filter: blur(3px);
                 opacity: 0;
                 visibility: hidden;
                 transition: opacity 220ms ease, visibility 220ms ease;
                 z-index: 9999;
-                pointer-events: none; /* allow clicks through when inactive */
+                pointer-events: none;
+                /* allow clicks through when inactive */
             }
 
             /* Active state shows the overlay and disables interaction */
             .loading-overlay.active {
                 opacity: 1;
                 visibility: visible;
-                pointer-events: auto; /* block interaction while active */
+                pointer-events: auto;
+                /* block interaction while active */
             }
 
             .loading-spinner-container {
                 text-align: center;
-                background: rgba(255,255,255,0.85);
+                background: rgba(255, 255, 255, 0.85);
                 border-radius: 12px;
                 padding: 22px 28px;
-                box-shadow: 0 6px 30px rgba(0,0,0,0.12);
+                box-shadow: 0 6px 30px rgba(0, 0, 0, 0.12);
                 min-width: 260px;
                 max-width: 90%;
             }
@@ -975,14 +1180,16 @@
                 width: 48px;
                 height: 48px;
                 border-radius: 50%;
-                border: 5px solid rgba(7,73,36,0.12);
+                border: 5px solid rgba(7, 73, 36, 0.12);
                 border-top-color: #158044;
                 animation: spin 1s linear infinite;
                 margin: 8px auto;
             }
 
             @keyframes spin {
-                to { transform: rotate(360deg); }
+                to {
+                    transform: rotate(360deg);
+                }
             }
 
             .loading-text {
@@ -1004,859 +1211,1127 @@
                 display: inline-block;
                 width: 14px;
                 text-align: left;
-                animation: dots 1s steps(4,end) infinite;
+                animation: dots 1s steps(4, end) infinite;
             }
 
             @keyframes dots {
-                0%, 20% { content: '' }
-                40% { content: '.' }
-                60% { content: '..' }
-                100% { content: '...' }
+
+                0%,
+                20% {
+                    content: ''
+                }
+
+                40% {
+                    content: '.'
+                }
+
+                60% {
+                    content: '..'
+                }
+
+                100% {
+                    content: '...'
+                }
             }
 
-            .fade-in { animation: fadeIn .35s ease forwards; }
-            .fade-out { animation: fadeOut .35s ease forwards; }
-            @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
-            @keyframes fadeOut { from { opacity: 1 } to { opacity: 0 } }
+            .fade-in {
+                animation: fadeIn .35s ease forwards;
+            }
+
+            .fade-out {
+                animation: fadeOut .35s ease forwards;
+            }
+
+            @keyframes fadeIn {
+                from {
+                    opacity: 0
+                }
+
+                to {
+                    opacity: 1
+                }
+            }
+
+            @keyframes fadeOut {
+                from {
+                    opacity: 1
+                }
+
+                to {
+                    opacity: 0
+                }
+            }
         </style>
 
         <div class="loading-overlay" id="loadingOverlay">
-    <div class="loading-spinner-container">
-        <!-- Animated Emoticon with default -->
-        <div class="loading-emoticon">🤖</div>
-        
-        <!-- Option 1: Modern Spinner (Default) -->
-        <div class="modern-spinner"></div>
-        
-        <!-- Option 2: Pulse Spinner (Uncomment to use instead) -->
-        <!-- <div class="pulse-spinner"></div> -->
-        
-        <p class="loading-text" id="loadingText">Processing your response<span class="loading-dots"></span></p>
-        <p class="loading-subtext" id="loadingSubtext">The chatbot is thinking 💭</p>
-    </div>
-</div>
+            <div class="loading-spinner-container">
+                <!-- Animated Emoticon with default -->
+                <div class="loading-emoticon">ðŸ¤–</div>
 
-<!-- Completion Overlay -->
-<div class="completion-overlay" id="completionOverlay" style="display: none;">
-    <div class="completion-content" style="max-width: 500px; padding: 40px; animation: slideUp 0.5s ease-out;">
-        <i class="fas fa-check-circle" style="color: #158044; font-size: 60px; margin-bottom: 20px;"></i>
-        {% if context.cluster_type == 'assessment' %}
-        <h2 style="color: #158044; margin-bottom: 15px;">Great work! You completed this assessment roleplay.</h2>
-        {% else %}
-        <h2 style="color: #158044; margin-bottom: 15px;">{{ context.completion_message if context.completion_message else 'Great work! You completed this training roleplay.' }}</h2>
-        <p style="color: #666; margin-bottom: 25px;">What would you like to do next?</p>
-        {% endif %}
-        
-        <div style="display: flex; flex-direction: column; gap: 15px; align-items: center; width: 100%;">
-            
-            {% if context.cluster_type != 'assessment' %}
-            <!-- Retry Button -->
-            {% if context.can_retry %}
-            <a href="{{ url_for('start_roleplay', roleplay_id=session.get('roleplay_id')) }}" 
-               class="btn btn-rounded btn-green-trajectorie" style="width: 250px; padding: 12px 20px;">
-                <i class="fas fa-redo"></i> Retry
-            </a>
-            {% else %}
-            <button class="btn btn-rounded" disabled 
-                    style="width: 250px; padding: 12px 20px; background-color: #ccc; color: #888; cursor: not-allowed; border: none;">
-                <i class="fas fa-redo"></i> Retry
-                {% if context.has_viewed_optimal %}
-                <small style="display: block; font-size: 10px;">(Viewed optimal roleplay)</small>
-                {% elif context.attempts_remaining == 0 %}
-                <small style="display: block; font-size: 10px;">(No attempts remaining)</small>
+                <!-- Option 1: Modern Spinner (Default) -->
+                <div class="modern-spinner"></div>
+
+                <!-- Option 2: Pulse Spinner (Uncomment to use instead) -->
+                <!-- <div class="pulse-spinner"></div> -->
+
+                <p class="loading-text" id="loadingText">Processing your response<span class="loading-dots"></span></p>
+                <p class="loading-subtext" id="loadingSubtext">The chatbot is thinking ðŸ’­</p>
+            </div>
+        </div>
+
+        <!-- Completion Overlay -->
+        <div class="completion-overlay" id="completionOverlay" style="display: none;">
+            <div class="completion-content" style="max-width: 500px; padding: 40px; animation: slideUp 0.5s ease-out;">
+                <i class="fas fa-check-circle" style="color: #158044; font-size: 60px; margin-bottom: 20px;"></i>
+                {% if context.cluster_type == 'assessment' %}
+                <h2 style="color: #158044; margin-bottom: 15px;">Great work! You completed this assessment roleplay.
+                </h2>
+                {% else %}
+                <h2 style="color: #158044; margin-bottom: 15px;">{{ context.completion_message if
+                    context.completion_message else 'Great work! You completed this training roleplay.' }}</h2>
+                <p style="color: #666; margin-bottom: 25px;">What would you like to do next?</p>
                 {% endif %}
-            </button>
-            {% endif %}
-            
-            <!-- See Optimal Roleplay Button -->
-            {% if context.show_ideal_video %}
-            <button type="button" class="btn btn-rounded" 
-                    style="width: 250px; padding: 12px 20px; background-color: #2196F3; color: white; border: none;"
-                    onclick="showOptimalRoleplay()">
-                <i class="fas fa-play-circle"></i> See Optimal Roleplay
-            </button>
-            {% endif %}
-            {% endif %}
-            
-            <!-- Go to Home Button -->
-            <a href="{{ context.home_url if context.home_url else url_for('index') }}" 
-               class="btn btn-rounded" style="width: 250px; padding: 12px 20px; background-color: #f5f5f5; color: #333; border: 1px solid #ddd; display: flex; flex-direction: column; align-items: center;">
-                <i class="fas fa-home" style="font-size: 24px; margin-bottom: 5px;"></i>
-                <span>Home</span>
-            </a>
-        </div>
-    </div>
-</div>
 
-<!-- Optimal Roleplay Warning Modal -->
-{% if context.show_ideal_video and context.show_optimal_warning %}
-<div class="modal fade" id="optimalWarningModal" tabindex="-1" role="dialog" aria-labelledby="optimalWarningModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" role="document">
-        <div class="modal-content" style="border-radius: 15px;">
-            <div class="modal-header" style="background-color: #ff9800; color: white; border-radius: 15px 15px 0 0;">
-                <h5 class="modal-title" id="optimalWarningModalLabel"><i class="fas fa-exclamation-triangle"></i> Warning</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color: white;">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body" style="padding: 25px; text-align: center;">
-                <i class="fas fa-exclamation-circle" style="font-size: 50px; color: #ff9800; margin-bottom: 15px;"></i>
-                <p style="font-size: 16px; color: #333;">
-                    <strong>Once you see the optimal roleplay, you cannot reattempt this roleplay.</strong>
-                </p>
-                <p style="color: #666;">Are you sure you want to continue?</p>
-            </div>
-            <div class="modal-footer" style="justify-content: center; border-top: none;">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal" style="padding: 10px 30px;">Cancel</button>
-                <button type="button" class="btn btn-warning" onclick="confirmViewOptimal()" style="padding: 10px 30px; color: white;">
-                    <i class="fas fa-play-circle"></i> Yes, Show Video
-                </button>
+                <div style="display: flex; flex-direction: column; gap: 15px; align-items: center; width: 100%;">
+
+                    {% if context.cluster_type != 'assessment' %}
+                    <!-- Retry Button -->
+                    {% if context.can_retry %}
+                    <a href="/launch/{{ session.get('user_id') }}/{{ session.get('roleplay_id') }}?cluster_id={{ session.get('cluster_id', 1) }}"
+                        class="btn btn-rounded btn-green-trajectorie"
+                        style="width: 250px; padding: 12px 20px; display: flex; flex-direction: column; align-items: center;">
+                        <i class="fas fa-redo" style="font-size: 24px; margin-bottom: 5px;"></i>
+                        <span style="font-size: 16px;">Retry</span>
+                    </a>
+                    {% else %}
+                    <button class="btn btn-rounded" disabled
+                        style="width: 250px; padding: 12px 20px; background-color: #ccc; color: #888; cursor: not-allowed; border: none; display: flex; flex-direction: column; align-items: center;">
+                        <i class="fas fa-redo" style="font-size: 24px; margin-bottom: 5px;"></i>
+                        <span style="font-size: 16px;">Retry</span>
+                        {% if context.has_viewed_optimal %}
+                        <small style="display: block; font-size: 10px;">(Viewed optimal roleplay)</small>
+                        {% elif context.attempts_remaining == 0 %}
+                        <small style="display: block; font-size: 10px;">(No attempts remaining)</small>
+                        {% endif %}
+                    </button>
+                    {% endif %}
+
+                    <!-- See Optimal Roleplay Button -->
+                    {% if context.show_ideal_video %}
+                    <a href="{{ url_for('view_optimal_roleplay', user_id=session.get('user_id'), cluster_id=session.get('cluster_id', 1), roleplay_id=session.get('roleplay_id')) }}"
+                        target="_blank" class="btn btn-rounded btn-green-trajectorie"
+                        style="width: 250px; padding: 12px 20px;">
+                        <i class="fas fa-play-circle"></i> See Optimal Roleplay
+                    </a>
+                    {% endif %}
+                    {% endif %}
+
+                    <!-- Go to Home Button -->
+                    <a href="{{ context.home_url if context.home_url else url_for('index') }}" class="btn btn-rounded"
+                        style="width: 250px; padding: 12px 20px; background-color: #f5f5f5; color: #333; border: 1px solid #ddd; display: flex; flex-direction: column; align-items: center;">
+                        <i class="fas fa-home" style="font-size: 24px; margin-bottom: 5px;"></i>
+                        <span>Home</span>
+                    </a>
+                </div>
             </div>
         </div>
-    </div>
-</div>
-{% endif %}
 
-<!-- Optimal Roleplay Video Modal -->
-{% if context.show_ideal_video %}
-<div class="modal fade" id="optimalVideoModal" tabindex="-1" role="dialog" aria-labelledby="optimalVideoModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-        <div class="modal-content" style="border-radius: 15px;">
-            <div class="modal-header" style="background-color: #158044; color: white; border-radius: 15px 15px 0 0;">
-                <h5 class="modal-title" id="optimalVideoModalLabel"><i class="fas fa-video"></i> Optimal Roleplay</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color: white;" onclick="pauseOptimalVideo()">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+        <!-- Optimal Roleplay Warning Modal -->
+        {% if context.show_ideal_video and context.show_optimal_warning %}
+        <div class="modal fade" id="optimalWarningModal" tabindex="-1" role="dialog"
+            aria-labelledby="optimalWarningModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content" style="border-radius: 15px;">
+                    <div class="modal-header"
+                        style="background-color: #ff9800; color: white; border-radius: 15px 15px 0 0;">
+                        <h5 class="modal-title" id="optimalWarningModalLabel"><i
+                                class="fas fa-exclamation-triangle"></i> Warning</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"
+                            style="color: white;">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body" style="padding: 25px; text-align: center;">
+                        <i class="fas fa-exclamation-circle"
+                            style="font-size: 50px; color: #ff9800; margin-bottom: 15px;"></i>
+                        <p style="font-size: 16px; color: #333;">
+                            <strong>Once you see the optimal roleplay, you cannot reattempt this roleplay.</strong>
+                        </p>
+                        <p style="color: #666;">Are you sure you want to continue?</p>
+                    </div>
+                    <div class="modal-footer" style="justify-content: center; border-top: none;">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal"
+                            style="padding: 10px 30px;">Cancel</button>
+                        <button type="button" class="btn btn-warning" onclick="confirmViewOptimal()"
+                            style="padding: 10px 30px; color: white;">
+                            <i class="fas fa-play-circle"></i> Yes, Show Video
+                        </button>
+                    </div>
+                </div>
             </div>
-            <div class="modal-body" style="padding: 0;">
-                {% set video_path = context.ideal_video_path %}
-                {% if video_path and ('drive.google.com' in video_path or 'docs.google.com' in video_path) %}
-                    {# Google Drive video - use iframe embed #}
-                    {% set file_id = video_path.split('/d/')[1].split('/')[0] if '/d/' in video_path else video_path.split('id=')[1].split('&')[0] if 'id=' in video_path else '' %}
-                    <iframe id="optimalVideoIframe" 
-                            src="" 
+        </div>
+        {% endif %}
+
+        <!-- Optimal Roleplay Video Modal -->
+        {% if context.show_ideal_video %}
+        <div class="modal fade" id="optimalVideoModal" tabindex="-1" role="dialog"
+            aria-labelledby="optimalVideoModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                <div class="modal-content" style="border-radius: 15px;">
+                    <div class="modal-header"
+                        style="background-color: #158044; color: white; border-radius: 15px 15px 0 0;">
+                        <h5 class="modal-title" id="optimalVideoModalLabel"><i class="fas fa-video"></i> Optimal
+                            Roleplay</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"
+                            style="color: white;" onclick="pauseOptimalVideo()">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body" style="padding: 0;">
+                        {% set video_path = context.ideal_video_path %}
+                        {% if video_path and ('drive.google.com' in video_path or 'docs.google.com' in video_path) %}
+                        {# Google Drive video - use iframe embed #}
+                        {% set file_id = video_path.split('/d/')[1].split('/')[0] if '/d/' in video_path else
+                        video_path.split('id=')[1].split('&')[0] if 'id=' in video_path else '' %}
+                        <iframe id="optimalVideoIframe" src=""
                             data-src="https://drive.google.com/file/d/{{ file_id }}/preview"
                             style="width: 100%; height: 450px; border: none; border-radius: 0 0 15px 15px;"
-                            allow="autoplay; encrypted-media" 
-                            allowfullscreen>
-                    </iframe>
-                {% else %}
-                    {# Local video file #}
-                    <video id="optimalVideo" controls style="width: 100%; border-radius: 0 0 15px 15px;">
-                        <source src="{{ url_for('static', filename='images/' + video_path.split('/')[-1]) if video_path else '' }}" type="video/mp4">
-                        Your browser does not support the video tag.
-                    </video>
-                {% endif %}
+                            allow="autoplay; encrypted-media" allowfullscreen>
+                        </iframe>
+                        {% else %}
+                        {# Local video file #}
+                        <video id="optimalVideo" controls style="width: 100%; border-radius: 0 0 15px 15px;">
+                            <source
+                                src="{{ url_for('static', filename='images/' + video_path.split('/')[-1]) if video_path else '' }}"
+                                type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-</div>
 
-<script>
-function showOptimalRoleplay() {
-    {% if context.show_optimal_warning %}
-    // Show warning modal first
-    $('#optimalWarningModal').modal('show');
-    {% else %}
-    // No warning needed, show video directly
-    openOptimalVideo();
-    {% endif %}
-}
+        <script>
+            function showOptimalRoleplay() {
+                {% if context.show_optimal_warning %}
+                // Show warning modal first
+                $('#optimalWarningModal').modal('show');
+                {% else %}
+                // No warning needed, show video directly
+                openOptimalVideo();
+                {% endif %}
+            }
 
-function confirmViewOptimal() {
-    // Close warning modal
-    $('#optimalWarningModal').modal('hide');
-    
-    // Mark as viewed via AJAX
-    fetch('{{ url_for("mark_optimal_viewed", play_id=session.get("play_id", 0)) }}', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'}
-    }).then(response => {
-        console.log('Marked optimal as viewed');
-    }).catch(error => {
-        console.error('Error marking optimal viewed:', error);
-    });
-    
-    // Open video modal
-    openOptimalVideo();
-}
+            function confirmViewOptimal() {
+                // Close warning modal
+                $('#optimalWarningModal').modal('hide');
 
-function openOptimalVideo() {
-    $('#optimalVideoModal').modal('show');
-    // Auto-play video or load iframe when modal opens
-    setTimeout(function() {
-        var video = document.getElementById('optimalVideo');
-        var iframe = document.getElementById('optimalVideoIframe');
-        if (video) {
-            video.play();
-        } else if (iframe) {
-            // Load iframe src from data-src to start video
-            iframe.src = iframe.getAttribute('data-src');
-        }
-    }, 500);
-}
+                // Mark as viewed via AJAX
+                fetch('{{ url_for("mark_optimal_viewed", play_id=session.get("play_id", 0)) }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                }).then(response => {
+                    console.log('Marked optimal as viewed');
+                }).catch(error => {
+                    console.error('Error marking optimal viewed:', error);
+                });
 
-function pauseOptimalVideo() {
-    var video = document.getElementById('optimalVideo');
-    var iframe = document.getElementById('optimalVideoIframe');
-    if (video) {
-        video.pause();
-    } else if (iframe) {
-        // Clear iframe src to stop video
-        iframe.src = '';
-    }
-}
-</script>
-{% endif %}
+                // Open video modal
+                openOptimalVideo();
+            }
 
-    </div>
+            function openOptimalVideo() {
+                $('#optimalVideoModal').modal('show');
+                // Auto-play video or load iframe when modal opens
+                setTimeout(function () {
+                    var video = document.getElementById('optimalVideo');
+                    var iframe = document.getElementById('optimalVideoIframe');
+                    if (video) {
+                        video.play();
+                    } else if (iframe) {
+                        // Load iframe src from data-src to start video
+                        iframe.src = iframe.getAttribute('data-src');
+                    }
+                }, 500);
+            }
 
-<script src="{{url_for('static', filename='js/jquery.js')}}"></script>
-<script src="{{url_for('static', filename='js/jquery.min.js')}}"></script>
-<script src="{{url_for('static', filename='js/popper.min.js')}}"></script>
-<script src="{{url_for('static', filename='js/bootstrap.min.js')}}"></script>
-<script>
-// PRODUCTION MODE: Disable debug logging for seamless audio
-(function() {
-    const DEBUG_MODE = false;
-    if (!DEBUG_MODE) {
-        window._originalConsoleLog = console.log;
-        window._originalConsoleWarn = console.warn;
-        console.log = function() {};
-        console.warn = function() {};
-    }
-})();
-</script>
-<script>
-// Single-speaker audio autoplay - Run IMMEDIATELY (not in document.ready)
-(function() {
-    const audioElement = document.getElementById('spkr');
-    
-    if (audioElement) {
-        let playAttempts = 0;
-        const maxAttempts = 15;
-        
-        // Preload audio immediately
-        audioElement.setAttribute('preload', 'auto');
-        audioElement.setAttribute('autoplay', '');
-        audioElement.setAttribute('muted', 'false');
-        audioElement.load();
-        
-        // ULTRA aggressive autoplay function
-        const attemptPlay = function() {
-            if (audioElement.paused && playAttempts < maxAttempts) {
-                playAttempts++;
-                
-                const playPromise = audioElement.play();
-                if (playPromise !== undefined) {
-                    playPromise.then(function() {
-                        // Autoplay success
-                    }).catch(function(error) {
-                        if (playAttempts < maxAttempts) {
-                            // Retry with increasing delays
-                            setTimeout(attemptPlay, playAttempts * 150);
-                        }
-                    });
+            function pauseOptimalVideo() {
+                var video = document.getElementById('optimalVideo');
+                var iframe = document.getElementById('optimalVideoIframe');
+                if (video) {
+                    video.pause();
+                } else if (iframe) {
+                    // Clear iframe src to stop video
+                    iframe.src = '';
                 }
             }
-        };
-        
-        // Try immediately (multiple times)
-        attemptPlay();
-        setTimeout(attemptPlay, 50);
-        setTimeout(attemptPlay, 100);
-        setTimeout(attemptPlay, 200);
-        setTimeout(attemptPlay, 400);
-        setTimeout(attemptPlay, 600);
-        setTimeout(attemptPlay, 1000);
-        setTimeout(attemptPlay, 1500);
-        
-        // Try when audio is ready
-        audioElement.addEventListener('canplay', function() {
-            attemptPlay();
-        });
-        
-        audioElement.addEventListener('loadeddata', function() {
-            attemptPlay();
-        });
-        
-        audioElement.addEventListener('loadedmetadata', function() {
-            attemptPlay();
-        });
-        
-        // Fallback: Play on any user interaction (with multiple attempts)
-        const playOnInteraction = function() {
-            if (audioElement.paused) {
-                playAttempts = 0; // Reset counter for new attempts
+        </script>
+        {% endif %}
+
+    </div>
+
+    <script src="{{url_for('static', filename='js/jquery.js')}}"></script>
+    <script src="{{url_for('static', filename='js/jquery.min.js')}}"></script>
+    <script src="{{url_for('static', filename='js/popper.min.js')}}"></script>
+    <script src="{{url_for('static', filename='js/bootstrap.min.js')}}"></script>
+    <script>
+        // PRODUCTION MODE: Disable debug logging for seamless audio
+        (function () {
+            const DEBUG_MODE = false;
+            if (!DEBUG_MODE) {
+                window._originalConsoleLog = console.log;
+                window._originalConsoleWarn = console.warn;
+                console.log = function () { };
+                console.warn = function () { };
+            }
+        })();
+    </script>
+    <script>
+        // Single-speaker audio autoplay - Run IMMEDIATELY (not in document.ready)
+        (function () {
+            const audioElement = document.getElementById('spkr');
+
+            // Abort flag and stop helper for single audio
+            window._singleAudioAbort = window._singleAudioAbort || false;
+            window._singleAudioTimeouts = window._singleAudioTimeouts || [];
+            window.stopSingleAudio = window.stopSingleAudio || function () {
+                window._singleAudioAbort = true;
+                // clear scheduled timeouts
+                try {
+                    (window._singleAudioTimeouts || []).forEach(function (t) { clearTimeout(t); });
+                } catch (e) { }
+                window._singleAudioTimeouts = [];
+                const s = document.getElementById('spkr');
+                if (s) {
+                    try { s.muted = true; } catch (e) { }
+                    try { s.pause(); } catch (e) { }
+                    try { s.currentTime = 0; } catch (e) { }
+                    try { s.removeAttribute('src'); } catch (e) { }
+                    try { s.load(); } catch (e) { }
+                    try { if (s.parentNode) s.parentNode.removeChild(s); } catch (e) { }
+                }
+            };
+
+            if (audioElement) {
+                let playAttempts = 0;
+                const maxAttempts = 15;
+
+                // Preload audio immediately
+                audioElement.setAttribute('preload', 'auto');
+                audioElement.setAttribute('autoplay', '');
+                audioElement.setAttribute('muted', 'false');
+                audioElement.load();
+
+                // Track if audio has started to prevent duplicate plays
+                let audioStarted = false;
+
+                // Simplified autoplay function - only play if not already playing/started
+                const attemptPlay = function () {
+                    if (window._singleAudioAbort) return; // honor external stop request
+                    if (audioStarted) return; // already started, don't play again
+                    if (!audioElement.paused) return; // already playing
+                    if (playAttempts >= maxAttempts) return;
+
+                    playAttempts++;
+
+                    const playPromise = audioElement.play();
+                    if (playPromise !== undefined) {
+                        playPromise.then(function () {
+                            // Autoplay success - mark as started
+                            audioStarted = true;
+                        }).catch(function (error) {
+                            if (playAttempts < maxAttempts && !window._singleAudioAbort && !audioStarted) {
+                                // Retry with increasing delays
+                                setTimeout(attemptPlay, playAttempts * 200);
+                            }
+                        });
+                    }
+                };
+
+                // Mark as started when audio begins playing (catches autoplay attribute success)
+                audioElement.addEventListener('playing', function () {
+                    audioStarted = true;
+                }, { once: true });
+
+                // Try only once initially, let HTML autoplay handle most cases
                 attemptPlay();
+                // Reduced retry attempts
+                window._singleAudioTimeouts.push(setTimeout(attemptPlay, 300));
+                window._singleAudioTimeouts.push(setTimeout(attemptPlay, 800));
+
+                // Try when audio is ready - only if not already started
+                audioElement.addEventListener('canplay', function () {
+                    if (!window._singleAudioAbort && !audioStarted) attemptPlay();
+                }, { once: true });
+
+                audioElement.addEventListener('loadeddata', function () {
+                    if (!window._singleAudioAbort && !audioStarted) attemptPlay();
+                }, { once: true });
+
+                // loadedmetadata listener removed to prevent duplicate plays
+
+                // Fallback: Play on any user interaction (with multiple attempts)
+                // DISABLED: This was causing audio to play on every click anywhere on the page
+                // const playOnInteraction = function() {
+                //     if (window._singleAudioAbort) return;
+                //     if (audioElement.paused) {
+                //         playAttempts = 0; // Reset counter for new attempts
+                //         attemptPlay();
+                //     }
+                // };
+
+                // Listen to MANY interaction types - DISABLED to prevent unwanted audio playback
+                // ['click', 'touchstart', 'touchend', 'keydown', 'keyup', 'mousemove', 'mousedown', 'scroll', 'focus'].forEach(eventType => {
+                //     document.addEventListener(eventType, playOnInteraction, { once: true });
+                // });
+
+                // Remove all interaction listeners once audio starts playing
+                audioElement.addEventListener('playing', function () {
+                    // Audio now playing
+                }, { once: true });
+
+                audioElement.addEventListener('error', function (e) {
+                    // Audio loading error
+                });
             }
+        })();
+
+        $(document).ready(function () {
+            // PRODUCTION MODE: Disable console.log for better performance
+            const DEBUG_MODE = false;
+            if (!DEBUG_MODE) {
+                console.log = function () { };
+                console.warn = function () { };
+                // Keep console.error for critical issues only
+            }
+
+            // Ensure overlay is hidden initially
+            $('#loadingOverlay').removeClass('active')
+
+            // Enhanced multilanguage speech recognition
+            let recognition;
+            let isRecording = false;
+            let finalTranscript = '';
+            let originalText = '';
+            let voiceConfig = null;
+
+            // MediaRecorder for saving actual audio (for 16PF analysis)
+            let mediaRecorder = null;
+            let audioChunks = [];
+            let audioStream = null;
+            let recordedAudioBlob = null;
+
+            // Check if 16PF audio recording is enabled
+            let enable16PFRecording = {% if context.enable_16pf_analysis is defined %}{{ 'true' if context.enable_16pf_analysis else 'false' }}{% else %}false{% endif %};
+        console.log('16PF audio recording enabled:', enable16PFRecording);
+
+        // Get voice configuration from backend (default to true for backward compatibility)
+        let isVoiceEnabled = {% if context.voice_enabled is defined %}{{ 'true' if context.voice_enabled else 'false' }} {% else %}true{% endif %};
+
+        console.log('Voice input enabled:', isVoiceEnabled);
+
+        // 16PF Re-record tracking - per interaction (resets when new interaction loads)
+        let rerecordCount = 0; // Current re-record count for this interaction
+        let maxRerecordAttempts = {% if context.audio_rerecord_attempts is defined %}{{ context.audio_rerecord_attempts }} {% else %}3{% endif %};
+        console.log('[16PF] Max re-record attempts per interaction:', maxRerecordAttempts);
+
+        // NOTE: MediaRecorder for 16PF is started ONLY when user clicks the record button
+        // (see startRecording function and startMediaRecorder function below)
+
+        // Get selected language from backend
+        let selectedLanguage = '{{ context.selected_language if context.selected_language is defined else "English" }}';
+        console.log('Selected language from backend:', selectedLanguage);
+
+        // Language mapping for speech recognition
+        const languageMap = {
+            'hindi': 'hi-IN',
+            'tamil': 'ta-IN',
+            'telugu': 'te-IN',
+            'kannada': 'kn-IN',
+            'marathi': 'mr-IN',
+            'bengali': 'bn-IN',
+            'english': 'en-IN',
+            'malayalam': 'ml-IN',
+            'french': 'fr-FR',
+            'arabic': 'ar-SA',
+            'gujarati': 'gu-IN'
         };
-        
-        // Listen to MANY interaction types
-        ['click', 'touchstart', 'touchend', 'keydown', 'keyup', 'mousemove', 'mousedown', 'scroll', 'focus'].forEach(eventType => {
-            document.addEventListener(eventType, playOnInteraction, { once: true });
-        });
-        
-        // Remove all interaction listeners once audio starts playing
-        audioElement.addEventListener('playing', function() {
-            // Audio now playing
-        }, { once: true });
-        
-        audioElement.addEventListener('error', function(e) {
-            // Audio loading error
-        });
-    }
-})();
 
-$(document).ready(function () {
-    // PRODUCTION MODE: Disable console.log for better performance
-    const DEBUG_MODE = false;
-    if (!DEBUG_MODE) {
-        console.log = function() {};
-        console.warn = function() {};
-        // Keep console.error for critical issues only
-    }
-    
-    // Ensure overlay is hidden initially
-    $('#loadingOverlay').removeClass('active')
+        // Get the language code for speech recognition
+        const initialLangCode = languageMap[selectedLanguage.toLowerCase()] || 'en-IN';
+        console.log('Initial speech recognition language:', initialLangCode);
 
-    // Enhanced multilanguage speech recognition
-    let recognition;
-    let isRecording = false;
-    let finalTranscript = '';
-    let originalText = '';
-    let voiceConfig = null;
-    
-    // MediaRecorder for saving actual audio (for 16PF analysis)
-    let mediaRecorder = null;
-    let audioChunks = [];
-    let audioStream = null;
-    let recordedAudioBlob = null;
-    
-    // Check if 16PF audio recording is enabled
-    let enable16PFRecording = {% if context.enable_16pf_analysis is defined %}{{ 'true' if context.enable_16pf_analysis else 'false' }}{% else %}false{% endif %};
-    console.log('16PF audio recording enabled:', enable16PFRecording);
-    
-    // Get voice configuration from backend (default to true for backward compatibility)
-    let isVoiceEnabled = {% if context.voice_enabled is defined %}{{ 'true' if context.voice_enabled else 'false' }}{% else %}true{% endif %};
-    
-    console.log('Voice input enabled:', isVoiceEnabled);
-    
-    // AUTO-START 16PF audio recording when page loads (if enabled)
-    // This ensures we capture ALL user voice responses, not just when they click record
-    if (enable16PFRecording) {
-        console.log('[16PF] Auto-starting audio recording for voice analysis...');
-        // Delay slightly to ensure page is fully loaded
-        setTimeout(async function() {
-            try {
-                audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                audioChunks = [];
-                
-                mediaRecorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm' });
-                
-                mediaRecorder.ondataavailable = function(event) {
-                    if (event.data.size > 0) {
-                        audioChunks.push(event.data);
+        // Check if we're on HTTPS (required for microphone)
+        if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            console.warn('⚠️ Microphone requires HTTPS! Current protocol:', window.location.protocol);
+            console.warn('⚠️ Speech recognition may not work without HTTPS');
+        }
+
+        // Initialize speech recognition
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            console.log('✅ Speech Recognition API available');
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = initialLangCode;
+
+            recognition.onstart = function () {
+                console.log('Speech recognition started');
+                $('#voiceStatus').addClass('listening');
+                $('#voiceStatusText').text('ðŸŽ¤ à¤¸à¥à¤¨ à¤°à¤¹à¤¾ à¤¹à¥‚à¤...');
+            };
+
+            recognition.onresult = function (event) {
+                let interimTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript + ' ';
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
                     }
-                };
-                
-                mediaRecorder.onstop = function() {
-                    recordedAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                    console.log('[16PF] Auto-recorded audio blob size:', recordedAudioBlob.size);
-                };
-                
-                mediaRecorder.start();
-                console.log('[16PF] Auto-recording started successfully');
-            } catch (err) {
-                console.warn('[16PF] Could not auto-start audio recording:', err);
-                // Will fall back to manual recording when user clicks record button
-            }
-        }, 1000);
-    }
-    
-    // Get selected language from backend
-    let selectedLanguage = '{{ context.selected_language if context.selected_language is defined else "English" }}';
-    console.log('Selected language from backend:', selectedLanguage);
-    
-    // Language mapping for speech recognition
-    const languageMap = {
-        'hindi': 'hi-IN',
-        'tamil': 'ta-IN',
-        'telugu': 'te-IN',
-        'kannada': 'kn-IN',
-        'marathi': 'mr-IN',
-        'bengali': 'bn-IN',
-        'english': 'en-IN',
-        'malayalam': 'ml-IN',
-        'french': 'fr-FR',
-        'arabic': 'ar-SA',
-        'gujarati': 'gu-IN'
-    };
-
-    // Get the language code for speech recognition
-    const initialLangCode = languageMap[selectedLanguage.toLowerCase()] || 'en-IN';
-    console.log('Initial speech recognition language:', initialLangCode);
-
-    // Initialize speech recognition
-    if ('webkitSpeechRecognition' in window) {
-        recognition = new webkitSpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = initialLangCode;
-
-        recognition.onstart = function() {
-            console.log('Speech recognition started');
-            $('#voiceStatus').addClass('listening');
-            $('#voiceStatusText').text('🎤 सुन रहा हूँ...');
-        };
-
-        recognition.onresult = function(event) {
-            let interimTranscript = '';
-            
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) {
-                    finalTranscript += event.results[i][0].transcript + ' ';
-                } else {
-                    interimTranscript += event.results[i][0].transcript;
                 }
-            }
 
-            $('#maintextarea').val(finalTranscript + interimTranscript);
-            
-            if (finalTranscript.trim() || interimTranscript.trim()) {
-                $('#rerecordBtn').show();
-            }
-        };
+                $('#maintextarea').val(finalTranscript + interimTranscript);
 
-        recognition.onend = function() {
-            console.log('Speech recognition ended. isRecording:', isRecording);
-            $('#voiceStatus').removeClass('listening');
-            
-            if (isRecording) {
-                console.log('Restarting speech recognition...');
-                setTimeout(() => {
-                    if (isRecording) {
-                        try {
-                            recognition.start();
-                            console.log('Speech recognition restarted successfully');
-                        } catch (e) {
-                            console.error('Failed to restart recognition:', e);
-                            // If restart fails, reset the UI
-                            isRecording = false;
-                            updateRecordingUI(false);
-                        }
-                    }
-                }, 100);
-            }
-        };
+                if (finalTranscript.trim() || interimTranscript.trim()) {
+                    $('#rerecordBtn').show();
+                }
+            };
 
-        recognition.onerror = function(event) {
-            console.error('Speech recognition error:', event.error);
-            
-            // Handle different types of errors
-            if (event.error === 'no-speech') {
-                // Temporary error - don't stop recording, just show message
-                $('#voiceStatusText').text('कुछ नहीं सुना। फिर कोशिश करें।');
-                console.log('No speech detected, but continuing to listen...');
-                // Don't set isRecording = false, let it continue
-            } else if (event.error === 'not-allowed') {
-                // Permission denied - stop recording
-                alert('माइक्रोफोन की अनुमति दें। Microphone access denied.');
-                isRecording = false;
-                updateRecordingUI(false);
+            recognition.onend = function () {
+                console.log('Speech recognition ended. isRecording:', isRecording);
                 $('#voiceStatus').removeClass('listening');
-            } else if (event.error === 'aborted') {
-                // Aborted (usually from page navigation or manual stop) - this is expected
-                console.log('Speech recognition aborted (expected behavior)');
-                // Only reset UI if we're actually trying to stop
-                if (!isRecording) {
-                    $('#voiceStatus').removeClass('listening');
-                }
-            } else if (event.error === 'network') {
-                // Network error - try to restart if still recording
-                console.log('Network error, will retry...');
+
                 if (isRecording) {
+                    console.log('Restarting speech recognition...');
                     setTimeout(() => {
                         if (isRecording) {
                             try {
                                 recognition.start();
+                                console.log('Speech recognition restarted successfully');
                             } catch (e) {
                                 console.error('Failed to restart recognition:', e);
+                                // If restart fails, reset the UI
+                                isRecording = false;
+                                updateRecordingUI(false);
                             }
                         }
-                    }, 1000);
+                    }, 100);
                 }
+            };
+
+            recognition.onerror = function (event) {
+                console.error('Speech recognition error:', event.error);
+
+                // Handle different types of errors
+                if (event.error === 'no-speech') {
+                    // Temporary error - don't stop recording, just show message
+                    $('#voiceStatusText').text('à¤•à¥à¤› à¤¨à¤¹à¥€à¤‚ à¤¸à¥à¤¨à¤¾à¥¤ à¤«à¤¿à¤° à¤•à¥‹à¤¶à¤¿à¤¶ à¤•à¤°à¥‡à¤‚à¥¤');
+                    console.log('No speech detected, but continuing to listen...');
+                    // Don't set isRecording = false, let it continue
+                } else if (event.error === 'not-allowed') {
+                    // Permission denied - stop recording
+                    alert('à¤®à¤¾à¤‡à¤•à¥à¤°à¥‹à¤«à¥‹à¤¨ à¤•à¥€ à¤…à¤¨à¥à¤®à¤¤à¤¿ à¤¦à¥‡à¤‚à¥¤ Microphone access denied.');
+                    isRecording = false;
+                    updateRecordingUI(false);
+                    $('#voiceStatus').removeClass('listening');
+                } else if (event.error === 'aborted') {
+                    // Aborted (usually from page navigation or manual stop) - this is expected
+                    console.log('Speech recognition aborted (expected behavior)');
+                    // Only reset UI if we're actually trying to stop
+                    if (!isRecording) {
+                        $('#voiceStatus').removeClass('listening');
+                    }
+                } else if (event.error === 'network') {
+                    // Network error - try to restart if still recording
+                    console.log('Network error, will retry...');
+                    if (isRecording) {
+                        setTimeout(() => {
+                            if (isRecording) {
+                                try {
+                                    recognition.start();
+                                } catch (e) {
+                                    console.error('Failed to restart recognition:', e);
+                                }
+                            }
+                        }, 1000);
+                    }
+                } else {
+                    // Other errors - stop recording
+                    console.error('Unhandled speech recognition error:', event.error);
+                    isRecording = false;
+                    updateRecordingUI(false);
+                    $('#voiceStatus').removeClass('listening');
+                }
+            };
+        } else {
+            console.log('Speech recognition not supported in this browser');
+        }
+
+        // Language change handler
+        $('#voiceLanguage').change(function () {
+            const selectedLang = $(this).val();
+            const langCode = languageMap[selectedLang];
+
+            if (recognition && langCode) {
+                recognition.lang = langCode;
+                console.log('Changed speech recognition language to:', langCode);
+
+                // Update status text based on language
+                const statusTexts = {
+                    'hindi': 'ðŸŽ¤ à¤¸à¥à¤¨ à¤°à¤¹à¤¾ à¤¹à¥‚à¤...',
+                    'tamil': 'ðŸŽ¤ à®•à¯‡à®Ÿà¯à®Ÿà¯à®•à¯à®•à¯Šà®£à¯à®Ÿà®¿à®°à¯à®•à¯à®•à®¿à®±à¯‡à®©à¯...',
+                    'telugu': 'ðŸŽ¤ à°µà°¿à°‚à°Ÿà±à°¨à±à°¨à°¾à°¨à±...',
+                    'kannada': 'ðŸŽ¤ à²•à³‡à²³à³à²¤à³à²¤à²¿à²¦à³à²¦à³‡à²¨à³†...',
+                    'marathi': 'ðŸŽ¤ à¤à¤•à¤¤ à¤†à¤¹à¥‡...',
+                    'bengali': 'ðŸŽ¤ à¦¶à§à¦¨à¦›à¦¿...',
+                    'english': 'ðŸŽ¤ Listening...'
+                };
+
+                if (isRecording) {
+                    $('#voiceStatusText').text(statusTexts[selectedLang] || 'ðŸŽ¤ Listening...');
+                }
+            }
+        });
+
+        // Enhanced record button click handler
+        $('#recordBtn').click(function () {
+            if (!isRecording) {
+                startRecording();
             } else {
-                // Other errors - stop recording
-                console.error('Unhandled speech recognition error:', event.error);
+                stopRecording();
+            }
+        });
+
+        // Enhanced re-record button click handler with per-interaction limit
+        $('#rerecordBtn').click(function () {
+            // Check if re-record limit reached for this interaction
+            if (rerecordCount >= maxRerecordAttempts) {
+                alert('Maximum re-record attempts reached for this interaction (' + maxRerecordAttempts + '). Please submit your response or continue with the current recording.');
+                return;
+            }
+
+            // Increment re-record count for this interaction
+            rerecordCount++;
+            console.log('[16PF] Re-record count for this interaction:', rerecordCount, '/', maxRerecordAttempts);
+
+            // Clear previous recording data for 16PF
+            if (enable16PFRecording) {
+                audioChunks = [];
+                recordedAudioBlob = null;
+                console.log('[16PF] Cleared previous recording - starting fresh');
+            }
+
+            $('#maintextarea').val('');
+            finalTranscript = '';
+            $('#voiceStatus').removeClass('listening');
+
+            if (isRecording) {
+                stopRecording();
+            }
+
+            setTimeout(function () {
+                startRecording();
+
+                // Disable re-record button if limit reached after this attempt
+                if (rerecordCount >= maxRerecordAttempts) {
+                    $('#rerecordBtn').prop('disabled', true).css('opacity', '0.5');
+                    console.log('[16PF] Re-record limit reached for this interaction');
+                }
+            }, 300);
+        });
+
+        // Enhanced recording functions
+        function startRecording() {
+            console.log('🎤 startRecording called');
+            console.log('🎤 Protocol:', window.location.protocol);
+            console.log('🎤 Recognition available:', !!recognition);
+            
+            // Check for HTTPS requirement
+            if (window.location.protocol !== 'https:' && 
+                window.location.hostname !== 'localhost' && 
+                window.location.hostname !== '127.0.0.1') {
+                alert('Microphone access requires HTTPS. Please access this site via https:// instead of http://');
+                console.error('❌ HTTPS required for microphone. Current protocol:', window.location.protocol);
+                return;
+            }
+            
+            if (!recognition) {
+                alert('Speech recognition is not supported in your browser. Please use Chrome or Edge.\n\nIf using Chrome/Edge, make sure you are on HTTPS.');
+                console.error('❌ Speech recognition not available');
+                return;
+            }
+
+            try {
+                // Get selected language
+                const selectedLang = $('#voiceLanguage').val();
+                const langCode = languageMap[selectedLang];
+                console.log('🎤 Starting with language:', selectedLang, langCode);
+
+                if (langCode) {
+                    recognition.lang = langCode;
+                }
+
+                originalText = $('#maintextarea').val();
+                finalTranscript = originalText;
+
+                // Set flag first to prevent race conditions
+                isRecording = true;
+
+                // Start MediaRecorder for 16PF audio capture (if enabled)
+                if (enable16PFRecording) {
+                    startMediaRecorder();
+                }
+
+                // Start recognition with error handling
+                try {
+                    recognition.start();
+                    updateRecordingUI(true);
+                    console.log('Started recording in language:', selectedLang, langCode);
+                } catch (err) {
+                    // If already started, that's okay - it might have auto-restarted
+                    if (err.message && err.message.includes('already started')) {
+                        console.log('Recognition already running, continuing...');
+                        updateRecordingUI(true);
+                    } else {
+                        throw err;
+                    }
+                }
+
+            } catch (err) {
+                console.error('Speech recognition error:', err);
+                isRecording = false;
+                updateRecordingUI(false);
+                alert('Could not start speech recognition. Please try again.');
+            }
+        }
+
+        function stopRecording() {
+            if (recognition) {
+                recognition.stop();
                 isRecording = false;
                 updateRecordingUI(false);
                 $('#voiceStatus').removeClass('listening');
             }
-        };
-    } else {
-        console.log('Speech recognition not supported in this browser');
-    }
 
-    // Language change handler
-    $('#voiceLanguage').change(function() {
-        const selectedLang = $(this).val();
-        const langCode = languageMap[selectedLang];
-        
-        if (recognition && langCode) {
-            recognition.lang = langCode;
-            console.log('Changed speech recognition language to:', langCode);
-            
-            // Update status text based on language
-            const statusTexts = {
-                'hindi': '🎤 सुन रहा हूँ...',
-                'tamil': '🎤 கேட்டுக்கொண்டிருக்கிறேன்...',
-                'telugu': '🎤 వింటున్నాను...',
-                'kannada': '🎤 ಕೇಳುತ್ತಿದ್ದೇನೆ...',
-                'marathi': '🎤 ऐकत आहे...',
-                'bengali': '🎤 শুনছি...',
-                'english': '🎤 Listening...'
-            };
-            
-            if (isRecording) {
-                $('#voiceStatusText').text(statusTexts[selectedLang] || '🎤 Listening...');
+            // Stop MediaRecorder for 16PF audio capture
+            if (enable16PFRecording && mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                console.log('Stopped MediaRecorder for 16PF');
             }
         }
-    });
 
-    // Enhanced record button click handler
-    $('#recordBtn').click(function() {
-        if (!isRecording) {
-            startRecording();
-        } else {
-            stopRecording();
-        }
-    });
-
-    // Enhanced re-record button click handler  
-    $('#rerecordBtn').click(function() {
-        $('#maintextarea').val('');
-        finalTranscript = '';
-        $(this).hide();
-        $('#voiceStatus').removeClass('listening');
-        
-        if (isRecording) {
-            stopRecording();
-        }
-        
-        setTimeout(function() {
-            startRecording();
-        }, 300);
-    });
-
-    // Enhanced recording functions
-    function startRecording() {
-        if (!recognition) {
-            alert('Speech recognition is not supported in your browser. Please use Chrome or Edge.');
-            return;
-        }
-
-        try {
-            // Get selected language
-            const selectedLang = $('#voiceLanguage').val();
-            const langCode = languageMap[selectedLang];
-            
-            if (langCode) {
-                recognition.lang = langCode;
-            }
-            
-            originalText = $('#maintextarea').val();
-            finalTranscript = originalText;
-            
-            // Set flag first to prevent race conditions
-            isRecording = true;
-            
-            // Start MediaRecorder for 16PF audio capture (if enabled)
-            if (enable16PFRecording) {
-                startMediaRecorder();
-            }
-            
-            // Start recognition with error handling
+        // MediaRecorder functions for 16PF audio capture
+        async function startMediaRecorder() {
+            console.log('[16PF] startMediaRecorder called');
             try {
-                recognition.start();
-                updateRecordingUI(true);
-                console.log('Started recording in language:', selectedLang, langCode);
-            } catch (err) {
-                // If already started, that's okay - it might have auto-restarted
-                if (err.message && err.message.includes('already started')) {
-                    console.log('Recognition already running, continuing...');
-                    updateRecordingUI(true);
-                } else {
-                    throw err;
-                }
-            }
-            
-        } catch (err) {
-            console.error('Speech recognition error:', err);
-            isRecording = false;
-            updateRecordingUI(false);
-            alert('Could not start speech recognition. Please try again.');
-        }
-    }
+                // Request microphone access
+                console.log('[16PF] Requesting microphone access...');
+                audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                console.log('[16PF] Microphone access granted');
+                audioChunks = [];
 
-    function stopRecording() {
-        if (recognition) {
-            recognition.stop();
-            isRecording = false;
-            updateRecordingUI(false);
-            $('#voiceStatus').removeClass('listening');
-        }
-        
-        // Stop MediaRecorder for 16PF audio capture
-        if (enable16PFRecording && mediaRecorder && mediaRecorder.state !== 'inactive') {
-            mediaRecorder.stop();
-            console.log('Stopped MediaRecorder for 16PF');
-        }
-    }
-    
-    // MediaRecorder functions for 16PF audio capture
-    async function startMediaRecorder() {
-        try {
-            // Request microphone access
-            audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            audioChunks = [];
-            
-            // Create MediaRecorder
-            mediaRecorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm' });
-            
-            mediaRecorder.ondataavailable = function(event) {
-                if (event.data.size > 0) {
-                    audioChunks.push(event.data);
-                }
-            };
-            
-            mediaRecorder.onstop = function() {
-                // Combine all chunks into a single blob
-                recordedAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                console.log('16PF audio recorded, size:', recordedAudioBlob.size);
-                
-                // Stop the audio stream tracks
-                if (audioStream) {
-                    audioStream.getTracks().forEach(track => track.stop());
-                }
-            };
-            
-            mediaRecorder.start();
-            console.log('MediaRecorder started for 16PF audio capture');
-            
-        } catch (err) {
-            console.error('Failed to start MediaRecorder for 16PF:', err);
-            // Continue without MediaRecorder - speech recognition will still work
-        }
-    }
-    
-    // Function to upload recorded audio for 16PF analysis
-    async function uploadAudioFor16PF() {
-        if (!recordedAudioBlob || recordedAudioBlob.size === 0) {
-            console.log('No recorded audio to upload for 16PF');
-            return null;
-        }
-        
-        try {
-            const formData = new FormData();
-            const playId = '{{ session.play_id if session.play_id else "" }}';
-            const interactionNum = '{{ session.interaction_number if session.interaction_number else "1" }}';
-            
-            formData.append('audio', recordedAudioBlob, `play_${playId}_interaction_${interactionNum}.webm`);
-            formData.append('play_id', playId);
-            formData.append('interaction_number', interactionNum);
-            
-            const response = await fetch('/api/upload-user-audio', {
-                method: 'POST',
-                body: formData
-            });
-            
-            const result = await response.json();
-            if (result.success) {
-                console.log('16PF audio uploaded successfully:', result.audio_path);
-                return result.audio_path;
-            } else {
-                console.error('Failed to upload 16PF audio:', result.error);
-                return null;
-            }
-        } catch (err) {
-            console.error('Error uploading 16PF audio:', err);
-            return null;
-        }
-    }
+                // Create MediaRecorder
+                mediaRecorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm' });
+                console.log('[16PF] MediaRecorder created');
 
-    function updateRecordingUI(recording) {
-        if (recording) {
-            $('#recordBtn').addClass('recording');
-            $('#recordBtn i').removeClass('fa-microphone').addClass('fa-stop');
-            $('#recordBtn').attr('title', 'Stop Recording');
-            $('#voiceLanguageSelector').removeClass('show');
-        } else {
-            $('#recordBtn').removeClass('recording');
-            $('#recordBtn i').removeClass('fa-stop').addClass('fa-microphone');
-            $('#recordBtn').attr('title', 'Start Recording');
-            $('#voiceLanguageSelector').addClass('show');
-        }
-    }
-    
+                mediaRecorder.ondataavailable = function (event) {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                        console.log('[16PF] Audio chunk received, size:', event.data.size);
+                    }
+                };
 
-
-    $('#maintextarea').on('input', function() {
-        if ($(this).val().trim() === '') {
-            $('#rerecordBtn').hide();
-        } else if (!isRecording) {
-            $('#rerecordBtn').show();
-        }
-    });
-
-    window.setTimeout(function() {
-        $(".alert").fadeTo(1000, 0).slideUp(1000, function(){
-            $(this).remove(); 
-        });
-    }, 5000);
-    
-    // Debug: Log when submit button is clicked
-    $('button[type="submit"]').click(function(e) {
-        console.log('🖱️ Submit button clicked!');
-        console.log('Button disabled:', $(this).prop('disabled'));
-        console.log('Button visible:', $(this).is(':visible'));
-    });
-
-    $('#maintextarea').keypress(function(e){
-        if(e.which == 13 && !e.shiftKey){
-            console.log('⌨️ Enter key pressed in textarea');
-            e.preventDefault();
-            $('form').submit();
-        }
-    });
-
-    // UPDATED: Form submission with new loading overlay - AJAX to keep overlay visible
-    $('form').submit(async function (e) {
-        console.log('🚀 Form submit event triggered');
-        e.preventDefault(); // Prevent default form submission
-        
-        // Check if textarea has content
-        const textareaValue = $('#maintextarea').val();
-        console.log('📝 Textarea value:', textareaValue);
-        console.log('📏 Textarea length:', textareaValue.length);
-        
-        // Stop speech recognition before form submission
-        if (isRecording && recognition) {
-            console.log('Stopping speech recognition before form submission');
-            isRecording = false;
-            try {
-                recognition.stop();
-            } catch (e) {
-                console.log('Recognition already stopped or not active');
-            }
-            updateRecordingUI(false);
-            $('#voiceStatus').removeClass('listening');
-        }
-        
-        // Stop MediaRecorder and wait for it to finish (for 16PF)
-        if (enable16PFRecording && mediaRecorder && mediaRecorder.state !== 'inactive') {
-            console.log('Stopping MediaRecorder for 16PF audio...');
-            await new Promise(resolve => {
-                mediaRecorder.onstop = function() {
+                mediaRecorder.onstop = function () {
+                    // Combine all chunks into a single blob
                     recordedAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                    console.log('16PF audio recorded, size:', recordedAudioBlob.size);
+                    console.log('[16PF] Audio recording stopped, total chunks:', audioChunks.length, ', blob size:', recordedAudioBlob.size);
+
+                    // Hide the recording indicator
+                    hideRecordingIndicator();
+
+                    // Stop the audio stream tracks
                     if (audioStream) {
                         audioStream.getTracks().forEach(track => track.stop());
                     }
-                    resolve();
                 };
-                mediaRecorder.stop();
-            });
+
+                mediaRecorder.start();
+                console.log('[16PF] MediaRecorder started for audio capture');
+
+                // Recording indicator disabled per user request
+                // showRecordingIndicator();
+
+            } catch (err) {
+                console.error('Failed to start MediaRecorder for 16PF:', err);
+                // Continue without MediaRecorder - speech recognition will still work
+            }
         }
-        
-        // Disable navigation warning when form is submitted
-        roleplayInProgress = false;
-        
-        // Pause any playing audio before submitting
-        const audioElement = document.getElementById('spkr');
-        if (audioElement) {
-            audioElement.pause();
+
+        // Show recording indicator message to user
+        function showRecordingIndicator() {
+            // Create indicator if it doesn't exist
+            if (!$('#recording-indicator').length) {
+                const indicator = `
+                <div id="recording-indicator" style="
+                    position: fixed;
+                    top: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: linear-gradient(135deg, #28a745, #20c997);
+                    color: white;
+                    padding: 12px 25px;
+                    border-radius: 25px;
+                    font-size: 16px;
+                    font-weight: bold;
+                    z-index: 10000;
+                    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    animation: pulse-recording 1.5s ease-in-out infinite;
+                ">
+                    <span style="
+                        width: 12px;
+                        height: 12px;
+                        background: #ff4444;
+                        border-radius: 50%;
+                        animation: blink-recording 1s ease-in-out infinite;
+                    "></span>
+                    ðŸŽ¤ Recording... Start Speaking Now!
+                </div>
+                <style>
+                    @keyframes pulse-recording {
+                        0%, 100% { transform: translateX(-50%) scale(1); }
+                        50% { transform: translateX(-50%) scale(1.02); }
+                    }
+                    @keyframes blink-recording {
+                        0%, 100% { opacity: 1; }
+                        50% { opacity: 0.3; }
+                    }
+                </style>
+            `;
+                $('body').append(indicator);
+            }
+            $('#recording-indicator').fadeIn(300);
         }
-        
-        // Show the new loading overlay
-        $('#loadingOverlay').addClass('active');
-        
-        // Start rotating emoticons with a small delay to ensure overlay is visible
-        setTimeout(function() {
-            startEmoticonRotation();
-        }, 100);
-        
-        // Upload 16PF audio first if available
-        if (enable16PFRecording && recordedAudioBlob && recordedAudioBlob.size > 0) {
-            console.log('Uploading 16PF audio...');
-            await uploadAudioFor16PF();
-            // Reset for next interaction
-            recordedAudioBlob = null;
-            audioChunks = [];
+
+        // Hide recording indicator message
+        function hideRecordingIndicator() {
+            $('#recording-indicator').fadeOut(300);
         }
-        
-        // Get form data
-        var formData = $(this).serialize();
-        console.log('📦 Form data serialized:', formData);
-        
-        // Submit via AJAX to process_response
-        console.log('🌐 Making AJAX request to process_response...');
-        $.ajax({
-            url: "{{ url_for('process_response') }}",
-            type: 'POST',
-            data: formData,
-            success: function(response) {
-                console.log('✅ AJAX request successful:', response);
-                if (response.success) {
-                    // Redirect to the next interaction
-                    window.location.href = response.redirect_url;
+
+        // Function to upload recorded audio for 16PF analysis
+        async function uploadAudioFor16PF() {
+            console.log('[16PF] uploadAudioFor16PF called');
+            console.log('[16PF] recordedAudioBlob:', recordedAudioBlob);
+            console.log('[16PF] blob size:', recordedAudioBlob ? recordedAudioBlob.size : 'null');
+            
+            if (!recordedAudioBlob || recordedAudioBlob.size === 0) {
+                console.log('[16PF] No recorded audio to upload - blob is empty or null');
+                return null;
+            }
+
+            try {
+                const formData = new FormData();
+                // Use context values passed from server (more reliable than session access)
+                const playId = '{{ context.play_id if context.play_id else "" }}';
+                const interactionNum = '{{ context.interaction_number if context.interaction_number else "1" }}';
+                
+                console.log('[16PF] Uploading audio for play_id:', playId, 'interaction:', interactionNum);
+                
+                if (!playId) {
+                    console.error('[16PF] ERROR: No play_id available for upload!');
+                    return null;
+                }
+
+                formData.append('audio', recordedAudioBlob, `play_${playId}_interaction_${interactionNum}.webm`);
+                formData.append('play_id', playId);
+                formData.append('interaction_number', interactionNum);
+
+                const response = await fetch('/api/upload-user-audio', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    console.log('[16PF] Audio uploaded successfully:', result.audio_path);
+                    return result.audio_path;
                 } else {
-                    hideLoadingOverlay();
-                    alert(response.message || 'An error occurred while processing your response.');
+                    console.error('[16PF] Failed to upload audio:', result.error);
+                    return null;
                 }
-            },
-            error: function(xhr, status, error) {
-                console.error('❌ AJAX request failed!');
-                console.error('Status:', status);
-                console.error('Error:', error);
-                console.error('XHR:', xhr);
-                console.error('Response Text:', xhr.responseText);
-                hideLoadingOverlay();
-                var errorMsg = 'An error occurred while processing your response. Please try again.';
-                if (xhr.responseJSON && xhr.responseJSON.message) {
-                    errorMsg = xhr.responseJSON.message;
-                }
-                alert(errorMsg);
+            } catch (err) {
+                console.error('[16PF] Error uploading audio:', err);
+                return null;
+            }
+        }
+
+        function updateRecordingUI(recording) {
+            if (recording) {
+                $('#recordBtn').addClass('recording');
+                $('#recordBtn i').removeClass('fa-microphone').addClass('fa-stop');
+                $('#recordBtn').attr('title', 'Stop Recording');
+                $('#voiceLanguageSelector').removeClass('show');
+            } else {
+                $('#recordBtn').removeClass('recording');
+                $('#recordBtn i').removeClass('fa-stop').addClass('fa-microphone');
+                $('#recordBtn').attr('title', 'Start Recording');
+                $('#voiceLanguageSelector').addClass('show');
+            }
+        }
+
+
+
+        $('#maintextarea').on('input', function () {
+            if ($(this).val().trim() === '') {
+                $('#rerecordBtn').hide();
+            } else if (!isRecording) {
+                $('#rerecordBtn').show();
             }
         });
-        
-    // Optional: legacy preloader removed; keeping overlay only
-    });
 
-    // Helper to hide overlay and stop all rotations
-    function hideLoadingOverlay() {
-        $('#loadingOverlay').removeClass('active');
-        if (typeof emoticonInterval !== 'undefined' && emoticonInterval) {
-            clearInterval(emoticonInterval);
-            emoticonInterval = null;
+        window.setTimeout(function () {
+            $(".alert").fadeTo(1000, 0).slideUp(1000, function () {
+                $(this).remove();
+            });
+        }, 5000);
+
+        // Debug: Log when submit button is clicked
+        $('button[type="submit"]').click(function (e) {
+            console.log('ðŸ–±ï¸ Submit button clicked!');
+            console.log('Button disabled:', $(this).prop('disabled'));
+            console.log('Button visible:', $(this).is(':visible'));
+        });
+
+        // Submit form on Enter key (without Shift) in textarea
+        $('#maintextarea').on('keydown', function (e) {
+            if (e.which == 13 && !e.shiftKey) {
+                console.log('âŒ¨ï¸ Enter key pressed in textarea');
+                e.preventDefault();
+                $('#form').submit();
+            }
+        });
+
+        // UPDATED: Form submission with new loading overlay - AJAX to keep overlay visible
+        $('form').submit(async function (e) {
+            console.log('ðŸš€ Form submit event triggered');
+            e.preventDefault(); // Prevent default form submission
+
+            // Check if textarea has content
+            const textareaValue = $('#maintextarea').val();
+            console.log('ðŸ“ Textarea value:', textareaValue);
+            console.log('ðŸ“ Textarea length:', textareaValue.length);
+
+            // Stop speech recognition before form submission
+            if (isRecording && recognition) {
+                console.log('Stopping speech recognition before form submission');
+                isRecording = false;
+                try {
+                    recognition.stop();
+                } catch (e) {
+                    console.log('Recognition already stopped or not active');
+                }
+                updateRecordingUI(false);
+                $('#voiceStatus').removeClass('listening');
+            }
+
+            // Stop MediaRecorder and wait for it to finish (for 16PF)
+            if (enable16PFRecording && mediaRecorder && mediaRecorder.state !== 'inactive') {
+                console.log('Stopping MediaRecorder for 16PF audio...');
+                await new Promise(resolve => {
+                    mediaRecorder.onstop = function () {
+                        recordedAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        console.log('16PF audio recorded, size:', recordedAudioBlob.size);
+                        if (audioStream) {
+                            audioStream.getTracks().forEach(track => track.stop());
+                        }
+                        resolve();
+                    };
+                    mediaRecorder.stop();
+                });
+            }
+
+            // Disable navigation warning when form is submitted
+            roleplayInProgress = false;
+
+            // Pause any playing audio before submitting
+            const audioElement = document.getElementById('spkr');
+            if (audioElement) {
+                audioElement.pause();
+            }
+
+            // Show the new loading overlay
+            $('#loadingOverlay').addClass('active');
+
+            // Start rotating emoticons with a small delay to ensure overlay is visible
+            setTimeout(function () {
+                startEmoticonRotation();
+            }, 100);
+
+            // Upload 16PF audio first if available
+            console.log('[16PF] Form submit - enable16PFRecording:', enable16PFRecording);
+            console.log('[16PF] Form submit - recordedAudioBlob:', recordedAudioBlob);
+            console.log('[16PF] Form submit - blob size:', recordedAudioBlob ? recordedAudioBlob.size : 'null');
+            
+            if (enable16PFRecording && recordedAudioBlob && recordedAudioBlob.size > 0) {
+                console.log('[16PF] Uploading audio before form submit...');
+                await uploadAudioFor16PF();
+                // Reset for next interaction
+                recordedAudioBlob = null;
+                audioChunks = [];
+            }
+
+            // Get form data
+            var formData = $(this).serialize();
+            console.log('ðŸ“¦ Form data serialized:', formData);
+
+            // Submit via AJAX to process_response
+            console.log('ðŸŒ Making AJAX request to process_response...');
+            $.ajax({
+                url: "{{ url_for('process_response') }}",
+                type: 'POST',
+                data: formData,
+                success: function (response) {
+                    console.log('âœ… AJAX request successful:', response);
+                    if (response.success) {
+                        // Redirect to the next interaction
+                        window.location.href = response.redirect_url;
+                    } else if (response.needs_improvement) {
+                        // Score 0 case - show friendly popup asking to improve
+                        hideLoadingOverlay();
+                        showImprovementPopup(response.message);
+                    } else {
+                        hideLoadingOverlay();
+                        alert(response.message || 'An error occurred while processing your response.');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('âŒ AJAX request failed!');
+                    console.error('Status:', status);
+                    console.error('Error:', error);
+                    console.error('XHR:', xhr);
+                    console.error('Response Text:', xhr.responseText);
+                    hideLoadingOverlay();
+                    var errorMsg = 'An error occurred while processing your response. Please try again.';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMsg = xhr.responseJSON.message;
+                    }
+                    alert(errorMsg);
+                }
+            });
+
+            // Optional: legacy preloader removed; keeping overlay only
+        });
+
+        // Helper to hide overlay and stop all rotations
+        function hideLoadingOverlay() {
+            $('#loadingOverlay').removeClass('active');
+            if (typeof emoticonInterval !== 'undefined' && emoticonInterval) {
+                clearInterval(emoticonInterval);
+                emoticonInterval = null;
+            }
+            if (typeof messageInterval !== 'undefined' && messageInterval) {
+                clearInterval(messageInterval);
+                messageInterval = null;
+            }
         }
-        if (typeof messageInterval !== 'undefined' && messageInterval) {
-            clearInterval(messageInterval);
-            messageInterval = null;
+
+        // Show improvement popup when score is 0
+        function showImprovementPopup(message) {
+            // Remove any existing improvement popup
+            $('#improvementPopup').remove();
+
+            // Create the popup HTML
+            var popupHtml = `
+            <div id="improvementPopup" style="
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.6);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+            ">
+                <div style="
+                    background: white;
+                    border-radius: 20px;
+                    padding: 30px 40px;
+                    max-width: 450px;
+                    text-align: center;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+                    animation: popupFadeIn 0.3s ease;
+                ">
+                    <div style="font-size: 60px; margin-bottom: 15px;">💡</div>
+                    <h3 style="color: #074924; font-weight: bold; margin-bottom: 15px;">Improve Your Response</h3>
+                    <p style="color: #555; font-size: 16px; margin-bottom: 25px; line-height: 1.5;">
+                        ${message || 'Your response needs improvement. Please try to address the situation more appropriately.'}
+                    </p>
+                    <button id="improvementPopupBtn" style="
+                        background: linear-gradient(135deg, #074924 0%, #0a6934 100%);
+                        color: white;
+                        border: none;
+                        padding: 12px 40px;
+                        font-size: 16px;
+                        font-weight: bold;
+                        border-radius: 25px;
+                        cursor: pointer;
+                        transition: transform 0.2s, box-shadow 0.2s;
+                    " onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 5px 20px rgba(7, 73, 36, 0.4)';"
+                       onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none';">
+                        Try Again
+                    </button>
+                </div>
+            </div>
+            <style>
+                @keyframes popupFadeIn {
+                    from { opacity: 0; transform: scale(0.8); }
+                    to { opacity: 1; transform: scale(1); }
+                }
+            </style>
+        `;
+
+            // Add to body
+            $('body').append(popupHtml);
+
+            // Handle button click - close popup and focus on input
+            $('#improvementPopupBtn').click(function () {
+                $('#improvementPopup').fadeOut(200, function () {
+                    $(this).remove();
+                });
+                // Focus on the input field
+                $('#userinput').focus();
+            });
+
+            // Also close on clicking outside the popup box
+            $('#improvementPopup').click(function (e) {
+                if (e.target === this) {
+                    $(this).fadeOut(200, function () {
+                        $(this).remove();
+                    });
+                    $('#userinput').focus();
+                }
+            });
         }
-    }
 
-    // If any AJAX completes (if you later use AJAX for AI calls), hide overlay
-    $(document).ajaxComplete(function() {
-        hideLoadingOverlay();
-    });
+        // If any AJAX completes (if you later use AJAX for AI calls), hide overlay
+        $(document).ajaxComplete(function () {
+            hideLoadingOverlay();
+        });
 
-    // Also hide overlay on page show (e.g., back/forward navigation)
-    window.addEventListener('pageshow', function() {
-        hideLoadingOverlay();
-    });
+        // Also hide overlay on page show (e.g., back/forward navigation)
+        window.addEventListener('pageshow', function () {
+            hideLoadingOverlay();
+        });
 
-    // Enhanced emoticon rotation functionality with varied messages
+          // Enhanced emoticon rotation functionality with varied messages
     let emoticonInterval;
     let messageInterval;
     const emoticons = ['🤖', '💭', '🧠', '💬', '⚡', '✨', '🔄', '💡', '🎯', '🗣️', '🤔', '🎭', '📝', '🔮', '⭐', '🌟', '💫', '🎪', '🎬', '🎨'];
@@ -1882,316 +2357,356 @@ $(document).ready(function () {
         'Reviewing the scenario context 📖',
         'Crafting personalized advice ✨'
     ];
-    let currentEmoticonIndex = 0;
-    let currentMessageIndex = 0;
-    let currentSubtextIndex = 0;
+        let currentEmoticonIndex = 0;
+        let currentMessageIndex = 0;
+        let currentSubtextIndex = 0;
 
-    function startEmoticonRotation() {
-        const emoticonElement = $('.loading-emoticon');
-        const textElement = $('#loadingText');
-        const subtextElement = $('#loadingSubtext');
-        
-      
-        // Clear any existing intervals
-        if (emoticonInterval) {
-            clearInterval(emoticonInterval);
+        function startEmoticonRotation() {
+            const emoticonElement = $('.loading-emoticon');
+            const textElement = $('#loadingText');
+            const subtextElement = $('#loadingSubtext');
+
+
+            // Clear any existing intervals
+            if (emoticonInterval) {
+                clearInterval(emoticonInterval);
+            }
+            if (messageInterval) {
+                clearInterval(messageInterval);
+            }
+
+            // Set initial values immediately
+            currentEmoticonIndex = 0;
+            currentMessageIndex = 0;
+            currentSubtextIndex = 0;
+
+            // Force immediate update
+            emoticonElement.text(emoticons[0]);
+            textElement.html(thinkingMessages[0] + '<span class="loading-dots"></span>');
+            subtextElement.text(subtextMessages[0]);
+
+
+
+            // Start with the second emoticon after a short delay
+            setTimeout(function () {
+                currentEmoticonIndex = 1;
+                emoticonElement.text(emoticons[1]);
+
+            }, 500);
+
+            // Rotate emoticons every 1.5 seconds
+            emoticonInterval = setInterval(function () {
+                currentEmoticonIndex = (currentEmoticonIndex + 1) % emoticons.length;
+
+
+                emoticonElement.text(emoticons[currentEmoticonIndex]);
+            }, 1200); // Change every 1.5 seconds
+
+            // Rotate messages every 3 seconds
+            messageInterval = setInterval(function () {
+                currentMessageIndex = (currentMessageIndex + 1) % thinkingMessages.length;
+                currentSubtextIndex = (currentSubtextIndex + 1) % subtextMessages.length;
+
+
+
+                // Update main text
+                textElement.html(thinkingMessages[currentMessageIndex] + '<span class="loading-dots"></span>');
+
+                // Update subtext
+                subtextElement.text(subtextMessages[currentSubtextIndex]);
+            }, 2000); // Change every 3 seconds
+
+
         }
-        if (messageInterval) {
-            clearInterval(messageInterval);
-        }
-        
-        // Set initial values immediately
-        currentEmoticonIndex = 0;
-        currentMessageIndex = 0;
-        currentSubtextIndex = 0;
-        
-        // Force immediate update
-        emoticonElement.text(emoticons[0]);
-        textElement.html(thinkingMessages[0] + '<span class="loading-dots"></span>');
-        subtextElement.text(subtextMessages[0]);
-        
-       
-        
-        // Start with the second emoticon after a short delay
-        setTimeout(function() {
-            currentEmoticonIndex = 1;
-            emoticonElement.text(emoticons[1]);
-            
-        }, 500);
-        
-        // Rotate emoticons every 1.5 seconds
-        emoticonInterval = setInterval(function() {
-            currentEmoticonIndex = (currentEmoticonIndex + 1) % emoticons.length;
-           
-            
-            emoticonElement.text(emoticons[currentEmoticonIndex]);
-        }, 1200); // Change every 1.5 seconds
-        
-        // Rotate messages every 3 seconds
-        messageInterval = setInterval(function() {
-            currentMessageIndex = (currentMessageIndex + 1) % thinkingMessages.length;
-            currentSubtextIndex = (currentSubtextIndex + 1) % subtextMessages.length;
-            
-            
-            
-            // Update main text
-            textElement.html(thinkingMessages[currentMessageIndex] + '<span class="loading-dots"></span>');
-            
-            // Update subtext
-            subtextElement.text(subtextMessages[currentSubtextIndex]);
-        }, 2000); // Change every 3 seconds
-        
-        
-    }
 
-
-    
-
-    
-
-    
-
-
-
-    
-
-
-    // Clean up intervals when page unloads
-    $(window).on('beforeunload', function() {
-        if (emoticonInterval) {
-            clearInterval(emoticonInterval);
-        }
-        if (messageInterval) {
-            clearInterval(messageInterval);
-        }
-    });
+        // Clean up intervals when page unloads
+        $(window).on('beforeunload', function () {
+            if (emoticonInterval) {
+                clearInterval(emoticonInterval);
+            }
+            if (messageInterval) {
+                clearInterval(messageInterval);
+            }
+        });
 });
 
-// Timer functionality
-const maxInteractionTime = {{ context.max_interaction_time if context.max_interaction_time is defined else 300 }}; // Store initial value for progress bar calculation
-const interactionElapsedTime = {{ context.interaction_elapsed_time if context.interaction_elapsed_time is defined else 0 }}; // Time already spent on current interaction
-let interactionTime = Math.max(0, maxInteractionTime - interactionElapsedTime); // Calculate remaining interaction time
-const maxTotalTime = {{ context.max_total_time if context.max_total_time is defined else 1800 }}; // Get from config
-const elapsedTime = {{ context.elapsed_time if context.elapsed_time is defined else 0 }}; // Get elapsed time from server
-let totalTime = Math.max(0, maxTotalTime - elapsedTime); // Calculate remaining time
-let interactionInterval;
-let totalInterval;
+        // Timer functionality
+        const maxInteractionTime = {{ context.max_interaction_time if context.max_interaction_time is defined else 300 }}; // Store initial value for progress bar calculation
+        const interactionElapsedTime = {{ context.interaction_elapsed_time if context.interaction_elapsed_time is defined else 0 }}; // Time already spent on current interaction
+        let interactionTime = Math.max(0, maxInteractionTime - interactionElapsedTime); // Calculate remaining interaction time
+        const maxTotalTime = {{ context.max_total_time if context.max_total_time is defined else 1800 }}; // Get from config
+        const elapsedTime = {{ context.elapsed_time if context.elapsed_time is defined else 0 }}; // Get elapsed time from server
+        let totalTime = Math.max(0, maxTotalTime - elapsedTime); // Calculate remaining time
+        let interactionInterval;
+        let totalInterval;
 
-console.log('Timer Configuration:', {
-    interactionTime: interactionTime,
-    maxInteractionTime: maxInteractionTime,
-    interactionElapsedTime: interactionElapsedTime,
-    maxTotalTime: maxTotalTime,
-    elapsedTime: elapsedTime,
-    totalTime: totalTime
-});
+        console.log('Timer Configuration:', {
+            interactionTime: interactionTime,
+            maxInteractionTime: maxInteractionTime,
+            interactionElapsedTime: interactionElapsedTime,
+            maxTotalTime: maxTotalTime,
+            elapsedTime: elapsedTime,
+            totalTime: totalTime
+        });
 
-function formatTime(seconds) {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
 
-function updateProgressBar() {
-    const progressBar = document.getElementById('interactionProgressBar');
-    const percentage = (interactionTime / maxInteractionTime) * 100;
-    progressBar.style.width = percentage + '%';
-    
-    // Change color based on time remaining
-    if (interactionTime <= 30) {
-        progressBar.style.background = 'linear-gradient(90deg, #ef4444 0%, #f87171 100%)'; // Red
-        document.getElementById('interactionTimer').style.color = '#ef4444';
-    } else if (interactionTime <= 60) {
-        progressBar.style.background = 'linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)'; // Orange
-        document.getElementById('interactionTimer').style.color = '#f59e0b';
-    } else {
-        progressBar.style.background = 'linear-gradient(90deg, #10b981 0%, #34d399 100%)'; // Green
-        document.getElementById('interactionTimer').style.color = '#10b981';
-    }
-}
+        function updateProgressBar() {
+            const progressBar = document.getElementById('interactionProgressBar');
+            const percentage = (interactionTime / maxInteractionTime) * 100;
+            progressBar.style.width = percentage + '%';
 
-function startTimers() {
-    console.log('Starting timers...', {
-        interactionTime: interactionTime,
-        totalTime: totalTime
-    });
-    
-    // Clear any existing intervals first
-    if (interactionInterval) {
-        clearInterval(interactionInterval);
-    }
-    if (totalInterval) {
-        clearInterval(totalInterval);
-    }
-    
-    // Initial progress bar update
-    updateProgressBar();
-    
-    interactionInterval = setInterval(() => {
-        if (interactionTime > 0) {
-            interactionTime--;
-            document.getElementById('interactionTimer').textContent = formatTime(interactionTime);
-            updateProgressBar();
-            
-            if (interactionTime === 0) {
-                clearInterval(interactionInterval);
-                alert('Interaction time expired! Moving to next interaction.');
-                
-                // Disable navigation warning before auto-submit
-                roleplayInProgress = false;
-                
-                // Check if user has typed something
-                const userInput = document.getElementById('maintextarea');
-                if (!userInput || !userInput.value.trim()) {
-                    // If no input, provide a marker that indicates timeout (this will get 0 score)
-                    userInput.value = '[TIMEOUT_NO_RESPONSE]';
-                }
-                
-                // Trigger the form submission (which uses AJAX)
-                $('#form').trigger('submit');
+            // Change color based on time remaining
+            if (interactionTime <= 30) {
+                progressBar.style.background = 'linear-gradient(90deg, #ef4444 0%, #f87171 100%)'; // Red
+                document.getElementById('interactionTimer').style.color = '#ef4444';
+            } else if (interactionTime <= 60) {
+                progressBar.style.background = 'linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)'; // Orange
+                document.getElementById('interactionTimer').style.color = '#f59e0b';
+            } else {
+                progressBar.style.background = 'linear-gradient(90deg, #10b981 0%, #34d399 100%)'; // Green
+                document.getElementById('interactionTimer').style.color = '#10b981';
             }
         }
-    }, 1000);
-    
-    totalInterval = setInterval(() => {
-        if (totalTime > 0) {
-            totalTime--;
-            document.getElementById('totalTimer').textContent = formatTime(totalTime);
-            
-            if (totalTime <= 60) {
-                document.getElementById('totalTimer').style.color = '#dc2626';
-            }
-            
-            if (totalTime === 0) {
-                roleplayInProgress = false; // Disable navigation warning before auto-submit
+
+        function startTimers() {
+            console.log('Starting timers...', {
+                interactionTime: interactionTime,
+                totalTime: totalTime
+            });
+
+            // Clear any existing intervals first
+            if (interactionInterval) {
                 clearInterval(interactionInterval);
+            }
+            if (totalInterval) {
                 clearInterval(totalInterval);
-                {% if context.cluster_type == 'assessment' %}
-                alert('Total roleplay time expired! Roleplay completed.');
-                window.location.href = '/user/{{ session.user_id|e }}/cluster/{{ session.cluster_id|e }}/roleplay/{{ session.roleplay_id|e }}/submit';
-                {% else %}
-                alert('Total roleplay time expired! Your session will be submitted.');
-                window.location.href = '/user/{{ session.user_id|e }}/cluster/{{ session.cluster_id|e }}/roleplay/{{ session.roleplay_id|e }}/submit';
-                {% endif %}
             }
+
+            // Initial progress bar update
+            updateProgressBar();
+
+            interactionInterval = setInterval(() => {
+                if (interactionTime > 0) {
+                    interactionTime--;
+                    document.getElementById('interactionTimer').textContent = formatTime(interactionTime);
+                    updateProgressBar();
+
+                    if (interactionTime === 0) {
+                        clearInterval(interactionInterval);
+                        alert('Interaction time expired! Moving to next interaction.');
+
+                        // Disable navigation warning before auto-submit
+                        roleplayInProgress = false;
+
+                        // Check if user has typed something
+                        const userInput = document.getElementById('maintextarea');
+                        if (!userInput || !userInput.value.trim()) {
+                            // If no input, provide a marker that indicates timeout (this will get 0 score)
+                            userInput.value = '[TIMEOUT_NO_RESPONSE]';
+                        }
+
+                        // Trigger the form submission (which uses AJAX)
+                        $('#form').trigger('submit');
+                    }
+                }
+            }, 1000);
+
+            totalInterval = setInterval(() => {
+                if (totalTime > 0) {
+                    totalTime--;
+                    document.getElementById('totalTimer').textContent = formatTime(totalTime);
+
+                    if (totalTime <= 60) {
+                        document.getElementById('totalTimer').style.color = '#dc2626';
+                    }
+
+                    if (totalTime === 0) {
+                        roleplayInProgress = false; // Disable navigation warning before auto-submit
+                        clearInterval(interactionInterval);
+                        clearInterval(totalInterval);
+                        {% if context.cluster_type == 'assessment' %}
+                        alert('Total roleplay time expired! Roleplay completed.');
+                        window.location.href = '/user/{{ session.user_id|e }}/cluster/{{ session.cluster_id|e }}/roleplay/{{ session.roleplay_id|e }}/submit';
+                        {% else %}
+                        alert('Total roleplay time expired! Your session will be submitted.');
+                        window.location.href = '/user/{{ session.user_id|e }}/cluster/{{ session.cluster_id|e }}/roleplay/{{ session.roleplay_id|e }}/submit';
+                        {% endif %}
+                    }
+                }
+            }, 1000);
+
+            console.log('Timers started. Intervals:', {
+                interactionInterval: interactionInterval,
+                totalInterval: totalInterval
+            });
         }
-    }, 1000);
-    
-    console.log('Timers started. Intervals:', {
-        interactionInterval: interactionInterval,
-        totalInterval: totalInterval
-    });
-}
 
-// Start timers when page loads
-window.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, initializing timers...');
-    
-    // Check if timer elements exist
-    const totalTimerEl = document.getElementById('totalTimer');
-    const interactionTimerEl = document.getElementById('interactionTimer');
-    
-    if (!totalTimerEl || !interactionTimerEl) {
-        console.error('Timer elements not found!', {
-            totalTimer: totalTimerEl,
-            interactionTimer: interactionTimerEl
+        // Start timers when page loads
+        window.addEventListener('DOMContentLoaded', function () {
+            console.log('DOM loaded, initializing timers...');
+
+            // Check if timer elements exist
+            const totalTimerEl = document.getElementById('totalTimer');
+            const interactionTimerEl = document.getElementById('interactionTimer');
+
+            if (!totalTimerEl || !interactionTimerEl) {
+                console.error('Timer elements not found!', {
+                    totalTimer: totalTimerEl,
+                    interactionTimer: interactionTimerEl
+                });
+                return;
+            }
+
+            // Set initial display values
+            totalTimerEl.textContent = formatTime(totalTime);
+            interactionTimerEl.textContent = formatTime(interactionTime);
+
+            console.log('Timer elements initialized, starting countdown...');
+            startTimers();
         });
-        return;
-    }
-    
-    // Set initial display values
-    totalTimerEl.textContent = formatTime(totalTime);
-    interactionTimerEl.textContent = formatTime(interactionTime);
-    
-    console.log('Timer elements initialized, starting countdown...');
-    startTimers();
-});
 
-// Reset interaction timer on new interaction
-function resetInteractionTimer() {
-    interactionTime = maxInteractionTime; // Reset to configured max interaction time
-    document.getElementById('interactionTimer').textContent = formatTime(interactionTime);
-    document.getElementById('interactionTimer').style.color = '#10b981';
-    updateProgressBar();
-}
+        // Reset interaction timer on new interaction
+        function resetInteractionTimer() {
+            interactionTime = maxInteractionTime; // Reset to configured max interaction time
+            document.getElementById('interactionTimer').textContent = formatTime(interactionTime);
+            document.getElementById('interactionTimer').style.color = '#10b981';
+            updateProgressBar();
+        }
 
-// Prevent back button and window close with warning
-let roleplayInProgress = true;
-const warningMessage = "This action will cause all your roleplay inputs to be lost and you will need to restart the roleplay again. Restarting roleplays multiple times can lead to your ID being disabled.\n\nDo you want to go ahead?";
+        // Prevent back button and window close with warning
+        let roleplayInProgress = true;
+        const warningMessage = "This action will cause all your roleplay inputs to be lost and you will need to restart the roleplay again. Restarting roleplays multiple times can lead to your ID being disabled.\n\nDo you want to go ahead?";
 
-// Prevent browser back button
-window.history.pushState(null, null, window.location.href);
-window.addEventListener('popstate', function(event) {
-    if (roleplayInProgress) {
-        if (confirm(warningMessage)) {
-            // User confirmed, allow navigation
+        // Prevent browser back button
+        window.history.pushState(null, null, window.location.href);
+        window.addEventListener('popstate', function (event) {
+            if (roleplayInProgress) {
+                if (confirm(warningMessage)) {
+                    // User confirmed, allow navigation
+                    roleplayInProgress = false;
+                    window.history.back();
+                } else {
+                    // User cancelled, prevent navigation
+                    window.history.pushState(null, null, window.location.href);
+                }
+            }
+        });
+
+        // Prevent window close/refresh
+        window.addEventListener('beforeunload', function (event) {
+            if (roleplayInProgress) {
+                event.preventDefault();
+                event.returnValue = warningMessage;
+                return warningMessage;
+            }
+        });
+
+        // Check if this is the final interaction and show completion overlay after audio finishes
+        {% if context.is_final_interaction %}
+        (function () {
+            console.log('ðŸ Final interaction detected - cluster_type: {{ context.cluster_type }}');
+            console.log('   can_reattempt: {{ context.can_reattempt }}');
+            console.log('   Will show completion overlay after audio finishes');
+
+            // Disable form submission for final interaction
+            const mainForm = document.getElementById('form');
+            if (mainForm) {
+                mainForm.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    console.log('â›” Form submission blocked - roleplay is complete');
+                    return false;
+                });
+            }
+
+            // Disable textarea and buttons
+            const textarea = document.getElementById('maintextarea');
+            if (textarea) {
+                textarea.disabled = true;
+                textarea.readOnly = true;
+                textarea.style.opacity = '0.6';
+                textarea.style.cursor = 'not-allowed';
+            }
+
+            const finalAudioElement = document.getElementById('spkr');
+            console.log('   Audio element found:', !!finalAudioElement);
+
+            // Make showCompletionOverlay available globally so OK button can call it
+            window.showCompletionOverlay = function () {
+                console.log('âœ… Showing completion overlay');
+                console.log('   Cluster Type: {{ context.cluster_type }}');
+                console.log('   Should hide Retry/Optimal for assessment: {{ "true" if context.cluster_type == "assessment" else "false" }}');
+                const overlay = document.getElementById('completionOverlay');
+                if (overlay) {
+                    // Pause/stop any playing audio or video to prevent background playback
+                    try {
+                        // Call stop helpers if available to abort aggressive autoplay loops
+                        if (window.stopTeamAudio) {
+                            try { window.stopTeamAudio(); } catch (e) { }
+                        }
+                        if (window.stopSingleAudio) {
+                            try { window.stopSingleAudio(); } catch (e) { }
+                        }
+                        // Pause single-speaker audio
+                        const spkr = document.getElementById('spkr');
+                        if (spkr) {
+                            spkr.pause();
+                            try { spkr.currentTime = 0; } catch (e) { }
+                            spkr.removeAttribute('src');
+                            try { spkr.load(); } catch (e) { }
+                        }
+
+                        // Pause team audio player (multi-segment)
+                        const teamAudio = document.getElementById('team-audio-player');
+                        if (teamAudio) {
+                            teamAudio.pause();
+                            try { teamAudio.currentTime = 0; } catch (e) { }
+                            teamAudio.removeAttribute('src');
+                            try { teamAudio.load(); } catch (e) { }
+                        }
+
+                        // Also pause/stop any other media elements on the page
+                        document.querySelectorAll('audio, video').forEach(function (media) {
+                            try {
+                                media.pause();
+                                try { media.currentTime = 0; } catch (e) { }
+                                try { media.muted = true; } catch (e) { }
+                                if (media.src) { media.removeAttribute('src'); }
+                                try { media.load(); } catch (e) { }
+                                // Remove element from DOM to prevent any remaining playback or future restarts
+                                if (media.parentNode) {
+                                    try { media.parentNode.removeChild(media); } catch (e) { }
+                                }
+                            } catch (e) {
+                                // ignore
+                            }
+                        });
+
+                        // Ensure abort flags are set so any pending autoplay loops stop
+                        try { window._teamAudioAbort = true; } catch (e) { }
+                        try { window._singleAudioAbort = true; } catch (e) { }
+                        try { window._globalAudioStopped = true; } catch (e) { }
+                    } catch (err) {
+                        console.error('Error stopping media on completion:', err);
+                    }
+
+                    overlay.style.display = 'flex';
+                    overlay.classList.add('show');
+                    roleplayInProgress = false; // Allow navigation after completion
+                } else {
+                    console.error('âŒ Completion overlay element not found!');
+                }
+            }
+
+            // Don't auto-show overlay - user clicks OK button to see it
+            // Just allow navigation after completion
             roleplayInProgress = false;
-            window.history.back();
-        } else {
-            // User cancelled, prevent navigation
-            window.history.pushState(null, null, window.location.href);
-        }
-    }
-});
+        })();
+        {% endif %}
 
-// Prevent window close/refresh
-window.addEventListener('beforeunload', function(event) {
-    if (roleplayInProgress) {
-        event.preventDefault();
-        event.returnValue = warningMessage;
-        return warningMessage;
-    }
-});
-
-// Check if this is the final interaction and show completion overlay after audio finishes
-{% if context.is_final_interaction %}
-(function() {
-    console.log('🏁 Final interaction detected - cluster_type: {{ context.cluster_type }}');
-    console.log('   can_reattempt: {{ context.can_reattempt }}');
-    console.log('   Will show completion overlay after audio finishes');
-    
-    // Disable form submission for final interaction
-    const mainForm = document.getElementById('form');
-    if (mainForm) {
-        mainForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            console.log('⛔ Form submission blocked - roleplay is complete');
-            return false;
-        });
-    }
-    
-    // Disable textarea and buttons
-    const textarea = document.getElementById('maintextarea');
-    if (textarea) {
-        textarea.disabled = true;
-        textarea.readOnly = true;
-        textarea.style.opacity = '0.6';
-        textarea.style.cursor = 'not-allowed';
-    }
-    
-    const finalAudioElement = document.getElementById('spkr');
-    console.log('   Audio element found:', !!finalAudioElement);
-    
-    // Make showCompletionOverlay available globally so OK button can call it
-    window.showCompletionOverlay = function() {
-        console.log('✅ Showing completion overlay');
-        console.log('   Cluster Type: {{ context.cluster_type }}');
-        console.log('   Should hide Retry/Optimal for assessment: {{ "true" if context.cluster_type == "assessment" else "false" }}');
-        const overlay = document.getElementById('completionOverlay');
-        if (overlay) {
-            overlay.style.display = 'flex';
-            overlay.classList.add('show');
-            roleplayInProgress = false; // Allow navigation after completion
-        } else {
-            console.error('❌ Completion overlay element not found!');
-        }
-    }
-    
-    // Don't auto-show overlay - user clicks OK button to see it
-    // Just allow navigation after completion
-    roleplayInProgress = false;
-})();
-{% endif %}
-
-</script>
-{% endblock %}
+    </script>
+    {% endblock %}

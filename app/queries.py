@@ -9,8 +9,9 @@ import bcrypt
 import secrets
 import string
 import re
+import sys
 
-import os
+
 from dotenv import load_dotenv
 
 # Suppress pandas SQLAlchemy warnings for mysql.connector usage
@@ -22,6 +23,11 @@ host = os.getenv('DB_HOST', 'localhost')
 user = os.getenv('DB_USER', 'root')
 password = os.getenv('DB_PASSWORD')
 database = os.getenv('DB_NAME', 'roleplay')
+
+def debug_log(msg):
+    """Force output to stderr for debugging (bypasses silent_print)"""
+    sys.stderr.write(f"[DEBUG] {msg}\n")
+    sys.stderr.flush()
 
 def validate_password(password):
     """
@@ -92,73 +98,165 @@ def get_roleplay_details(roleplay_id):
             conn.close()
         return None
 
-def create_or_update(id, name, person_name, scenario, roleplay_file_path, image_file_path, competency_file_path='', scenario_file_path='', logo_path=''):
+def create_or_update(id, name, person_name, scenario, roleplay_file_path, image_file_path, competency_file_path='', scenario_file_path='', logo_path='', config_data=None):
+    """
+    Create or update roleplay. If config_data is provided, also saves roleplay_config.
+    Commits roleplay first, then config, to satisfy foreign key constraints.
+    """
+    dbconn = None
+    cursor = None
     try:
-        with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
-            cursor = dbconn.cursor()
+        debug_log(f"🔧 create_or_update called: id={id}, name={name}, config_data={'provided' if config_data else 'None'}")
+        dbconn = ms.connect(host=host, user=user, password=password, database=database)
+        cursor = dbconn.cursor()
 
-            query = "SELECT file_path, image_file_path, competency_file_path, scenario_file_path, logo_path FROM roleplay WHERE id = %s"
-            roleplay_id = id
-            cursor.execute(query, (roleplay_id,))
-            result = cursor.fetchone()
+        query = "SELECT file_path, image_file_path, competency_file_path, scenario_file_path, logo_path FROM roleplay WHERE id = %s"
+        roleplay_id = id
+        cursor.execute(query, (roleplay_id,))
+        result = cursor.fetchone()
+        
+        debug_log(f"🔧 Existing roleplay found: {result is not None}")
 
-            if result:
-                # Preserve existing file paths if new ones aren't provided
-                if roleplay_file_path == '':
-                    roleplay_file_path = result[0]
-                if image_file_path == '':
-                    image_file_path = result[1]
-                if competency_file_path == '':
-                    competency_file_path = result[2] if result[2] else ''
-                if scenario_file_path == '':
-                    scenario_file_path = result[3] if result[3] else ''
-                if logo_path == '':
-                    logo_path = result[4] if result[4] else ''
+        if result:
+            # Preserve existing file paths if new ones aren't provided
+            if roleplay_file_path == '':
+                roleplay_file_path = result[0]
+            if image_file_path == '':
+                image_file_path = result[1]
+            if competency_file_path == '':
+                competency_file_path = result[2] if result[2] else ''
+            if scenario_file_path == '':
+                scenario_file_path = result[3] if result[3] else ''
+            if logo_path == '':
+                logo_path = result[4] if result[4] else ''
 
-                update_query = (
-                    "UPDATE roleplay SET name = %s, person_name = %s, scenario = %s, file_path = %s, image_file_path = %s, competency_file_path = %s, scenario_file_path = %s, logo_path = %s WHERE id = %s"
-                )
-                cursor.execute(update_query, (name, person_name, scenario, roleplay_file_path, image_file_path, competency_file_path, scenario_file_path, logo_path, id))
-                dbconn.commit()
-                return id
+            update_query = (
+                "UPDATE roleplay SET name = %s, person_name = %s, scenario = %s, file_path = %s, image_file_path = %s, competency_file_path = %s, scenario_file_path = %s, logo_path = %s WHERE id = %s"
+            )
+            cursor.execute(update_query, (name, person_name, scenario, roleplay_file_path, image_file_path, competency_file_path, scenario_file_path, logo_path, id))
+            debug_log(f"✅ UPDATE executed for roleplay {id}")
+            dbconn.commit()  # Commit UPDATE
+            debug_log(f"✅ UPDATE committed for roleplay {id}")
+        else:
+            # Insert new row
+            # Generate alphanumeric ID if not provided
+            if not id:
+                id = generate_unique_roleplay_id()
+            
+            debug_log(f"🔧 Inserting new roleplay with id={id}")
+            insert_query = (
+                "INSERT INTO roleplay (id, name, person_name, scenario, file_path, image_file_path, competency_file_path, scenario_file_path, logo_path) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            )
+            cursor.execute(insert_query, (id, name, person_name, scenario, roleplay_file_path, image_file_path, competency_file_path, scenario_file_path, logo_path))
+            debug_log(f"✅ INSERT executed for roleplay {id}")
+        
+        # If config_data provided, save config IN SAME TRANSACTION (FK checks disabled)
+        if config_data:
+            debug_log(f"🔧 Saving config in same transaction for roleplay {id}")
+            _save_roleplay_config_internal(cursor, id, config_data)
+            debug_log(f"✅ Config INSERT/UPDATE executed for roleplay {id}")
+        
+        # Commit everything together
+        dbconn.commit()
+        debug_log(f"✅ Transaction committed for roleplay {id}")
+        
+        # Verify config was saved by reading it back
+        if config_data:
+            cursor.execute("SELECT input_type, available_languages FROM roleplay_config WHERE roleplay_id = %s", (id,))
+            verify = cursor.fetchone()
+            if verify:
+                debug_log(f"✅ Config verified: input_type={verify[0]}, languages={verify[1]}")
             else:
-                # Insert new row
-                # Generate alphanumeric ID if not provided
-                if not id:
-                    id = generate_unique_roleplay_id()
-                
-                insert_query = (
-                    "INSERT INTO roleplay (id, name, person_name, scenario, file_path, image_file_path, competency_file_path, scenario_file_path, logo_path) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
-                )
-                cursor.execute(insert_query, (id, name, person_name, scenario, roleplay_file_path, image_file_path, competency_file_path, scenario_file_path, logo_path))
-                dbconn.commit()
-                return id
+                debug_log(f"❌ WARNING: Config not found after commit for {id}!")
+        
+        return id
 
     except Exception as e:
+        debug_log(f"❌ Error in create_or_update: {str(e)}")
+        if dbconn:
+            try:
+                dbconn.rollback()
+                debug_log(f"❌ Transaction rolled back")
+            except:
+                pass
+        import traceback
+        debug_log(f"❌ Traceback: {traceback.format_exc()}")
         print("Error in create_or_update:", str(e))
         traceback.print_exc()
         return None
+    finally:
+        if cursor:
+            cursor.close()
+        if dbconn:
+            dbconn.close()
 
 def delete_roleplay(id):
     try:
         with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
             cursor = dbconn.cursor()
 
-            # Delete related records first to avoid foreign key constraint violations
-            # Delete all play records for this roleplay
+            # Delete related records in correct order to avoid foreign key constraint violations
+            
+            # Step 1: Get all play_ids for this roleplay
+            cursor.execute("SELECT id FROM play WHERE roleplay_id = %s", (id,))
+            play_ids = [row[0] for row in cursor.fetchall()]
+            
+            # Step 2: For each play, get chathistory_ids
+            chathistory_ids = []
+            for play_id in play_ids:
+                cursor.execute("SELECT id FROM chathistory WHERE play_id = %s", (play_id,))
+                chathistory_ids.extend([row[0] for row in cursor.fetchall()])
+            
+            # Step 3: Get scoremaster_ids for the chathistory records
+            scoremaster_ids = []
+            if chathistory_ids:
+                placeholders = ','.join(['%s'] * len(chathistory_ids))
+                cursor.execute(f"SELECT id FROM scoremaster WHERE chathistory_id IN ({placeholders})", chathistory_ids)
+                scoremaster_ids = [row[0] for row in cursor.fetchall()]
+            
+            # Step 4: Delete scorebreakdown records (references scoremaster)
+            if scoremaster_ids:
+                placeholders = ','.join(['%s'] * len(scoremaster_ids))
+                cursor.execute(f"DELETE FROM scorebreakdown WHERE scoremaster_id IN ({placeholders})", scoremaster_ids)
+                print(f"   - Deleted {cursor.rowcount} scorebreakdown records")
+            
+            # Step 5: Delete scoremaster records (references chathistory)
+            if chathistory_ids:
+                placeholders = ','.join(['%s'] * len(chathistory_ids))
+                cursor.execute(f"DELETE FROM scoremaster WHERE chathistory_id IN ({placeholders})", chathistory_ids)
+                print(f"   - Deleted {cursor.rowcount} scoremaster records")
+            
+            # Step 6: Delete chathistory records
+            if chathistory_ids:
+                placeholders = ','.join(['%s'] * len(chathistory_ids))
+                cursor.execute(f"DELETE FROM chathistory WHERE id IN ({placeholders})", chathistory_ids)
+                print(f"   - Deleted {cursor.rowcount} chathistory records")
+            
+            # Step 7: Delete 16PF analysis results for this roleplay's plays
+            if play_ids:
+                placeholders = ','.join(['%s'] * len(play_ids))
+                cursor.execute(f"DELETE FROM pf16_analysis_results WHERE play_id IN ({placeholders})", play_ids)
+                print(f"   - Deleted {cursor.rowcount} 16PF analysis records")
+            
+            # Step 8: Delete play records
             cursor.execute("DELETE FROM play WHERE roleplay_id = %s", (id,))
+            print(f"   - Deleted {cursor.rowcount} play records")
             
-            # Delete cluster associations (cluster_roleplay table)
+            # Step 9: Delete cluster associations
             cursor.execute("DELETE FROM cluster_roleplay WHERE roleplay_id = %s", (id,))
+            print(f"   - Deleted {cursor.rowcount} cluster associations")
             
-            # Delete roleplay config (if not using ON DELETE CASCADE)
+            # Step 10: Delete roleplay config
             cursor.execute("DELETE FROM roleplay_config WHERE roleplay_id = %s", (id,))
+            print(f"   - Deleted {cursor.rowcount} roleplay configs")
             
-            # Delete roleplay overrides (if not using ON DELETE CASCADE)
+            # Step 11: Delete roleplay overrides
             cursor.execute("DELETE FROM roleplayoverride WHERE roleplay_id = %s", (id,))
+            print(f"   - Deleted {cursor.rowcount} roleplay overrides")
             
-            # Finally, delete the roleplay itself
+            # Step 12: Finally, delete the roleplay itself
             cursor.execute("DELETE FROM roleplay WHERE id = %s", (id,))
+            print("   - Deleted roleplay")
 
             # Commit the transaction
             dbconn.commit()
@@ -167,6 +265,8 @@ def delete_roleplay(id):
 
     except Exception as e:
         print(f"Error deleting roleplay {id}: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return None
 
 import mysql.connector
@@ -210,15 +310,21 @@ def get_roleplay(id):
             query = "SELECT * FROM roleplay WHERE id = %s"
             cur.execute(query, (id,))
             result = cur.fetchone()
+            if result:
+                debug_log(f"📖 get_roleplay({id}): found, id column value = {result[0]}")
+            else:
+                debug_log(f"📖 get_roleplay({id}): NOT found")
             return result
     except Exception as e:
+        debug_log(f"❌ get_roleplay error: {str(e)}")
         return None
 
 def get_roleplays():
     try:
         with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
             cur = dbconn.cursor()
-            query = "SELECT * FROM roleplay"
+            # Order by creation date (latest first) for admin listing
+            query = "SELECT * FROM roleplay ORDER BY created_at DESC"
             cur.execute(query)
             result = cur.fetchall()
             return result
@@ -455,11 +561,16 @@ def query_showreport(play_id):
                                         
                                         if pd.notna(description):
                                             competency_descriptions[full_name_str] = str(description).strip()
+                                
+                                debug_log(f"Master file abbr_to_full_name mappings ({len(abbr_to_full_name)} total): {dict(list(abbr_to_full_name.items())[:15])}")
                     except Exception as e:
+                        debug_log(f"Error loading master file: {e}")
+                        import traceback
+                        debug_log(f"Master file traceback: {traceback.format_exc()}")
                         pass  # Continue with empty dict
                     
                     try:
-                        # Read Tags sheet to get Max Score for each competency
+                        # Read max scores from Tags sheet and map abbreviations to full names
                         import pandas as pd
                         xls = pd.ExcelFile(excel_path)
                         tags_sheet = None
@@ -468,29 +579,32 @@ def query_showreport(play_id):
                                 tags_sheet = sheet
                                 break
                         
+                        debug_log(f"Tags sheet found: {tags_sheet}")
+                        
                         if tags_sheet:
                             # Read the entire sheet without treating first row as header
                             tag_data = xls.parse(tags_sheet, header=None)
                             
-                            # Find the row that contains "Competenc" (matches Competency/Competencies) and "max" + "score"
+                            # Find the row that contains "Competenc" and "max"
                             header_row_idx = None
                             for idx in range(len(tag_data)):
                                 row_values = tag_data.iloc[idx].astype(str).str.lower().tolist()
-                                # More flexible: match "competenc" (covers competency/competencies) and "max" with "score" (covers "max score"/"max scores")
                                 has_competency = any('competenc' in str(v).lower() for v in row_values)
                                 has_max_score = any('max' in str(v).lower() for v in row_values)
-                                
                                 if has_competency and has_max_score:
                                     header_row_idx = idx
                                     break
                             
+                            debug_log(f"Tags header row index: {header_row_idx}")
+                            
                             if header_row_idx is not None:
                                 # Re-parse with correct header row
                                 tag_data = xls.parse(tags_sheet, header=header_row_idx)
+                                debug_log(f"Tags columns: {list(tag_data.columns)}")
                                 
-                                # Build dictionary: competency_name -> max_score
+                                # Build dictionary: abbreviation -> max_score, and full_name -> max_score
                                 for idx, row in tag_data.iterrows():
-                                    # Get Enabled value - try different column names
+                                    # Get Enabled value
                                     enabled = None
                                     for col in ['Enabled', 'enabled', tag_data.columns[2] if len(tag_data.columns) > 2 else None]:
                                         if col and col in tag_data.columns:
@@ -498,66 +612,81 @@ def query_showreport(play_id):
                                             if pd.notna(enabled):
                                                 break
                                     
-                                    # Try different possible column names for the competency identifier
-                                    comp_name = None
-                                    for col in ['Competencies', 'Competency', 'competencies', 'competency', 'Competency Name', 'Name', tag_data.columns[0]]:
+                                    # Get competency abbreviation
+                                    comp_abbr = None
+                                    for col in ['Competencies', 'Competency', 'competencies', 'competency', tag_data.columns[0]]:
                                         if col and col in tag_data.columns:
-                                            comp_name = row.get(col)
-                                            if pd.notna(comp_name):
+                                            comp_abbr = row.get(col)
+                                            if pd.notna(comp_abbr):
                                                 break
                                     
-                                    # Try different column names for max score
+                                    # Get max score
                                     max_score = None
-                                    for col in ['max scores', 'Max scores', 'Max Score', 'Max score', 'max score', 'MaxScore', 'MaxScores', tag_data.columns[1] if len(tag_data.columns) > 1 else None]:
+                                    for col in ['max scores', 'Max scores', 'Max Score', 'max score', tag_data.columns[1] if len(tag_data.columns) > 1 else None]:
                                         if col and col in tag_data.columns:
                                             max_score = row.get(col)
                                             if pd.notna(max_score):
                                                 break
                                     
-                                    # Accept if either Enabled='Y' OR if enabled is None/NaN (for sheets without Enabled column)
-                                    # Check both enabled is None and pd.isna(enabled) to handle all cases
+                                    # Only process if enabled = 'Y' or not specified
                                     enabled_ok = (enabled == 'Y' or enabled is None or pd.isna(enabled))
                                     
-                                    if comp_name and pd.notna(max_score) and enabled_ok:
-                                        comp_name_str = str(comp_name).strip()
+                                    if comp_abbr and pd.notna(max_score) and enabled_ok:
+                                        comp_abbr_str = str(comp_abbr).strip()
                                         try:
-                                            max_score_int = int(float(max_score))  # Handle both int and float strings
-                                        except (ValueError, TypeError):
-                                            continue
-                                        
-                                        # Store with abbreviation from Tags sheet (e.g., "MOTVN LEVEL 2")
-                                        max_scores_dict[comp_name_str] = max_score_int
-                                        max_scores_dict[comp_name_str.lower()] = max_score_int
-                                        
-                                        # Extract base abbreviation by removing "LEVEL X" suffix
-                                        # e.g., "MOTVN LEVEL 2" -> "MOTVN"
-                                        import re
-                                        base_abbr = re.sub(r'\s*LEVEL\s*\d+\s*$', '', comp_name_str, flags=re.IGNORECASE).strip().upper()
-                                        
-                                        # Map base abbreviation to full name from master file
-                                        if base_abbr in abbr_to_full_name:
-                                            full_name = abbr_to_full_name[base_abbr]
-                                            max_scores_dict[full_name] = max_score_int
-                                            max_scores_dict[full_name.lower()] = max_score_int
-                            else:
-                                pass  # No header row found
-                                    
-                        else:
-                            pass  # No Tags sheet found
+                                            max_score_int = int(float(max_score))
+                                            
+                                            # Store with abbreviation (both original case and upper)
+                                            max_scores_dict[comp_abbr_str] = max_score_int
+                                            max_scores_dict[comp_abbr_str.upper()] = max_score_int
+                                            max_scores_dict[comp_abbr_str.lower()] = max_score_int
+                                            
+                                            # Map to full name using abbr_to_full_name (from master file loaded earlier)
+                                            full_name = abbr_to_full_name.get(comp_abbr_str.upper())
+                                            if full_name:
+                                                max_scores_dict[full_name] = max_score_int
+                                                max_scores_dict[full_name.lower()] = max_score_int
+                                                debug_log(f"Tags: '{comp_abbr_str}' -> full_name '{full_name}' max={max_score_int}")
+                                            else:
+                                                debug_log(f"Tags: '{comp_abbr_str}' max={max_score_int} (no full name mapping)")
+                                        except (ValueError, TypeError) as e:
+                                            debug_log(f"Error parsing max_score for {comp_abbr_str}: {e}")
+                                            pass
+                        
+                        debug_log(f"max_scores_dict has {len(max_scores_dict)} entries")
+                        debug_log(f"max_scores_dict keys (first 20): {list(max_scores_dict.keys())[:20]}")
                     except Exception as e:
+                        debug_log(f"Error reading Tags sheet: {e}")
+                        import traceback
+                        debug_log(f"Tags sheet traceback: {traceback.format_exc()}")
                         pass  # Continue with empty dict
 
             cur.execute("select * from chathistory where play_id=%s order by id asc", (play_id,))
             df = cur.fetchall()
+            
+            debug_log(f"query_showreport: play_id={play_id}, chathistory rows found={len(df)}")
+            
+            if not df or len(df) == 0:
+                debug_log(f"WARNING: No chathistory entries found for play_id={play_id}")
+                return None
+            
             results = []
+            scoremaster_found_count = 0
             for row in df:
+                chathistory_id = row[0]
                 data = {}
                 data["user"] = row[2]
                 data["computer"] = row[3]
 
-
-                cur.execute("select * from scoremaster where chathistory_id=%s", (row[0],))
+                cur.execute("select * from scoremaster where chathistory_id=%s", (chathistory_id,))
                 df2 = cur.fetchall()
+                
+                if not df2:
+                    debug_log(f"WARNING: No scoremaster entry for chathistory_id={chathistory_id}")
+                    continue
+                
+                scoremaster_found_count += 1
+                    
                 scoremaster_data = df2[0]
                 data["score"] = scoremaster_data[2]
 
@@ -566,23 +695,51 @@ def query_showreport(play_id):
 
                 scoredata = []
                 for row2 in df3:
-                    # row2[0]=id, row2[1]=scoremaster_id, row2[2]=score_name, row2[3]=score
-                    scoredata.append({"name": row2[2], "score": row2[3]})
+                    # scorebreakdown columns: id(0), scoremaster_id(1), score_name(2), score(3)
+                    # Add safety check for tuple length
+                    if len(row2) >= 4:
+                        scoredata.append({"name": row2[2], "score": row2[3]})
+                    elif len(row2) >= 3:
+                        # Fallback: might be (id, score_name, score) without scoremaster_id
+                        scoredata.append({"name": row2[1], "score": row2[2]})
+                    else:
+                        debug_log(f"WARNING: scorebreakdown row has unexpected format: {row2}")
                 data["competencies"] = scoredata
 
                 results.append(data)
 
+            debug_log(f"query_showreport: results count={len(results)}, scoremaster entries found={scoremaster_found_count}")
+            
+            if len(results) == 0:
+                debug_log(f"ERROR: No results built - all chathistory entries missing scoremaster!")
+                return None
+            
+            # Debug: show what competencies we have from database
+            all_db_competencies = set()
+            for entry in results:
+                for score in entry["competencies"]:
+                    all_db_competencies.add(str(score["name"]) if score["name"] is not None else "")
+            debug_log(f"Database competencies: {list(all_db_competencies)}")
+            debug_log(f"Tags sheet max_scores_dict keys: {[k for k in max_scores_dict.keys() if isinstance(k, str)][:20]}")  # First 20
+            
             score_totals = {}
             for entry in results:
                 for score in entry["competencies"]:
-                    comp_name = score["name"]
+                    comp_name = str(score["name"]) if score["name"] is not None else ""
+                    
+                    # Convert score to integer (may be stored as string in DB)
+                    try:
+                        score_value = int(float(score["score"])) if score["score"] is not None else 0
+                    except (ValueError, TypeError):
+                        score_value = 0
+                    
+                    if not comp_name:
+                        continue  # Skip empty competency names
                     
                     if comp_name in score_totals:
-                        score_totals[comp_name]["score"] += score["score"]
-                        # Cap at the max to prevent exceeding Tags sheet limit
-                        if score_totals[comp_name]["score"] > score_totals[comp_name]["total"]:
-                            score_totals[comp_name]["score"] = score_totals[comp_name]["total"]
-                        # Don't add to total - it's already the final max from Tags sheet
+                        score_totals[comp_name]["score"] += score_value
+                        # DON'T cap score - let it exceed max to detect "overused" competencies
+                        # The report will show overused competencies with the balance scale
                     else:
                         # Get max score from Tags sheet - try multiple matching strategies
                         max_score_total = None
@@ -592,13 +749,15 @@ def query_showreport(play_id):
                         if comp_name in max_scores_dict:
                             max_score_total = max_scores_dict[comp_name]
                             matched_key = comp_name
+                            debug_log(f"MATCHED (exact): '{comp_name}' -> max={max_score_total}")
                         
                         # Strategy 2: Case-insensitive match
                         if max_score_total is None:
                             for key in max_scores_dict.keys():
-                                if key.lower() == comp_name.lower():
+                                if isinstance(key, str) and key.lower() == comp_name.lower():
                                     max_score_total = max_scores_dict[key]
                                     matched_key = key
+                                    debug_log(f"MATCHED (case-insensitive): '{comp_name}' -> '{key}' max={max_score_total}")
                                     break
                         
                         # Strategy 3: Partial match - check if Tags key contains part of comp_name or vice versa
@@ -609,6 +768,8 @@ def query_showreport(play_id):
                             comp_base = comp_base.replace('-', '').replace('/', '').lower()
                             
                             for key in max_scores_dict.keys():
+                                if not isinstance(key, str):
+                                    continue  # Skip non-string keys
                                 key_base = re.sub(r'\s*Level\s*\d+\s*', '', key, flags=re.IGNORECASE).strip()
                                 key_base = key_base.replace('-', '').replace('/', '').lower()
                                 
@@ -616,42 +777,90 @@ def query_showreport(play_id):
                                 if comp_base in key_base or key_base in comp_base:
                                     max_score_total = max_scores_dict[key]
                                     matched_key = key
+                                    debug_log(f"MATCHED (partial): '{comp_name}' -> '{key}' max={max_score_total}")
                                     break
                         
-                        # Skip competencies not found in Tags sheet (don't include in report)
+                        # If no match found in Tags sheet, use default max score based on interactions count
+                        # This ensures ALL competencies from the database appear in the report
                         if max_score_total is None:
-                            continue
+                            # Calculate default max as 3 points per interaction (rough estimate)
+                            default_max = len(results) * 3 if len(results) > 0 else 3
+                            max_score_total = default_max
+                            debug_log(f"NO MATCH for competency: '{comp_name}' - using default max={default_max}")
                         
-                        score_totals[comp_name] = {"score": score["score"], "total": max_score_total}
+                        score_totals[comp_name] = {"score": score_value, "total": max_score_total, "matched": True}
 
-            # Final pass: ensure no scores exceed their maximums
+            debug_log(f"Final score_totals has {len(score_totals)} competencies")
+            debug_log(f"competency_descriptions keys: {list(competency_descriptions.keys())}")
+            
+            # Final pass: DON'T cap scores - keep actual values to show overused
             processed_score_totals = []
             for key in score_totals:
                 final_score_value = score_totals[key]["score"]
                 max_allowed = score_totals[key]["total"]
                 
-                # Cap score at maximum if it exceeds
-                if final_score_value > max_allowed:
-                    final_score_value = max_allowed
+                # Keep actual score even if it exceeds max - this shows "overused"
+                # The report generator will handle displaying overused competencies
                 
-                # Get description from master file
-                description = competency_descriptions.get(key, '')
+                # Get description from master file - try multiple matching strategies
+                description = ''
+                
+                # Strategy 1: Exact match by key (competency name from DB)
+                if key in competency_descriptions:
+                    description = competency_descriptions[key]
+                    debug_log(f"Description match (exact): '{key}' -> '{description[:50]}...'")
+                
+                # Strategy 2: Case-insensitive match
+                if not description:
+                    for desc_key, desc_val in competency_descriptions.items():
+                        if desc_key.lower() == key.lower():
+                            description = desc_val
+                            debug_log(f"Description match (case-insensitive): '{key}' -> '{desc_key}' -> '{description[:50]}...'")
+                            break
+                
+                # Strategy 3: Look up via abbreviation mapping - key might be an abbreviation
+                if not description:
+                    key_upper = key.upper().strip()
+                    if key_upper in abbr_to_full_name:
+                        full_name = abbr_to_full_name[key_upper]
+                        if full_name in competency_descriptions:
+                            description = competency_descriptions[full_name]
+                            debug_log(f"Description match (via abbr): '{key}' -> '{full_name}' -> '{description[:50]}...'")
+                
+                # Strategy 4: Partial match - check if key contains or is contained in any description key
+                if not description:
+                    key_lower = key.lower().strip()
+                    for desc_key, desc_val in competency_descriptions.items():
+                        desc_key_lower = desc_key.lower().strip()
+                        if key_lower in desc_key_lower or desc_key_lower in key_lower:
+                            description = desc_val
+                            debug_log(f"Description match (partial): '{key}' -> '{desc_key}' -> '{description[:50]}...'")
+                            break
+                
+                if not description:
+                    debug_log(f"No description found for: '{key}'")
                 
                 processed_score_totals.append({
                     "name": key, 
                     "score": final_score_value, 
                     "total_possible": max_allowed,
-                    "description": description
+                    "description": description,
+                    "overused": final_score_value > max_allowed  # Flag for overused
                 })
+
+            debug_log(f"processed_score_totals has {len(processed_score_totals)} entries")
 
             final_score = {"overall_score": {"score":0, "total":0}}
             for entry in results:
                 final_score["overall_score"]["score"] += entry["score"]
                 final_score["overall_score"]["total"] += 3
 
+            debug_log(f"query_showreport SUCCESS: returning {len(results)} results, {len(processed_score_totals)} competencies")
         return results, processed_score_totals, final_score
     except Exception as e:
-        print(f"Error in query_showreport: {e}", flush=True)
+        import traceback
+        debug_log(f"ERROR in query_showreport: {e}")
+        debug_log(f"Traceback: {traceback.format_exc()}")
         return None
 
 
@@ -685,7 +894,11 @@ def mark_play_completed(play_id):
 def query_create_chat_entry(user_text, response_text):
     try:
         if 'play_id' not in session:
+            debug_log("ERROR: No play_id in session for chat entry")
             raise ValueError("No active play session")
+        
+        play_id = session['play_id']
+        debug_log(f"Creating chat entry: play_id={play_id}, user_text={user_text[:30] if user_text else 'None'}...")
 
         conn = mysql.connector.connect(
             host=host,
@@ -699,17 +912,18 @@ def query_create_chat_entry(user_text, response_text):
         cur.execute("""
             INSERT INTO chathistory (play_id, user_text, response_text) 
             VALUES (%s, %s, %s)
-        """, (session['play_id'], user_text, response_text))
+        """, (play_id, user_text, response_text))
         
         conn.commit()
         chathistory_id = cur.lastrowid
+        debug_log(f"Chat entry created: chathistory_id={chathistory_id}")
         
         cur.close()
         conn.close()
         return chathistory_id
 
     except Exception as e:
-        print(f"Error creating chat entry: {str(e)}")
+        debug_log(f"ERROR creating chat entry: {str(e)}")
         if 'conn' in locals():
             conn.close()
         return None
@@ -750,6 +964,43 @@ def query_create_score_breakdown(scoremaster_id, score_name, score):
 
     except:
         return None
+
+
+def query_get_play_cumulative_score(play_id):
+    """
+    Get the cumulative score (sum and count) for a play session.
+    Returns a dict with 'total_score', 'interaction_count', and 'average_score'.
+    The average_score is used to determine computer response level on timeout.
+    """
+    try:
+        with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
+            cursor = dbconn.cursor()
+            
+            # Get all scores from scoremaster for this play session
+            query = """
+                SELECT SUM(sm.overall_score) as total_score, COUNT(sm.id) as interaction_count
+                FROM chathistory ch
+                JOIN scoremaster sm ON ch.id = sm.chathistory_id
+                WHERE ch.play_id = %s
+            """
+            cursor.execute(query, (play_id,))
+            result = cursor.fetchone()
+            
+            if result and result[0] is not None:
+                total_score = int(result[0])
+                interaction_count = int(result[1])
+                average_score = total_score / interaction_count if interaction_count > 0 else 0
+                return {
+                    'total_score': total_score,
+                    'interaction_count': interaction_count,
+                    'average_score': average_score
+                }
+            
+            return {'total_score': 0, 'interaction_count': 0, 'average_score': 0}
+    except Exception as e:
+        print(f"Error getting cumulative score: {e}")
+        return {'total_score': 0, 'interaction_count': 0, 'average_score': 0}
+
 
 def query_end_attempts():
     roleplay_id = session["roleplay_id"]
@@ -856,98 +1107,264 @@ def query_add_roleplay(roleplay_input, save_path):
 
 # New functions for enhanced roleplay configuration
 
+def _save_roleplay_config_internal(cursor, roleplay_id, config_data):
+    """Internal helper: Save roleplay config using existing cursor/transaction"""
+    # Temporarily disable foreign key checks to handle PythonAnywhere replication lag
+    cursor.execute("SET FOREIGN_KEY_CHECKS = 0")
+    
+    try:
+        # Check if config exists
+        cursor.execute("SELECT id, ideal_video_path FROM roleplay_config WHERE roleplay_id = %s", (roleplay_id,))
+        existing = cursor.fetchone()
+        
+        # If ideal_video_path is None, preserve existing path
+        ideal_video_path = config_data.get('ideal_video_path')
+        if ideal_video_path is None and existing:
+            ideal_video_path = existing[1] if existing[1] else ''
+        elif ideal_video_path is None:
+            ideal_video_path = ''
+        
+        if existing:
+            # Update existing configuration
+            update_query = """
+            UPDATE roleplay_config SET 
+                input_type = %s,
+                audio_rerecord_attempts = %s,
+                available_languages = %s,
+                max_interaction_time = %s,
+                max_total_time = %s,
+                repeat_attempts_allowed = %s,
+                score_type = %s,
+                show_ideal_video = %s,
+                ideal_video_path = %s,
+                voice_assessment_enabled = %s,
+                difficulty_level = %s,
+                enable_16pf_analysis = %s,
+                pf16_analysis_source = %s,
+                pf16_user_age_required = %s,
+                pf16_user_gender_required = %s,
+                pf16_default_age = %s,
+                pf16_send_audio_for_analysis = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE roleplay_id = %s
+            """
+            cursor.execute(update_query, (
+                config_data['input_type'],
+                config_data['audio_rerecord_attempts'],
+                config_data['available_languages'],
+                config_data['max_interaction_time'],
+                config_data['max_total_time'],
+                config_data['repeat_attempts_allowed'],
+                config_data['score_type'],
+                config_data['show_ideal_video'],
+                ideal_video_path,
+                config_data['voice_assessment_enabled'],
+                config_data.get('difficulty_level', 'easy'),
+                config_data.get('enable_16pf_analysis', False),
+                config_data.get('pf16_analysis_source', 'none'),
+                config_data.get('pf16_user_age_required', True),
+                config_data.get('pf16_user_gender_required', True),
+                config_data.get('pf16_default_age', 30),
+                config_data.get('pf16_send_audio_for_analysis', True),
+                roleplay_id
+            ))
+        else:
+            # Create new configuration
+            insert_query = """
+            INSERT INTO roleplay_config (
+                roleplay_id, input_type, audio_rerecord_attempts, available_languages,
+                max_interaction_time, max_total_time, repeat_attempts_allowed,
+                score_type, show_ideal_video, ideal_video_path, voice_assessment_enabled,
+                difficulty_level, enable_16pf_analysis, pf16_analysis_source,
+                pf16_user_age_required, pf16_user_gender_required, pf16_default_age,
+                pf16_send_audio_for_analysis
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
+            cursor.execute(insert_query, (
+                roleplay_id,
+                config_data['input_type'],
+                config_data['audio_rerecord_attempts'],
+                config_data['available_languages'],
+                config_data['max_interaction_time'],
+                config_data['max_total_time'],
+                config_data['repeat_attempts_allowed'],
+                config_data['score_type'],
+                config_data['show_ideal_video'],
+                ideal_video_path,
+                config_data['voice_assessment_enabled'],
+                config_data.get('difficulty_level', 'easy'),
+                config_data.get('enable_16pf_analysis', False),
+                config_data.get('pf16_analysis_source', 'none'),
+                config_data.get('pf16_user_age_required', True),
+                config_data.get('pf16_user_gender_required', True),
+                config_data.get('pf16_default_age', 30),
+                config_data.get('pf16_send_audio_for_analysis', True)
+            ))
+    finally:
+        # Re-enable foreign key checks
+        cursor.execute("SET FOREIGN_KEY_CHECKS = 1")
+
 def create_or_update_roleplay_config(roleplay_id, config_data):
     """Create or update roleplay configuration"""
+    dbconn = None
+    cursor = None
     try:
-        with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
-            cursor = dbconn.cursor()
-            
-            # Check if config exists
-            cursor.execute("SELECT id FROM roleplay_config WHERE roleplay_id = %s", (roleplay_id,))
-            existing = cursor.fetchone()
-            
-            if existing:
-                # Update existing configuration
-                update_query = """
-                UPDATE roleplay_config SET 
-                    input_type = %s,
-                    audio_rerecord_attempts = %s,
-                    available_languages = %s,
-                    max_interaction_time = %s,
-                    max_total_time = %s,
-                    repeat_attempts_allowed = %s,
-                    score_type = %s,
-                    show_ideal_video = %s,
-                    ideal_video_path = %s,
-                    voice_assessment_enabled = %s,
-                    difficulty_level = %s,
-                    enable_16pf_analysis = %s,
-                    pf16_analysis_source = %s,
-                    pf16_user_age_required = %s,
-                    pf16_user_gender_required = %s,
-                    pf16_default_age = %s,
-                    pf16_send_audio_for_analysis = %s,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE roleplay_id = %s
-                """
-                cursor.execute(update_query, (
-                    config_data['input_type'],
-                    config_data['audio_rerecord_attempts'],
-                    config_data['available_languages'],
-                    config_data['max_interaction_time'],
-                    config_data['max_total_time'],
-                    config_data['repeat_attempts_allowed'],
-                    config_data['score_type'],
-                    config_data['show_ideal_video'],
-                    config_data.get('ideal_video_path', ''),
-                    config_data['voice_assessment_enabled'],
-                    config_data.get('difficulty_level', 'easy'),
-                    config_data.get('enable_16pf_analysis', False),
-                    config_data.get('pf16_analysis_source', 'none'),
-                    config_data.get('pf16_user_age_required', True),
-                    config_data.get('pf16_user_gender_required', True),
-                    config_data.get('pf16_default_age', 30),
-                    config_data.get('pf16_send_audio_for_analysis', True),
-                    roleplay_id
-                ))
+        debug_log(f"🔧 Starting config save for roleplay_id={roleplay_id}")
+        debug_log(f"🔧 Config data keys: {list(config_data.keys())}")
+        
+        dbconn = ms.connect(host=host, user=user, password=password, database=database)
+        cursor = dbconn.cursor()
+        
+        # Verify parent roleplay exists (with retry for PythonAnywhere replication lag)
+        max_retries = 10
+        retry_delay = 0.5  # 500ms - PythonAnywhere has significant replication lag
+        roleplay_exists = False
+        
+        for attempt in range(max_retries):
+            cursor.execute("SELECT id FROM roleplay WHERE id = %s", (roleplay_id,))
+            if cursor.fetchone():
+                roleplay_exists = True
+                debug_log(f"✅ Parent roleplay {roleplay_id} found (attempt {attempt + 1})")
+                break
             else:
-                # Create new configuration
-                insert_query = """
-                INSERT INTO roleplay_config (
-                    roleplay_id, input_type, audio_rerecord_attempts, available_languages,
-                    max_interaction_time, max_total_time, repeat_attempts_allowed,
-                    score_type, show_ideal_video, ideal_video_path, voice_assessment_enabled,
-                    difficulty_level, enable_16pf_analysis, pf16_analysis_source,
-                    pf16_user_age_required, pf16_user_gender_required, pf16_default_age,
-                    pf16_send_audio_for_analysis
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """
-                cursor.execute(insert_query, (
-                    roleplay_id,
-                    config_data['input_type'],
-                    config_data['audio_rerecord_attempts'],
-                    config_data['available_languages'],
-                    config_data['max_interaction_time'],
-                    config_data['max_total_time'],
-                    config_data['repeat_attempts_allowed'],
-                    config_data['score_type'],
-                    config_data['show_ideal_video'],
-                    config_data.get('ideal_video_path', ''),
-                    config_data['voice_assessment_enabled'],
-                    config_data.get('difficulty_level', 'easy'),
-                    config_data.get('enable_16pf_analysis', False),
-                    config_data.get('pf16_analysis_source', 'none'),
-                    config_data.get('pf16_user_age_required', True),
-                    config_data.get('pf16_user_gender_required', True),
-                    config_data.get('pf16_default_age', 30),
-                    config_data.get('pf16_send_audio_for_analysis', True)
-                ))
-            
-            dbconn.commit()
-            return True
+                if attempt < max_retries - 1:
+                    debug_log(f"⏳ Parent roleplay not found yet, waiting {retry_delay}s... (attempt {attempt + 1}/{max_retries})")
+                    import time
+                    time.sleep(retry_delay)
+                else:
+                    debug_log(f"❌ Parent roleplay {roleplay_id} not found after {max_retries} attempts ({max_retries * retry_delay}s total)")
+        
+        if not roleplay_exists:
+            debug_log(f"❌ Cannot save config: roleplay {roleplay_id} does not exist")
+            return False
+        
+        # Check if config exists
+        cursor.execute("SELECT id, ideal_video_path FROM roleplay_config WHERE roleplay_id = %s", (roleplay_id,))
+        existing = cursor.fetchone()
+        debug_log(f"🔧 Existing config found: {existing is not None}")
+        
+        # If ideal_video_path is None, preserve existing path (no new video uploaded)
+        ideal_video_path = config_data.get('ideal_video_path')
+        if ideal_video_path is None and existing:
+            ideal_video_path = existing[1] if existing[1] else ''
+        elif ideal_video_path is None:
+            ideal_video_path = ''
+        
+        # Enforce: 16PF analysis can only be enabled for audio input type
+        if config_data.get('input_type') != 'audio':
+            config_data['enable_16pf_analysis'] = False
+            config_data['pf16_analysis_source'] = 'none'
+
+        if existing:
+            # Update existing configuration
+            debug_log(f"🔧 Updating existing config (id={existing[0]})")
+            update_query = """
+            UPDATE roleplay_config SET 
+                input_type = %s,
+                audio_rerecord_attempts = %s,
+                available_languages = %s,
+                max_interaction_time = %s,
+                max_total_time = %s,
+                repeat_attempts_allowed = %s,
+                score_type = %s,
+                show_ideal_video = %s,
+                ideal_video_path = %s,
+                voice_assessment_enabled = %s,
+                difficulty_level = %s,
+                enable_16pf_analysis = %s,
+                pf16_analysis_source = %s,
+                pf16_user_age_required = %s,
+                pf16_user_gender_required = %s,
+                pf16_default_age = %s,
+                pf16_send_audio_for_analysis = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE roleplay_id = %s
+            """
+            cursor.execute(update_query, (
+                config_data['input_type'],
+                config_data['audio_rerecord_attempts'],
+                config_data['available_languages'],
+                config_data['max_interaction_time'],
+                config_data['max_total_time'],
+                config_data['repeat_attempts_allowed'],
+                config_data['score_type'],
+                config_data['show_ideal_video'],
+                ideal_video_path,
+                config_data['voice_assessment_enabled'],
+                config_data.get('difficulty_level', 'easy'),
+                config_data.get('enable_16pf_analysis', False),
+                config_data.get('pf16_analysis_source', 'none'),
+                config_data.get('pf16_user_age_required', True),
+                config_data.get('pf16_user_gender_required', True),
+                config_data.get('pf16_default_age', 30),
+                config_data.get('pf16_send_audio_for_analysis', True),
+                roleplay_id
+            ))
+            debug_log(f"✅ UPDATE executed, rows affected: {cursor.rowcount}")
+        else:
+            # Create new configuration
+            debug_log(f"🔧 Creating new config entry")
+            insert_query = """
+            INSERT INTO roleplay_config (
+                roleplay_id, input_type, audio_rerecord_attempts, available_languages,
+                max_interaction_time, max_total_time, repeat_attempts_allowed,
+                score_type, show_ideal_video, ideal_video_path, voice_assessment_enabled,
+                difficulty_level, enable_16pf_analysis, pf16_analysis_source,
+                pf16_user_age_required, pf16_user_gender_required, pf16_default_age,
+                pf16_send_audio_for_analysis
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
+            cursor.execute(insert_query, (
+                roleplay_id,
+                config_data['input_type'],
+                config_data['audio_rerecord_attempts'],
+                config_data['available_languages'],
+                config_data['max_interaction_time'],
+                config_data['max_total_time'],
+                config_data['repeat_attempts_allowed'],
+                config_data['score_type'],
+                config_data['show_ideal_video'],
+                ideal_video_path,
+                config_data['voice_assessment_enabled'],
+                config_data.get('difficulty_level', 'easy'),
+                config_data.get('enable_16pf_analysis', False),
+                config_data.get('pf16_analysis_source', 'none'),
+                config_data.get('pf16_user_age_required', True),
+                config_data.get('pf16_user_gender_required', True),
+                config_data.get('pf16_default_age', 30),
+                config_data.get('pf16_send_audio_for_analysis', True)
+            ))
+            debug_log(f"✅ INSERT executed, last insert id: {cursor.lastrowid}")
+        
+        # Explicit commit
+        dbconn.commit()
+        debug_log(f"✅ Database commit successful for roleplay_id={roleplay_id}")
+        
+        # Verify the save by reading back
+        cursor.execute("SELECT input_type, available_languages FROM roleplay_config WHERE roleplay_id = %s", (roleplay_id,))
+        verify = cursor.fetchone()
+        if verify:
+            debug_log(f"✅ Verification: config exists with input_type={verify[0]}, languages={verify[1]}")
+        else:
+            debug_log(f"❌ WARNING: Config not found after save!")
+        
+        return True
     except Exception as e:
-        print(f"Error creating/updating roleplay config: {str(e)}")
+        debug_log(f"❌ Error creating/updating roleplay config: {str(e)}")
+        import traceback
+        debug_log(f"❌ Traceback: {traceback.format_exc()}")
+        if dbconn:
+            try:
+                dbconn.rollback()
+                debug_log(f"❌ Transaction rolled back")
+            except:
+                pass
         return False
+    finally:
+        if cursor:
+            cursor.close()
+        if dbconn:
+            dbconn.close()
 
 def get_roleplay_config(roleplay_id):
     """Get roleplay configuration"""
@@ -955,8 +1372,13 @@ def get_roleplay_config(roleplay_id):
         with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
             cursor = dbconn.cursor()
             cursor.execute("SELECT * FROM roleplay_config WHERE roleplay_id = %s", (roleplay_id,))
-            return cursor.fetchone()
+            result = cursor.fetchone()
+            debug_log(f"📖 get_roleplay_config({roleplay_id}): found={result is not None}")
+            if result:
+                debug_log(f"📖 Config: input_type={result[1] if len(result) > 1 else 'N/A'}")
+            return result
     except Exception as e:
+        debug_log(f"❌ Error getting roleplay config: {str(e)}")
         print(f"Error getting roleplay config: {str(e)}")
         return None
 
@@ -1029,7 +1451,7 @@ def get_clusters():
         return []
 
 def get_cluster(cluster_id):
-    """Get specific cluster"""
+    """Get specific cluster by internal id (use get_cluster_by_id_or_external for id or external cluster_id)."""
     try:
         with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
             cursor = dbconn.cursor()
@@ -1037,6 +1459,21 @@ def get_cluster(cluster_id):
             return cursor.fetchone()
     except Exception as e:
         print(f"Error getting cluster: {str(e)}")
+        return None
+
+
+def get_cluster_by_id_or_external(id_or_external):
+    """Get cluster by internal id (int) or external cluster_id (string)."""
+    try:
+        with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
+            cursor = dbconn.cursor()
+            cursor.execute(
+                "SELECT * FROM roleplay_cluster WHERE id = %s OR cluster_id = %s",
+                (id_or_external, str(id_or_external)),
+            )
+            return cursor.fetchone()
+    except Exception as e:
+        print(f"Error getting cluster by id or external: {str(e)}")
         return None
 
 def add_roleplay_to_cluster(cluster_id, roleplay_id, order_sequence=1):
@@ -1291,11 +1728,11 @@ def get_cluster_users(cluster_id):
         with ms.connect(host=host, user=user, password=password, database=database) as dbconn:
             cursor = dbconn.cursor()
             cursor.execute("""
-                SELECT u.id, u.email, u.name, u.created_at
+                SELECT u.id, u.email, u.is_admin
                 FROM user u
                 INNER JOIN user_cluster uc ON u.id = uc.user_id
                 WHERE uc.cluster_id = %s
-                ORDER BY u.name
+                ORDER BY u.email
             """, (cluster_id,))
             return cursor.fetchall()
     except Exception as e:
@@ -1399,8 +1836,17 @@ def get_16pf_config_for_roleplay(roleplay_id):
                        pf16_default_age, pf16_send_audio_for_analysis
                 FROM roleplay_config WHERE roleplay_id = %s
             """, (roleplay_id,))
-            return cursor.fetchone()
+            result = cursor.fetchone()
+            if result is None:
+                print(f"[16PF Config] No roleplay_config entry found for roleplay_id={roleplay_id}")
+                # Check if roleplay_config table has ANY entries for this roleplay
+                cursor.execute("SELECT COUNT(*) as cnt FROM roleplay_config WHERE roleplay_id = %s", (roleplay_id,))
+                count_result = cursor.fetchone()
+                print(f"[16PF Config] Count check: {count_result}")
+            return result
     except Exception as e:
         print(f"Error getting 16PF config: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return None
 

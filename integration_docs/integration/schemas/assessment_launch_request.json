@@ -1,0 +1,8 @@
+{
+  "user_id": "EMP_789",
+  "user_name": "johndoe",
+  "assessment_cluster_id": "b4bf406c-4f9",
+  "auth_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "return_url": "https://q3.example.com/dashboard",
+  "results_url": "https://q3.example.com/api/receive-assessment-results"
+}
