@@ -322,8 +322,11 @@ CREATE TABLE character_gender (
 
 ### C. Master Competency File (competency_file_path)
 **Sheet: "Sheet1"**
-| Abbr | CompetencyType | Description | Score 0 | Score 1 | Score 2 | Score 3 |
-|------|----------------|-------------|---------|---------|---------|---------|
+
+> **Note:** For both integration and the Rolevo system itself, the columns `Description`, `Score 0`, `Score 1`, `Score 2`, and `Score 3` are **optional**. You may omit any of these columns as needed for your use case.
+
+| Abbr | CompetencyType | Description (optional) | Score 0 (optional) | Score 1 (optional) | Score 2 (optional) | Score 3 (optional) |
+|------|----------------|-----------------------|--------------------|--------------------|--------------------|--------------------|
 | EMP | Empathy Level 2 | Understanding emotions | No empathy | Acknowledges | Shows concern | Deep empathy |
 | ACTLSTN | Active Listening | Attentive listening | Interrupts | Listens | Clarifies | Summarizes |
 

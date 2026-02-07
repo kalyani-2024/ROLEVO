@@ -1,0 +1,80 @@
+{
+  "cluster_id": "b4bf406c-4f9",
+  "cluster_name": "Sales Assessment Cluster",
+  "cluster_type": "assessment",
+  "user_id": "EMP_789",
+  "user_name": "johndoe",
+  "roleplays": [
+    {
+      "roleplay_id": "RP_22P91IFO",
+      "roleplay_name": "Customer Negotiation",
+      "stakeholders": "01",
+      "max_time": 30,
+      "time_taken": 17,
+      "total_score": 37,
+      "max_score": 45,
+      "percentage": 82.22,
+      "competencies": [
+        {
+          "competency_code": "MOTVN_L2",
+          "competency_name": "Motivating Level 2",
+          "max_marks": 24,
+          "marks_obtained": 22
+        },
+        {
+          "competency_code": "EMP_L2",
+          "competency_name": "Empathy Level 2",
+          "max_marks": 21,
+          "marks_obtained": 15
+        }
+      ],
+      "16pf_analysis": {
+        "_comment": "Raw JSON from Persona360 API (only included if 16PF is enabled for this roleplay)",
+        "status": "completed",
+        "personality_factors": {
+          "warmth": 7.2,
+          "reasoning": 6.8,
+          "emotional_stability": 5.5,
+          "dominance": 6.1,
+          "liveliness": 7.0,
+          "rule_consciousness": 5.8,
+          "social_boldness": 6.5,
+          "sensitivity": 5.2,
+          "vigilance": 4.8,
+          "abstractedness": 5.0,
+          "privateness": 4.5,
+          "apprehension": 3.8,
+          "openness_to_change": 6.2,
+          "self_reliance": 5.5,
+          "perfectionism": 6.0,
+          "tension": 4.2
+        },
+        "composite_scores": {
+          "extraversion": 6.8,
+          "anxiety": 4.2,
+          "tough_mindedness": 5.5,
+          "independence": 5.8,
+          "self_control": 5.9
+        }
+      }
+    },
+    {
+      "roleplay_id": "RP_A7B9C2D4",
+      "roleplay_name": "Objection Handling",
+      "stakeholders": "01",
+      "max_time": 15,
+      "time_taken": 12,
+      "total_score": 14,
+      "max_score": 18,
+      "percentage": 77.78,
+      "competencies": [
+        {
+          "competency_code": "PERSUADE_L2",
+          "competency_name": "Persuasion- Win/Win mindset Level 2",
+          "max_marks": 18,
+          "marks_obtained": 14
+        }
+      ]
+    }
+  ]
+}

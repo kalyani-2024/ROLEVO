@@ -1,0 +1,76 @@
+/* Override to enforce minimum font-size of 16px across the app.
+   Loaded last so it can increase any smaller font sizes to improve readability.
+*/
+html, body {
+  font-size: 16px !important;
+}
+
+/* Ensure common small elements aren't rendered smaller than 16px */
+small, .small, h6, .score-title, .leaderboard-title, .time-progress-counter, .jqstooltip {
+  font-size: 16px !important;
+}
+
+/* Form controls and interactive UI should be legible */
+input, button, select, textarea, label {
+  font-size: 16px !important;
+}
+
+/* Ensure audio controls and other compact widgets are readable */
+.audio-controls, .scenario-audio, .audio-record-btn, .audio-rerecord-btn {
+  font-size: 16px !important;
+}
+
+/* Reduce the chance of overflowing fixed-size elements by increasing line-height */
+body, p, label, button, input, textarea {
+  line-height: 1.4 !important;
+}
+
+/* Language checkbox grid: keep labels aligned and inputs vertically centered */
+.lang-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) !important;
+  gap: 4px 12px !important;
+  align-items: center !important;
+}
+.lang-grid label {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  justify-content: flex-start !important;
+  min-height: 28px !important;
+}
+.lang-grid input[type="checkbox"] {
+  margin: 0 4px 0 0 !important;
+  width: 18px !important;
+  height: 18px !important;
+  vertical-align: middle !important;
+  transform: translateY(0) !important;
+}
+.lang-grid span {
+  display: inline-block !important;
+  line-height: 1 !important;
+  margin-top: 0 !important;
+}
+
+/* Reset checkboxes/radios so they don't expand to full width (some templates set input{width:100%}) */
+input[type="checkbox"], input[type="radio"] {
+  width: auto !important;
+  height: auto !important;
+  display: inline-block !important;
+  margin: 0 8px 0 0 !important;
+  vertical-align: middle !important;
+}
+
+/* Ensure checkbox inside a label stays inline and sized consistently */
+label > input[type="checkbox"], label > input[type="radio"] {
+  margin-right: 8px !important;
+  width: 18px !important;
+  height: 18px !important;
+}
+
+/* For standalone checkboxes placed above a label, keep them inline with following text */
+.card-body input[type="checkbox"], .card-body input[type="radio"] {
+  display: inline-block !important;
+  width: auto !important;
+  margin-right: 8px !important;
+}

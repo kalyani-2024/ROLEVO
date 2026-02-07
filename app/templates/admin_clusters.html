@@ -33,6 +33,7 @@
         background-color: #28a745;
         color: white;
     }
+    h5.card-title { font-size: 20px; }
 </style>
 {% endblock %}
 
@@ -90,7 +91,7 @@
                         {% endif %}
                     {% endwith %}
                     
-                    <h2 class="mb-4" style="color: white;">Roleplay Clusters</h2>
+                    <h2 class="mb-4" style="color: rgb(0, 20, 1);">Roleplay Clusters</h2>
                     
                     {% if clusters %}
                         {% for cluster in clusters %}
@@ -101,9 +102,9 @@
                                         <h5 class="card-title">
                                             <span class="cluster-badge cluster-{{cluster[3]}}">{{cluster[3]|upper}}</span>
                                             {{cluster[1]}}
-                                        </h5>
+                                        </h5><br>
                                         <h6 class="card-subtitle mb-2 text-muted">
-                                            Cluster ID: {{cluster[2]}}
+                                       
                                         </h6>
                                         <p class="card-text">
                                             <small class="text-muted">Created: {{cluster[4]|ist('%Y-%m-%d %H:%M')}} IST</small>

@@ -1,0 +1,7 @@
+{
+  "success": true,
+  "user_id": "EMP_789",
+  "assessment_cluster_id": "b4bf406c-4f9",
+  "redirect_url": "https://roleplays.trajectorie.com/api/integration/assessment-start",
+  "message": "User authenticated successfully"
+}

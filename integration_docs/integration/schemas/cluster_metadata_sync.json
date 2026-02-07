@@ -1,0 +1,39 @@
+{
+  "cluster_id": "b4bf406c-4f9",
+  "cluster_name": "Sales Assessment Cluster",
+  "cluster_type": "assessment",
+  "number_of_roleplays": 2,
+  "roleplays": [
+    {
+      "roleplay_id": "RP_22P91IFO",
+      "roleplay_name": "Customer Negotiation",
+      "total_time_minutes": 30,
+      "enable_16pf_analysis": true,
+      "competencies": [
+        {
+          "competency_id": "MOTVN_L2",
+          "competency_name": "Motivating Level 2",
+          "max_score": 24
+        },
+        {
+          "competency_id": "EMP_L2",
+          "competency_name": "Empathy Level 2",
+          "max_score": 21
+        }
+      ]
+    },
+    {
+      "roleplay_id": "RP_A7B9C2D4",
+      "roleplay_name": "Objection Handling",
+      "total_time_minutes": 15,
+      "enable_16pf_analysis": false,
+      "competencies": [
+        {
+          "competency_id": "PERSUADE_L2",
+          "competency_name": "Persuasion- Win/Win mindset Level 2",
+          "max_score": 18
+        }
+      ]
+    }
+  ]
+}

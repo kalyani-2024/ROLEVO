@@ -2,6 +2,7 @@ from flask import Flask
 from config import Config
 from werkzeug.routing import IntegerConverter
 import os
+import re
 from datetime import timedelta, datetime, timezone
 from dotenv import load_dotenv
 
@@ -9,8 +10,8 @@ load_dotenv()
 
 # IST Timezone (UTC+5:30) - India Standard Time
 IST = timezone(timedelta(hours=5, minutes=30))
-# Database server timezone (UTC+4) - Gulf Standard Time (Dubai)
-DB_SERVER_TZ = timezone(timedelta(hours=4))
+# Database server timezone (UTC+0) - PythonAnywhere uses UTC
+DB_SERVER_TZ = timezone(timedelta(hours=0))
 
 def get_ist_now():
     """Get current datetime in IST timezone (server-independent)"""
@@ -66,12 +67,39 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)  # Session lasts 3
 app.config['SESSION_REFRESH_EACH_REQUEST'] = True  # Refresh session on each request to extend lifetime
 
 # Cookie settings - these are critical for persistence across browser sessions
-app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+# Auto-enable secure cookies in production (when FLASK_ENV=production)
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Prevent CSRF while allowing normal navigation
 app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=30)  # Remember me duration
 
-from app import routes, models, errors, queries
+# CSRF Protection - enable globally
+from flask_wtf.csrf import CSRFProtect
+csrf = CSRFProtect()
+csrf.init_app(app)
+
+# Rate Limiting - protect against brute force attacks
+try:
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+    
+    limiter = Limiter(
+        app=app,
+        key_func=get_remote_address,
+        default_limits=["200 per day", "50 per hour"],
+        storage_uri="memory://",
+    )
+except ImportError:
+    # Flask-Limiter not installed - create a dummy limiter
+    print("WARNING: Flask-Limiter not installed. Rate limiting disabled.")
+    class DummyLimiter:
+        def limit(self, *args, **kwargs):
+            def decorator(f):
+                return f
+            return decorator
+    limiter = DummyLimiter()
+
+from app import routes, models, errors, queries, api_integration
 
 
 # Register custom Jinja filters
@@ -100,3 +128,39 @@ def jinja_ist_format(value, fmt='%b %d, %Y %I:%M %p IST'):
 
 app.jinja_env.filters['split'] = jinja_split
 app.jinja_env.filters['ist'] = jinja_ist_format
+
+
+def jinja_basename(value):
+    """Return the original uploaded filename from a path.
+    
+    Handles patterns like:
+    - Full paths: extracts basename first
+    - temp_123_456_originalname.ext -> originalname.ext
+    - RP_ABC123_456_originalname.ext -> originalname.ext  
+    - ID_123_originalname.ext -> originalname.ext
+    - Old pattern: ID_competency.xlsx -> competency file (no original name available)
+    """
+    if not value:
+        return ''
+    try:
+        # Get basename first (removes directory path)
+        name = os.path.basename(str(value))
+        
+        # Pattern: prefix_TIMESTAMP_originalname.ext
+        # Examples: temp_123_456_myfile.xls, RP_ABC_123_myfile.xlsx
+        # Match anything up to and including a timestamp, then capture the rest
+        match = re.match(r'^[A-Za-z0-9_]+_\d+_(.+)$', name)
+        if match:
+            return match.group(1)
+        
+        # Old pattern for competency files: ID_competency.xlsx (no original name)
+        if name.endswith('_competency.xlsx'):
+            return 'competency file'
+        
+        # No pattern matched, return filename as-is
+        return name
+    except Exception:
+        return str(value)
+
+
+app.jinja_env.filters['basename'] = jinja_basename

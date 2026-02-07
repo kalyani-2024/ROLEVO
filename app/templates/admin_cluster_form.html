@@ -6,15 +6,21 @@
 <link href="{{url_for('static', filename='css/my.css')}}" rel="stylesheet">
 <script src="{{url_for('static', filename='js/fontawesome.js')}}" crossorigin="anonymous"></script>
 
-<style>     
-    body{background: url("{{url_for('static', filename='images/login_page_bg.jpg')}}");}
-    input, select, textarea {
+<style>
+    body {
+        background: url("{{url_for('static', filename='images/login_page_bg.jpg')}}");
+    }
+
+    input,
+    select,
+    textarea {
         width: 100%;
         margin-bottom: 15px;
         padding: 8px;
         border: 1px solid #ddd;
         border-radius: 4px;
     }
+
     .roleplay-list {
         max-height: 300px;
         overflow-y: auto;
@@ -23,15 +29,18 @@
         padding: 10px;
         background: white;
     }
+
     .roleplay-item {
         display: flex;
         align-items: center;
         padding: 8px;
         border-bottom: 1px solid #eee;
     }
+
     .roleplay-item:last-child {
         border-bottom: none;
     }
+
     .roleplay-item input[type="checkbox"] {
         width: auto;
         margin-right: 10px;
@@ -55,73 +64,89 @@
             <div class="navbar-header">
                 <a class="navbar-brand" href="{{ url_for('admin') }}">
                     <b class="logo-icon">
-                        <img src="{{url_for('static', filename='images/logo-trajectorie-codrive.png')}}" alt="Trajectorie : CODrive" width="130" class="light-logo">
+                        <img src="{{url_for('static', filename='images/logo-trajectorie-codrive.png')}}"
+                            alt="Trajectorie : CODrive" width="130" class="light-logo">
                     </b>
                 </a>
-                <a class="nav-toggler waves-effect waves-light d-block d-md-none" href="javascript:void(0)" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><i class="ti-menu ti-close"></i></a>
+                <a class="nav-toggler waves-effect waves-light d-block d-md-none" href="javascript:void(0)"
+                    data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent"
+                    aria-expanded="false" aria-label="Toggle navigation"><i class="ti-menu ti-close"></i></a>
             </div>
             <div class="navbar-collapse collapse" id="navbarSupportedContent">
                 <ul class="navbar-nav ml-auto">
-                    <li class="nav-item"><a href="/admin/clusters" class="btn btn-rounded btn-secondary mr-2">BACK TO CLUSTERS</a></li>
-                    <li class="nav-item"><a href="{{ url_for('logout') }}" class="btn btn-rounded btn-danger"><i class="fas fa-sign-out-alt"></i> LOGOUT</a></li>
+                    <li class="nav-item"><a href="/admin/clusters" class="btn btn-rounded btn-secondary mr-2">BACK TO
+                            CLUSTERS</a></li>
+                    <li class="nav-item"><a href="{{ url_for('logout') }}" class="btn btn-rounded btn-danger"><i
+                                class="fas fa-sign-out-alt"></i> LOGOUT</a></li>
                 </ul>
             </div>
         </nav>
-        
+
         <div class="container-fluid">
             <div class="row">
-                <div class="col-md-8 mx-auto" style="background-color: white; padding: 30px; border-radius: 10px; margin-top: 20px;">
+                <div class="col-md-8 mx-auto"
+                    style="background-color: white; padding: 30px; border-radius: 10px; margin-top: 20px;">
                     {% with messages = get_flashed_messages() %}
-                        {% if messages %}
-                                {% for message in messages %}
-                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                                    {{ message }}
-                                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                                        <span aria-hidden="true">&times;</span>
-                                    </button>
-                                </div>
-                                {% endfor %}
-                        {% endif %}
+                    {% if messages %}
+                    {% for message in messages %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
                     {% endwith %}
-                    
+
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h1>{% if cluster %}Edit Cluster{% else %}Create New Cluster{% endif %}</h1>
                         <a href="/admin/clusters" class="btn btn-secondary">Back to Clusters</a>
                     </div>
-                    
+
                     <form method="POST" action="/admin/clusters">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                         {% if cluster %}
                         <input type="hidden" name="cluster_id" value="{{cluster[0]}}">
                         {% endif %}
-                        
+
                         <!-- Basic Information -->
                         <div class="card mb-4">
-                            <div class="card-header"><h5>Basic Information</h5></div>
+                            <div class="card-header">
+                                <h5>Basic Information</h5>
+                            </div>
                             <div class="card-body">
-                                <label for="name">Cluster Name:</label>
-                                <input type="text" id="name" name="name" value="{% if cluster %}{{cluster[1]}}{% endif %}" required>
-                                
+                                <label for="name">Cluster Name: <span class="text-danger">*</span></label>
+                                <input type="text" id="name" name="name"
+                                    value="{% if cluster %}{{cluster[1]}}{% endif %}" required>
+
                                 {% if not cluster %}
-                                <div class="alert alert-info mb-3" style="background-color: #d1ecf1; border-color: #bee5eb; color: #0c5460; font-size: 14px;">
-                                    <i class="fas fa-info-circle"></i> 
-                                    <strong>Cluster ID:</strong> A unique cluster ID will be automatically generated when you create this cluster.
+                                <div class="alert alert-info mb-3"
+                                    style="background-color: #d1ecf1; border-color: #bee5eb; color: #0c5460; font-size: 14px;">
+                                    <i class="fas fa-info-circle"></i>
+                                    <strong>Cluster ID:</strong> A unique cluster ID will be automatically generated
+                                    when you create this cluster.
                                 </div>
                                 {% else %}
-                                <div class="alert alert-secondary mb-3" style="background-color: #f8f9fa; border-color: #dee2e6; color: #495057; font-size: 14px;">
-                                    <i class="fas fa-tag"></i> 
-                                    <strong>Cluster ID:</strong> {{cluster[2]}} (auto-generated)
+                                <div class="alert alert-secondary mb-3"
+                                    style="background-color: #f8f9fa; border-color: #dee2e6; color: #495057; font-size: 14px;">
+                                    <i class="fas fa-tag"></i>
+                                    <strong>Cluster ID:</strong> (auto-generated)
                                 </div>
                                 {% endif %}
-                                
-                                <label for="type">Cluster Type:</label>
+
+                                <label for="type">Cluster Type: <span class="text-danger">*</span></label>
                                 <select id="type" name="type" required>
                                     <option value="">Select Type</option>
-                                    <option value="assessment" {% if cluster and cluster[3] == 'assessment' %}selected{% endif %}>Assessment</option>
-                                    <option value="training" {% if cluster and cluster[3] == 'training' %}selected{% endif %}>Training</option>
+                                    <option value="assessment" {% if cluster and cluster[3]=='assessment' %}selected{%
+                                        endif %}>Assessment</option>
+                                    <option value="training" {% if cluster and cluster[3]=='training' %}selected{% endif
+                                        %}>Training</option>
                                 </select>
-                                
+
                                 <small class="text-muted">
-                                    <strong>Note:</strong> Only one type (Assessment OR Training) is allowed per cluster.
+                                    <strong>Note:</strong> Only one type (Assessment OR Training) is allowed per
+                                    cluster.
                                 </small>
                             </div>
                         </div>
@@ -130,22 +155,22 @@
                         <div class="card mb-4">
                             <div class="card-header">
                                 <h5>Select Roleplays for this Cluster</h5>
-                                <small class="text-muted">Choose which roleplays should be included in this cluster</small>
+                                <small class="text-muted">Choose which roleplays should be included in this
+                                    cluster</small>
                             </div>
                             <div class="card-body">
                                 {% if roleplays %}
                                 <div class="roleplay-list">
                                     {% for roleplay in roleplays %}
                                     <div class="roleplay-item">
-                                        <input type="checkbox" name="selected_roleplays" value="{{roleplay[0]}}" id="roleplay_{{roleplay[0]}}"
-                                               {% if cluster_roleplays %}
-                                                   {% for cr in cluster_roleplays %}
-                                                       {% if cr[0] == roleplay[0] %}checked{% endif %}
-                                                   {% endfor %}
-                                               {% endif %}>
-                                        <label for="roleplay_{{roleplay[0]}}" style="margin-bottom: 0; cursor: pointer;">
+                                        <input type="checkbox" name="selected_roleplays" value="{{roleplay[0]}}"
+                                            id="roleplay_{{roleplay[0]}}" {% if cluster_roleplays %} {% for cr in
+                                            cluster_roleplays %} {% if cr[0]==roleplay[0] %}checked{% endif %} {% endfor
+                                            %} {% endif %}>
+                                        <label for="roleplay_{{roleplay[0]}}"
+                                            style="margin-bottom: 0; cursor: pointer;">
                                             <strong>{{roleplay[1]}}</strong><br>
-                                            <small class="text-muted">Person: {{roleplay[6]}} | ID: {{roleplay[0]}}</small>
+                                            <small class="text-muted"></small>
                                         </label>
                                     </div>
                                     {% endfor %}
@@ -165,25 +190,27 @@
                                 <small class="text-muted">Select which users can access this cluster</small>
                             </div>
                             <div class="card-body">
+                                <!-- Debug info - remove after testing -->
+                                <div class="alert alert-warning">
+                                    <strong>DEBUG:</strong> 
+                                    assigned_user_ids = {{ assigned_user_ids|default([], true) }}, 
+                                    cluster_users count = {{ cluster_users|length if cluster_users else 0 }}
+                                </div>
                                 {% if users %}
                                 <div class="roleplay-list">
                                     {% for user in users %}
                                     <div class="roleplay-item">
-                                        <input type="checkbox" name="selected_users" value="{{user[0]}}" id="user_{{user[0]}}"
-                                               {% if cluster_users %}
-                                                   {% for cu in cluster_users %}
-                                                       {% if cu[0] == user[0] %}checked{% endif %}
-                                                   {% endfor %}
-                                               {% endif %}>
+                                        <input type="checkbox" name="selected_users" value="{{user[0]}}"
+                                            id="user_{{user[0]}}" {% if assigned_user_ids and user[0] in assigned_user_ids %}checked{% endif %}>
                                         <label for="user_{{user[0]}}" style="margin-bottom: 0; cursor: pointer;">
                                             <strong>{{user[1]}}</strong>
                                             {% if user[2] == 1 %}
-                                                <span class="badge badge-danger ml-2">Admin</span>
+                                            <span class="badge badge-danger ml-2">Admin</span>
                                             {% else %}
-                                                <span class="badge badge-info ml-2">User</span>
+                                            <span class="badge badge-info ml-2">User</span>
                                             {% endif %}
                                             <br>
-                                            <small class="text-muted">User ID: {{user[0]}}</small>
+                                            <small class="text-muted">(ID: {{user[0]}})</small>
                                         </label>
                                     </div>
                                     {% endfor %}
@@ -214,18 +241,18 @@
 <script src="{{url_for('static', filename='js/bootstrap.min.js')}}"></script>
 <script type="text/javascript">
 
-$(document).ready(function () {
-    $('#loading').hide();
+    $(document).ready(function () {
+        $('#loading').hide();
 
-    window.setTimeout(function() {
-        $(".alert").fadeTo(1000, 0).slideUp(1000, function(){
-            $(this).remove(); 
+        window.setTimeout(function () {
+            $(".alert").fadeTo(1000, 0).slideUp(1000, function () {
+                $(this).remove();
+            });
+        }, 5000);
+
+        $('form').submit(function () {
+            $('#loading').show();
         });
-    }, 5000);
-
-    $('form').submit(function () {
-        $('#loading').show();
     });
-});
 </script>
 {% endblock %}

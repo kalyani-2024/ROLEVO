@@ -102,8 +102,43 @@ Uses **gTTS (Google Text-to-Speech)** with regional variants:
 - Format: `Name: dialogue | Name2: dialogue` or separate lines
 - System automatically detects patterns like "Name:" in the text
 
-### Single Character Roleplay
-If no character is specified in column B, the system uses the person_name from the roleplay settings.
+### Single Person Roleplay - Gender Markers
+
+For single-person roleplays (where there's no named character speaking), you can specify the voice gender by adding a gender marker to Column B (the "other" row):
+
+**Excel Format:**
+```
+| Interaction# | other (row) | Response 1 | Response 2 | Response 3 |
+|--------------|-------------|------------|------------|------------|
+| 1            | Player      | ...        | ...        | ...        |  <- Row 1: Player choices
+|              | Competency  | ...        | ...        | ...        |  <- Row 2: Competencies
+|              | other(m)    | "Response" | "Response" | "Response" |  <- Row 3: Computer response (MALE voice)
+```
+
+**Supported Gender Markers in Column B:**
+| Marker | Voice Generated |
+|--------|-----------------|
+| `other(m)` | Male voice |
+| `other(M)` | Male voice |
+| `other (m)` | Male voice (with space) |
+| `other(male)` | Male voice |
+| `other(f)` | Female voice |
+| `other(F)` | Female voice |
+| `other (f)` | Female voice (with space) |
+| `other(female)` | Female voice |
+
+**Examples:**
+```
+| # | Column B   | Response                          | Voice Used |
+|---|------------|-----------------------------------|------------|
+| 1 | other(m)   | "Yes, I understand the task."     | Male       |
+| 2 | other(f)   | "Great work on that project."     | Female     |
+| 3 | other(M)   | "Let me explain the process."     | Male       |
+| 4 | other (f)  | "Please proceed with the task."   | Female     |
+```
+
+### Single Character Roleplay (Named)
+If a character name is specified in column B (e.g., "Bheem" or "Kalyani"), the system automatically detects gender from the name.
 
 ## Testing
 
@@ -117,6 +152,8 @@ Check your Flask console for debug messages:
 DEBUG VOICE: Character='Bheem', Gender=male
 DEBUG VOICE: Character='Satyam', Gender=male
 DEBUG VOICE: No character, using person_name gender hint=female
+✅ SINGLE ROLEPLAY: Using gender_marker 'male' for voice
+✅ Applied gender_marker 'female' to anonymous dialogue segment
 ```
 
 ## Audio Cache

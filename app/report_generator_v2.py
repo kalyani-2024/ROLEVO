@@ -28,8 +28,8 @@ from io import BytesIO
 
 # IST Timezone (UTC+5:30) - India Standard Time
 IST = timezone(timedelta(hours=5, minutes=30))
-# Database server timezone (UTC+4) - Gulf Standard Time (Dubai)
-DB_SERVER_TZ = timezone(timedelta(hours=4))
+# Database server timezone (UTC+0) - PythonAnywhere uses UTC
+DB_SERVER_TZ = timezone(timedelta(hours=0))
 
 def get_ist_now():
     """Get current datetime in IST timezone (server-independent)"""
@@ -145,15 +145,58 @@ def convert_personality_data_to_16pf_format(personality_scores):
     """Convert simple personality scores dict to full 16PF display format.
     
     Args:
-        personality_scores: Dict of {'Warmth': 6, 'Reasoning': 7, ...}
+        personality_scores: Dict of {'Warmth': 6, 'Reasoning': 7, ...} or {'A': 6, 'B': 7, ...}
         
     Returns:
         List of dicts with left_name, left_desc, right_name, right_desc, score, target
     """
     result = []
     
+    print(f"[16PF Convert] Input personality_scores type: {type(personality_scores)}")
+    if isinstance(personality_scores, dict):
+        print(f"[16PF Convert] Input keys: {list(personality_scores.keys())}")
+    
+    # Build a lookup dict that maps both trait names AND factor codes to scores
+    score_lookup = {}
+    if isinstance(personality_scores, dict):
+        for key, value in personality_scores.items():
+            # Handle nested dict format like {'A': {'score': 5, 'rationale': '...'}}
+            if isinstance(value, dict):
+                actual_score = value.get('score', 5)
+            else:
+                actual_score = value
+            
+            score_lookup[key] = actual_score
+            # Also map by lowercase
+            score_lookup[key.lower()] = actual_score
+    
     for trait_name, mapping in PF16_TRAIT_MAPPING.items():
-        score = personality_scores.get(trait_name, 5)  # Default to 5 if not found
+        code = mapping.get('code', '')  # e.g., 'A', 'B', 'C'...
+        
+        # Try to find score by trait name first, then by factor code
+        score = None
+        
+        # Try exact trait name match
+        if trait_name in score_lookup:
+            score = score_lookup[trait_name]
+        # Try lowercase trait name
+        elif trait_name.lower() in score_lookup:
+            score = score_lookup[trait_name.lower()]
+        # Try factor code (e.g., 'A', 'B')
+        elif code in score_lookup:
+            score = score_lookup[code]
+        elif code.lower() in score_lookup:
+            score = score_lookup[code.lower()]
+        # Try 'Factor A' format
+        elif f'Factor {code}' in score_lookup:
+            score = score_lookup[f'Factor {code}']
+        
+        if score is None:
+            print(f"[16PF Convert] WARNING: No score found for {trait_name} (code {code}), defaulting to 5")
+            score = 5
+        else:
+            print(f"[16PF Convert] Found score for {trait_name}: {score}")
+        
         result.append({
             'left_name': mapping['left_name'],
             'left_desc': mapping['left_desc'],
@@ -234,9 +277,9 @@ class SkillsGaugeReport:
         styles.add(ParagraphStyle(
             'CompetencyDesc',
             parent=styles['Normal'],
-            fontSize=7,
+            fontSize=10,
             textColor=colors.HexColor('#666666'),
-            leading=9
+            leading=12
         ))
         
         return styles
@@ -261,6 +304,47 @@ class SkillsGaugeReport:
         ]))
         
         return banner
+    
+    def _create_competency_descriptors_banner(self, client_logo_path=None):
+        """Create the Competency Descriptors banner using Header Image.jpg with text overlay"""
+        from flask import current_app
+        from reportlab.platypus import Table, TableStyle, Paragraph, Image
+        from reportlab.lib.styles import ParagraphStyle
+        
+        total_width = self.page_width - 2*self.margin
+        header_img_path = os.path.join(current_app.root_path, 'static', 'images', 'Header Image.jpg')
+        
+        if os.path.exists(header_img_path):
+            # Create banner with image background and text overlay
+            # The image is a green banner, we overlay "Competency Descriptors" text on it
+            banner_width = total_width
+            banner_height = banner_width / 4.82  # Maintain aspect ratio similar to reference
+            
+            # Create a table with image as background-like element
+            from reportlab.platypus import Flowable
+            
+            class ImageWithText(Flowable):
+                def __init__(self, img_path, width, height, text):
+                    Flowable.__init__(self)
+                    self.img_path = img_path
+                    self.width = width
+                    self.height = height
+                    self.text = text
+                
+                def draw(self):
+                    # Draw the image
+                    self.canv.drawImage(self.img_path, 0, 0, width=self.width, height=self.height,
+                                       preserveAspectRatio=False, mask='auto')
+                    # Draw text on top
+                    self.canv.setFont('Helvetica-Bold', 20)
+                    self.canv.setFillColor(WHITE)
+                    text_width = self.canv.stringWidth(self.text, 'Helvetica-Bold', 20)
+                    self.canv.drawString((self.width - text_width) / 2, self.height / 2 - 8, self.text)
+            
+            return ImageWithText(header_img_path, banner_width, banner_height, 'Competency Descriptors')
+        else:
+            # Fallback to text banner
+            return self._create_header_banner('Competency Descriptors', GREEN_PRIMARY)
     
     def _create_logo_header(self, trajectorie_logo_path=None, client_logo_path=None):
         """Create header with both logos"""
@@ -434,22 +518,9 @@ class SkillsGaugeReport:
             balance_img_path = os.path.join(current_app.root_path, 'static', 'images', 'balance_scale.png')
         
         if os.path.exists(balance_img_path):
-            # Create a table with image and title side by side
+            # Just the image, no text title
             img = Image(balance_img_path, width=2.5*inch, height=1.8*inch)
-            title_para = Paragraph('<font color="#1E7D32"><b>Competencies likely<br/>to be overused</b></font>',
-                                   ParagraphStyle('BalanceTitle', fontSize=14, alignment=TA_LEFT,
-                                                 textColor=GREEN_PRIMARY, leading=18))
-            
-            balance_table = Table([[img, title_para]], colWidths=[2.8*inch, 3*inch])
-            balance_table.setStyle(TableStyle([
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('ALIGN', (1, 0), (1, 0), 'LEFT'),
-            ]))
-            elements.append(balance_table)
-        else:
-            # Fallback title if image doesn't exist
-            elements.append(Paragraph('<font color="#1E7D32"><b>Competencies likely to be overused</b></font>', 
-                                     self.styles['SubHeader']))
+            elements.append(img)
         
         elements.append(Spacer(1, 0.2*inch))
         
@@ -540,13 +611,17 @@ class SkillsGaugeReport:
         # This method just returns a PageBreak to move to the next page
         return [PageBreak()]
     
-    def draw_cover_page(self, canvas, doc, user_name, report_date, cover_image_path=None, client_logo_path=None):
-        """Draw the cover page directly on canvas - called from page template"""
+    def draw_cover_page(self, canvas, doc, user_name, report_date, cover_image_path=None, client_logo_path=None, subtitle=None):
+        """Draw the cover page directly on canvas - called from page template
+        
+        Args:
+            subtitle: Optional subtitle to display (e.g., "Cluster: Sales Training")
+        """
         from flask import current_app
         
-        # Get cover image path
+        # Get cover image path - use Cover.jpg as default
         if cover_image_path is None:
-            cover_image_path = os.path.join(current_app.root_path, 'static', 'images', 'report_cover_collage.png')
+            cover_image_path = os.path.join(current_app.root_path, 'static', 'images', 'Cover.jpg')
         
         # Get Trajectorie logo path
         traj_logo_path = os.path.join(current_app.root_path, 'static', 'images', 'logo-trajectorie-codrive.png')
@@ -570,6 +645,15 @@ class SkillsGaugeReport:
                 preserveAspectRatio=False,
                 mask='auto'
             )
+        
+        # === SKILLS GAUGE REPORT TITLE ===
+        # Position the title in lower-left area of the cover image (matching the image design)
+        title_x = 0.8 * inch
+        title_y = 2.5 * inch  # Position from bottom - pushed up
+        canvas.setFont('Helvetica-Bold', 28)
+        canvas.setFillColor(WHITE)
+        canvas.drawString(title_x, title_y + 30, 'Skills Gauge')
+        canvas.drawString(title_x, title_y, 'Report')
         
         # === HEADER WITH LOGOS ===
         header_y = page_height - 0.8 * inch  # Top of page minus margin
@@ -632,6 +716,8 @@ class SkillsGaugeReport:
         right_x = page_width - 0.5 * inch
         canvas.drawRightString(right_x, footer_y + 14, report_info)
         canvas.drawRightString(right_x, footer_y, date_info)
+        
+        # Subtitle removed - no longer drawn on cover page
     
     def generate_activity_summary_page(self, activities, total_time_available=None, 
                                        total_time_taken=None, client_logo_path=None):
@@ -721,26 +807,24 @@ class SkillsGaugeReport:
         elements.append(centered_line)
         elements.append(Spacer(1, 0.4*inch))
         
-        # Activity cards - 2 activities: 16PF Trait Assessment and Critical Conversations (AI)
-        # Default activities with correct icons
-        default_activities = [
-            {'name': '16PF Trait\nAssessment', 'icon': 'meeting.png', 
-             'time_available': '1Hr : 39Min', 'time_taken': '0Hr : 0Min'},
-            {'name': 'Critical\nConversations (AI)', 'icon': 'live-chat.png',
-             'time_available': '1Hr : 39Min', 'time_taken': '0Hr : 0Min'},
-        ]
-        
-        # Merge provided activities with defaults
-        if activities:
-            for i, act in enumerate(activities):
-                if i < len(default_activities):
-                    default_activities[i].update(act)
+        # Activity cards - use provided activities directly, or default to 2 activities
+        # If activities list is provided, use it directly (don't merge with defaults)
+        if activities and len(activities) > 0:
+            display_activities = activities
+        else:
+            # Default activities (only used if no activities are provided)
+            display_activities = [
+                {'name': '16PF Trait\nAssessment', 'icon': 'meeting.png', 
+                 'time_available': '1Hr : 39Min', 'time_taken': '0Hr : 0Min'},
+                {'name': 'Critical\nConversations (AI)', 'icon': 'live-chat.png',
+                 'time_available': '1Hr : 39Min', 'time_taken': '0Hr : 0Min'},
+            ]
         
         # Create activity cards
         activity_rows = []
         row = []
         
-        for activity in default_activities:
+        for activity in display_activities:
             name = activity.get('name', 'Activity')
             time_avail = activity.get('time_available', '0Hr : 0Min')
             time_taken = activity.get('time_taken', '0Hr : 0Min')
@@ -782,31 +866,67 @@ class SkillsGaugeReport:
                 activity_rows.append(row)
                 row = []
         
+        # Handle remaining items in the last row
         if row:
-            while len(row) < 2:
-                row.append('')
-            activity_rows.append(row)
+            activity_rows.append(row)  # Don't pad with empty strings
         
         if activity_rows:
-            activities_table = Table(activity_rows, colWidths=[3.4*inch, 3.4*inch])
-            activities_table.setStyle(TableStyle([
+            # Determine column widths based on actual items in each row
+            num_activities = len(display_activities)
+            if num_activities == 1:
+                # Single activity - center it with full width
+                activities_table = Table(activity_rows, colWidths=[3.4*inch])
+            else:
+                # Multiple activities - use 2-column layout
+                activities_table = Table(activity_rows, colWidths=[3.4*inch, 3.4*inch])
+            
+            # Build table style
+            table_style = [
                 ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F8F9FA')),
                 ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#E0E0E0')),
-                ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E0E0E0')),
                 ('TOPPADDING', (0, 0), (-1, -1), 15),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
                 ('LEFTPADDING', (0, 0), (-1, -1), 10),
                 ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ]))
-            elements.append(activities_table)
+            ]
+            
+            # Only add inner grid if we have multiple columns
+            if num_activities > 1:
+                table_style.append(('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E0E0E0')))
+            
+            activities_table.setStyle(TableStyle(table_style))
+            
+            # Center the table if single activity
+            if num_activities == 1:
+                centered_table = Table([[activities_table]], colWidths=[self.page_width - 2*self.margin])
+                centered_table.setStyle(TableStyle([('ALIGN', (0, 0), (-1, -1), 'CENTER')]))
+                elements.append(centered_table)
+            else:
+                elements.append(activities_table)
         
         elements.append(PageBreak())
         return elements
     
     def generate_personality_fit_page(self, personality_data=None, overall_role_fit=None,
-                                      client_logo_path=None):
-        """Generate the Personality Fit (Voice) page - 16PF Voice Analysis"""
+                                      client_logo_path=None, activity_stats=None):
+        """Generate the Personality Fit (Voice) page - 16PF Voice Analysis
+        
+        Args:
+            personality_data: 16PF trait data
+            overall_role_fit: Overall role fit score
+            client_logo_path: Path to client logo
+            activity_stats: Dict with 'total', 'attempted', 'time_available', 'time_taken'
+        """
         elements = []
+        
+        # Default activity stats if not provided
+        if activity_stats is None:
+            activity_stats = {
+                'total': 2,
+                'attempted': 2,
+                'time_available': '1Hr : 39Min',
+                'time_taken': '0Hr : 41Min'
+            }
         from flask import current_app
         
         # Header with logos
@@ -868,17 +988,22 @@ class SkillsGaugeReport:
         info_label_style = ParagraphStyle('InfoLabel', fontSize=10, fontName='Helvetica-Bold', leading=16)
         info_val_style = ParagraphStyle('InfoVal', fontSize=10, leading=16)
         
-        # Create a 4-column table for proper alignment
+        # Create a 4-column table for proper alignment using activity_stats values
+        total_interactions = activity_stats.get('total', 2)
+        attempted_interactions = activity_stats.get('attempted', 2)
+        time_available = activity_stats.get('time_available', '1Hr : 39Min')
+        time_taken = activity_stats.get('time_taken', '0Hr : 41Min')
+        
         info_table = Table([
-            [Paragraph('Total Questions', info_label_style), 
-             Paragraph('- 2', info_val_style),
+            [Paragraph('Total Interactions', info_label_style), 
+             Paragraph(f'- {total_interactions}', info_val_style),
              Paragraph('Time available', info_label_style), 
-             Paragraph('- 1Hr : 39Min', info_val_style)],
-            [Paragraph('Attempted Questions', info_label_style), 
-             Paragraph('- 2', info_val_style),
+             Paragraph(f'- {time_available}', info_val_style)],
+            [Paragraph('Attempted Interactions', info_label_style), 
+             Paragraph(f'- {attempted_interactions}', info_val_style),
              Paragraph('Time taken', info_label_style), 
-             Paragraph('- 0Hr : 41Min', info_val_style)],
-        ], colWidths=[1.5*inch, 0.4*inch, 1.2*inch, 1.2*inch])
+             Paragraph(f'- {time_taken}', info_val_style)],
+        ], colWidths=[1.7*inch, 0.4*inch, 1.2*inch, 1.2*inch])
         info_table.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
@@ -1092,61 +1217,96 @@ class SkillsGaugeReport:
         return elements
     
     def _create_16pf_activity_table(self, personality_data, page=1):
-        """Create the 16PF activity table with Trait, Score, and Rationale for score columns"""
+        """Create the 16PF activity table with Trait, Score, and Rationale for score columns
+        
+        personality_data can be:
+        1. API response format: {'predictions': {...}, 'details': {'Composite': {'A': {'score': 5, 'rationale': '...'}, ...}}}
+        2. List of dicts: [{'name': 'A', 'score': 5, 'rationale': '...'}, ...]
+        3. List of tuples: [('A', 5, 5), ...]
+        """
         total_width = self.page_width - 2*self.margin
         
         # Column widths: Trait (narrow), Score (narrow), Rationale (wide)
-        trait_col_width = 2.0*inch
-        score_col_width = 0.8*inch
+        trait_col_width = 1.5*inch
+        score_col_width = 0.6*inch
         rationale_col_width = total_width - trait_col_width - score_col_width
         
         # Define the 16 factors with their full names and alternate keys for matching
-        # Format: (display_name, primary_key, alternate_keys)
+        # Format: (display_name, api_key, alternate_keys)
         all_factors = [
-            ('Factor A:\nCool - warm', 'Warmth', ['Factor A', 'A', 'Warmth']),
-            ('Factor B:\nConcrete - Abstract\nthinking', 'Reasoning', ['Factor B', 'B', 'Reasoning']),
-            ('Factor C:\nAffected by Feeling -\nEmotionally Stable', 'Emotional Stability', ['Factor C', 'C', 'Emotional Stability']),
-            ('Factor E:\nSubmissive - Dominant', 'Dominance', ['Factor E', 'E', 'Dominance']),
-            ('Factor F:\nSober - Enthusiastic', 'Liveliness', ['Factor F', 'F', 'Liveliness']),
-            ('Factor G:\nExpedient -\nConscientious', 'Rule-Consciousness', ['Factor G', 'G', 'Rule-Consciousness']),
-            ('Factor H:\nShy - Bold', 'Social Boldness', ['Factor H', 'H', 'Social Boldness']),
-            ('Factor I:\nTough minded -\nTender minded', 'Sensitivity', ['Factor I', 'I', 'Sensitivity']),
-            ('Factor L:\nTrusting - Suspicious', 'Vigilance', ['Factor L', 'L', 'Vigilance']),
-            ('Factor M:\nPractical - Imaginative', 'Abstractedness', ['Factor M', 'M', 'Abstractedness']),
-            ('Factor N:\nForthright - Shrewd', 'Privateness', ['Factor N', 'N', 'Privateness']),
-            ('Factor O:\nSelf assured -\nApprehensive', 'Apprehension', ['Factor O', 'O', 'Apprehension']),
-            ('Factor Q1:\nConservative -\nExperimenting', 'Openness to Change', ['Factor Q1', 'Q1', 'Openness to Change']),
-            ('Factor Q2:\nGroup oriented -\nSelf-sufficient', 'Self-Reliance', ['Factor Q2', 'Q2', 'Self-Reliance']),
-            ('Factor Q3:\nUndisciplined -\nFollowing self-image', 'Perfectionism', ['Factor Q3', 'Q3', 'Perfectionism']),
-            ('Factor Q4:\nRelaxed - Tense', 'Tension', ['Factor Q4', 'Q4', 'Tension']),
+            ('Factor A:\nCool - warm', 'A', ['Warmth', 'Factor A']),
+            ('Factor B:\nConcrete -\nAbstract Thinking', 'B', ['Reasoning', 'Factor B']),
+            ('Factor C:\nAffected by Feeling -\nEmotionally stable', 'C', ['Emotional Stability', 'Factor C']),
+            ('Factor E:\nSubmissive -\nDominant', 'E', ['Dominance', 'Factor E']),
+            ('Factor F:\nSober -\nEnthusiastic', 'F', ['Liveliness', 'Factor F']),
+            ('Factor G:\nExpedient -\nConscientious', 'G', ['Rule-Consciousness', 'Factor G']),
+            ('Factor H:\nShy - Bold', 'H', ['Social Boldness', 'Factor H']),
+            ('Factor I:\nTough minded -\nTender minded', 'I', ['Sensitivity', 'Factor I']),
+            ('Factor L:\nTrusting -\nSuspicious', 'L', ['Vigilance', 'Factor L']),
+            ('Factor M:\nPractical -\nImaginative', 'M', ['Abstractedness', 'Factor M']),
+            ('Factor N:\nForthright -\nShrewd', 'N', ['Privateness', 'Factor N']),
+            ('Factor O:\nSelf assured -\nApprehensive', 'O', ['Apprehension', 'Factor O']),
+            ('Factor Q1:\nConservative -\nExperimenting', 'Q1', ['Openness to Change', 'Factor Q1']),
+            ('Factor Q2:\nGroup oriented -\nSelf-sufficient', 'Q2', ['Self-Reliance', 'Factor Q2']),
+            ('Factor Q3:\nUndisciplined -\nFollowing self-image', 'Q3', ['Perfectionism', 'Factor Q3']),
+            ('Factor Q4:\nRelaxed - Tense', 'Q4', ['Tension', 'Factor Q4']),
         ]
         
         # Select factors based on page
         if page == 1:
-            factors = all_factors[:8]  # A through H (first 8)
+            factors = all_factors[:8]  # A through I (first 8, but I is index 7)
         else:
-            factors = all_factors[8:]  # I through Q4 (remaining 8)
+            factors = all_factors[8:]  # L through Q4 (remaining 8)
         
-        # Convert personality_data to a dict for easy lookup
+        # Parse personality_data to extract scores and rationales
         score_dict = {}
+        rationale_dict = {}
+        
         if personality_data:
-            for item in personality_data:
-                if isinstance(item, dict):
-                    # Handle dict format with 'trait', 'name', or 'score'
-                    trait_name = item.get('trait', item.get('name', ''))
-                    score = item.get('score', 0)
-                elif isinstance(item, (tuple, list)) and len(item) >= 2:
-                    # Handle tuple/list format (trait_name, score, target)
-                    trait_name = item[0]
-                    score = item[1]
-                else:
-                    continue
+            print(f"[16PF Activity Table] personality_data type: {type(personality_data)}")
+            if isinstance(personality_data, dict):
+                print(f"[16PF Activity Table] personality_data keys: {list(personality_data.keys())}")
+            
+            # Check if it's API response format with 'details' key
+            if isinstance(personality_data, dict):
+                details = personality_data.get('details', {})
+                composite = details.get('Composite', {})
+                predictions = personality_data.get('predictions', {})
                 
-                # Store with original key and normalized versions
-                if trait_name:
-                    score_dict[str(trait_name)] = score
-                    score_dict[str(trait_name).lower()] = score
-                    score_dict[str(trait_name).replace(' ', '').lower()] = score
+                print(f"[16PF Activity Table] details keys: {list(details.keys()) if details else 'None'}")
+                print(f"[16PF Activity Table] composite keys: {list(composite.keys()) if composite else 'None'}")
+                print(f"[16PF Activity Table] predictions keys: {list(predictions.keys()) if predictions else 'None'}")
+                
+                # Extract from Composite (has score and rationale)
+                for key, value in composite.items():
+                    if isinstance(value, dict):
+                        score_dict[key] = value.get('score', 0)
+                        rationale_dict[key] = value.get('rationale', '')
+                    else:
+                        score_dict[key] = value
+                
+                # Fallback to predictions if Composite is empty
+                if not score_dict and predictions:
+                    print(f"[16PF Activity Table] Using predictions fallback")
+                    for key, value in predictions.items():
+                        score_dict[key] = value
+                
+                print(f"[16PF Activity Table] Extracted {len(score_dict)} scores, {len(rationale_dict)} rationales")
+            
+            # Handle list format
+            elif isinstance(personality_data, list):
+                for item in personality_data:
+                    if isinstance(item, dict):
+                        # Dict format: {'name': 'A', 'score': 5, 'rationale': '...'}
+                        trait_name = item.get('trait', item.get('name', ''))
+                        score = item.get('score', 0)
+                        rationale = item.get('rationale', '')
+                        if trait_name:
+                            score_dict[str(trait_name)] = score
+                            rationale_dict[str(trait_name)] = rationale
+                    elif isinstance(item, (tuple, list)) and len(item) >= 2:
+                        # Tuple format: (trait_name, score, ...)
+                        score_dict[str(item[0])] = item[1]
         
         # Styles
         header_style = ParagraphStyle('TableHeader', fontSize=10, fontName='Helvetica-Bold',
@@ -1154,9 +1314,10 @@ class SkillsGaugeReport:
         trait_style = ParagraphStyle('TraitCell', fontSize=9, fontName='Helvetica-Bold',
                                     textColor=colors.HexColor('#006837'), alignment=TA_LEFT,
                                     leading=11)
-        score_style = ParagraphStyle('ScoreCell', fontSize=9, alignment=TA_CENTER)
-        rationale_style = ParagraphStyle('RationaleCell', fontSize=8, alignment=TA_LEFT,
-                                        leading=10, textColor=colors.HexColor('#333333'))
+        score_style = ParagraphStyle('ScoreCell', fontSize=10, fontName='Helvetica-Bold', 
+                                    alignment=TA_CENTER)
+        rationale_style = ParagraphStyle('RationaleCell', fontSize=9, alignment=TA_LEFT,
+                                        leading=11, textColor=colors.HexColor('#333333'))
         
         # Build table data
         table_data = [
@@ -1165,39 +1326,29 @@ class SkillsGaugeReport:
              Paragraph('Rationale for score', header_style)]
         ]
         
-        for factor_name, primary_key, alternate_keys in factors:
-            # Look up score - try all possible keys
-            score = None
-            
-            # Try primary key first
-            for key_variant in [primary_key, primary_key.lower(), primary_key.replace(' ', '').lower()]:
-                if key_variant in score_dict:
-                    score = score_dict[key_variant]
-                    break
+        for factor_name, api_key, alternate_keys in factors:
+            # Look up score - try API key first, then alternates
+            score = score_dict.get(api_key)
+            rationale = rationale_dict.get(api_key, '')
             
             # Try alternate keys if not found
             if score is None:
                 for alt_key in alternate_keys:
-                    for key_variant in [alt_key, alt_key.lower(), alt_key.replace(' ', '').lower()]:
-                        if key_variant in score_dict:
-                            score = score_dict[key_variant]
-                            break
-                    if score is not None:
+                    if alt_key in score_dict:
+                        score = score_dict[alt_key]
+                        rationale = rationale_dict.get(alt_key, '')
                         break
             
             # Format score
             if isinstance(score, (int, float)):
-                score_text = f"{score:.0f}" if score == int(score) else f"{score:.1f}"
+                score_text = f"{int(score)}"
             else:
                 score_text = str(score) if score else ''
-            
-            # Rationale is empty for now - can be populated from API response
-            rationale_text = ''
             
             table_data.append([
                 Paragraph(factor_name, trait_style),
                 Paragraph(score_text, score_style),
-                Paragraph(rationale_text, rationale_style)
+                Paragraph(rationale, rationale_style)
             ])
         
         # Create table
@@ -1351,21 +1502,29 @@ class SkillsGaugeReport:
         header_style = ParagraphStyle('ScoreHeader', fontSize=9, alignment=TA_CENTER, 
                                       fontName='Helvetica-Bold', textColor=WHITE)
         
-        # Header cells: [Left Trait | Score | 2 | 4 | 6 | 8 | 10 | Right Trait]
-        # The bar area is divided into 5 segments for 2,4,6,8,10
+        # Header cells: [Left Trait | Score | Score Bar Area with numbers | Right Trait]
+        # The bar area is one cell with numbers drawn inside for proper alignment
+        # Numbers 2, 4, 6, 8, 10 should be centered in each segment
+        
+        # Create a drawing for the score bar header with properly positioned numbers
+        header_bar_drawing = Drawing(bar_width, 20)
         segment_width = bar_width / 5
+        
+        # Position numbers at the CENTER of each segment
+        for i, num in enumerate(['2', '4', '6', '8', '10']):
+            # Center of each segment
+            x_pos = (i * segment_width) + (segment_width / 2)
+            header_bar_drawing.add(String(x_pos, 5, num, fontSize=9, fontName='Helvetica-Bold',
+                                         fillColor=WHITE, textAnchor='middle'))
+        
         header_cells = [
             Paragraph('', header_style),  # Left trait
             Paragraph('Score', header_style),  # Score label
-            Paragraph('2', header_style),
-            Paragraph('4', header_style),
-            Paragraph('6', header_style),
-            Paragraph('8', header_style),
-            Paragraph('10', header_style),
+            header_bar_drawing,  # Score bar area with numbers
             Paragraph('', header_style),  # Right trait
         ]
         
-        col_widths = [left_trait_width, score_col_width, segment_width, segment_width, segment_width, segment_width, segment_width, right_trait_width]
+        col_widths = [left_trait_width, score_col_width, bar_width, right_trait_width]
         
         header_table = Table([header_cells], colWidths=col_widths, rowHeights=[0.28*inch])
         header_table.setStyle(TableStyle([
@@ -1425,19 +1584,17 @@ class SkillsGaugeReport:
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
             ]))
             
-            # Build row: [left_trait | score_val | score_bar (spans 5 cols) | right_trait]
-            # We need to merge cells for the score bar
-            row_cells = [left_cell, score_cell, score_bar, '', '', '', '', right_cell]
+            # Build row: [left_trait | score_val | score_bar | right_trait]
+            row_cells = [left_cell, score_cell, score_bar, right_cell]
             
             row_table = Table([row_cells], colWidths=col_widths, rowHeights=[0.55*inch])
             row_table.setStyle(TableStyle([
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                 ('ALIGN', (1, 0), (1, 0), 'CENTER'),  # Score value centered
-                ('SPAN', (2, 0), (6, 0)),  # Merge score bar cells
                 ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#E0E0E0')),
                 ('LINEAFTER', (0, 0), (0, 0), 0.5, colors.HexColor('#E0E0E0')),
                 ('LINEAFTER', (1, 0), (1, 0), 0.5, colors.HexColor('#E0E0E0')),
-                ('LINEAFTER', (6, 0), (6, 0), 0.5, colors.HexColor('#E0E0E0')),
+                ('LINEAFTER', (2, 0), (2, 0), 0.5, colors.HexColor('#E0E0E0')),
             ]))
             elements.append(row_table)
         
@@ -1570,67 +1727,35 @@ class SkillsGaugeReport:
             elements.append(self._create_header_banner('Competency Score by Cluster', GREEN_PRIMARY))
         elements.append(Spacer(1, 0.2*inch))
         
-        # Cluster name header (green bar) with overall score
-        cluster_header = Table([[Paragraph(f'<font color="white"><b>Overall &lt;{cluster_name}&gt;: {cluster_score}%</b></font>',
-                                           ParagraphStyle('ClusterHeader', fontSize=12, alignment=TA_CENTER))]],
-                              colWidths=[self.page_width - 2*self.margin])
+        # Cluster name header (RED bar) with overall score - no logo, no Critical Conversations
+        total_width = self.page_width - 2*self.margin
+        RED_PRIMARY = colors.HexColor('#C41E3A')  # Red color for cluster header
+        cluster_header = Table([[Paragraph(f'<font color="white"><b>Overall - {cluster_name} : {cluster_score}%</b></font>',
+                                           ParagraphStyle('ClusterHeader', fontSize=14, alignment=TA_CENTER))]],
+                              colWidths=[total_width])
         cluster_header.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), GREEN_PRIMARY),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('BACKGROUND', (0, 0), (-1, -1), RED_PRIMARY),
+            ('TOPPADDING', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
         ]))
         elements.append(cluster_header)
         elements.append(Spacer(1, 0.15*inch))
         
-        # Critical Conversations section with logo and info
-        meeting_logo = os.path.join(current_app.root_path, 'static', 'images', 'meeting.png')
-        logo_size = 0.9*inch
-        if os.path.exists(meeting_logo):
-            conv_logo = Image(meeting_logo, width=logo_size, height=logo_size)
-        else:
-            conv_logo = Table([['👥']], colWidths=[logo_size], rowHeights=[logo_size])
-            conv_logo.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#E0E0E0')),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('FONTSIZE', (0, 0), (-1, -1), 24),
-            ]))
-        
-        # Critical Conversations title bar - full page width, center aligned
-        total_width = self.page_width - 2*self.margin
-        conv_title_style = ParagraphStyle('ConvTitle', fontSize=12, fontName='Helvetica-Bold',
-                                          textColor=WHITE, alignment=TA_CENTER)
-        conv_title_bar = Table([[Paragraph('CRITICAL CONVERSATIONS', conv_title_style)]],
-                              colWidths=[total_width])
-        conv_title_bar.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), GREEN_PRIMARY),
-            ('TOPPADDING', (0, 0), (-1, -1), 5),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ]))
-        elements.append(conv_title_bar)
-        elements.append(Spacer(1, 0.08*inch))
-        
-        # Info text for conversations - use activity_stats if provided
-        info_label_style = ParagraphStyle('ConvInfoLabel', fontSize=9, fontName='Helvetica-Bold', leading=14)
-        info_val_style = ParagraphStyle('ConvInfoVal', fontSize=9, leading=14)
+        # Scenarios info (no logo) - centered
+        info_label_style = ParagraphStyle('ConvInfoLabel', fontSize=11, fontName='Helvetica-Bold', leading=16)
+        info_val_style = ParagraphStyle('ConvInfoVal', fontSize=11, leading=16)
         
         # Get values from activity_stats or use defaults
-        total_conv = activity_stats.get('total', 2) if activity_stats else 2
-        attempted_conv = activity_stats.get('attempted', 2) if activity_stats else 2
-        time_available = activity_stats.get('time_available', '1Hr : 39Min') if activity_stats else '1Hr : 39Min'
-        time_taken = activity_stats.get('time_taken', '0Hr : 41Min') if activity_stats else '0Hr : 41Min'
+        total_scenarios = activity_stats.get('total', 2) if activity_stats else 2
+        attempted_scenarios = activity_stats.get('attempted', 2) if activity_stats else 2
         
+        # Single line with Total Scenarios and Attempted Scenarios side by side
         conv_info_table = Table([
-            [Paragraph('Total Conversations', info_label_style), 
-             Paragraph(f'- {total_conv}', info_val_style),
-             Paragraph('Time available', info_label_style), 
-             Paragraph(f'- {time_available}', info_val_style)],
-            [Paragraph('Attempted Conversations', info_label_style), 
-             Paragraph(f'- {attempted_conv}', info_val_style),
-             Paragraph('Time taken', info_label_style), 
-             Paragraph(f'- {time_taken}', info_val_style)],
-        ], colWidths=[1.5*inch, 0.4*inch, 1.1*inch, 1.1*inch])
+            [Paragraph('Total Scenarios', info_label_style), 
+             Paragraph(f'- {total_scenarios}', info_val_style),
+             Paragraph('Attempted Scenarios', info_label_style), 
+             Paragraph(f'- {attempted_scenarios}', info_val_style)],
+        ], colWidths=[1.4*inch, 0.4*inch, 1.6*inch, 0.4*inch])
         conv_info_table.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
@@ -1639,39 +1764,21 @@ class SkillsGaugeReport:
             ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
         ]))
         
-        # Logo and info side by side
-        conv_header = Table([[conv_logo, conv_info_table]], colWidths=[logo_size + 0.1*inch, total_width - logo_size - 0.1*inch])
-        conv_header.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (0, 0), 'MIDDLE'),
-            ('VALIGN', (1, 0), (1, 0), 'MIDDLE'),
-            ('LEFTPADDING', (0, 0), (0, 0), 0),
-            ('LEFTPADDING', (1, 0), (1, 0), 10),
+        # Center the info table
+        centered_info = Table([[conv_info_table]], colWidths=[total_width])
+        centered_info.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
-        elements.append(conv_header)
-        
-        # Green bar below
-        green_bar = Table([['']], colWidths=[total_width], rowHeights=[0.15*inch])
-        green_bar.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), GREEN_PRIMARY),
-        ]))
-        elements.append(green_bar)
+        elements.append(centered_info)
+        elements.append(Spacer(1, 0.15*inch))
         
         # Competency table - sort alphabetically by competency name
         if competencies:
             sorted_competencies = sorted(competencies, key=lambda x: x.get('name', '').lower())
             elements.append(self._create_competency_table_v2(sorted_competencies))
         
-        elements.append(Spacer(1, 0.2*inch))
-        
-        # Legend
-        legend_style = ParagraphStyle('LegendStyle', fontSize=9, alignment=TA_LEFT)
-        legend_table = Table([
-            [Paragraph('● User Score', legend_style)]
-        ], colWidths=[1.2*inch])
-        legend_table.setStyle(TableStyle([
-            ('LEFTPADDING', (0, 0), (-1, -1), 10),
-        ]))
-        elements.append(legend_table)
+        elements.append(Spacer(1, 0.15*inch))
         
         # Overused competencies section - only show if raw_score > max_score
         overused = []
@@ -1695,12 +1802,12 @@ class SkillsGaugeReport:
         
         # Column widths: Competency Name | Score% | 5 score columns
         comp_col_width = 1.4*inch
-        score_col_width = 0.4*inch
+        score_col_width = 0.55*inch
         bar_col_width = (total_width - comp_col_width - score_col_width) / 5
         
         # Header row
-        header_style = ParagraphStyle('CompHeader', fontSize=7, fontName='Helvetica-Bold',
-                                      textColor=colors.HexColor('#333333'), alignment=TA_CENTER, leading=9)
+        header_style = ParagraphStyle('CompHeader', fontSize=9, fontName='Helvetica-Bold',
+                                      textColor=colors.HexColor('#333333'), alignment=TA_CENTER, leading=11)
         
         header_row = [
             Paragraph('', header_style),  # Competency name col
@@ -1717,23 +1824,29 @@ class SkillsGaugeReport:
         table_data = [header_row]
         
         # Competency rows
-        name_style = ParagraphStyle('CompName', fontSize=8, fontName='Helvetica-Bold',
-                                    textColor=colors.HexColor('#8B0000'), alignment=TA_LEFT, leading=10)
-        desc_style = ParagraphStyle('CompDesc', fontSize=6, fontName='Helvetica-Oblique',
-                                    textColor=colors.HexColor('#666666'), alignment=TA_LEFT, leading=8)
-        score_style = ParagraphStyle('CompScore', fontSize=9, fontName='Helvetica-Bold',
+        name_style = ParagraphStyle('CompName', fontSize=10, fontName='Helvetica-Bold',
+                                    textColor=colors.HexColor('#8B0000'), alignment=TA_LEFT, leading=12)
+        desc_style = ParagraphStyle('CompDesc', fontSize=8, fontName='Helvetica-Oblique',
+                                    textColor=colors.HexColor('#666666'), alignment=TA_LEFT, leading=10)
+        score_style = ParagraphStyle('CompScore', fontSize=11, fontName='Helvetica-Bold',
                                      textColor=colors.HexColor('#333333'), alignment=TA_CENTER)
         
         for comp in competencies:
             name = comp.get('name', '')
-            level = comp.get('level', 'Basic')
+            level = comp.get('level')
             description = comp.get('description', '')
             score = comp.get('score', 0)
             target = comp.get('target', 60)
             
             # Competency name cell with level and description
+            # Only show level if it exists and is not None/empty
+            if level and str(level).strip() and str(level).lower() != 'none':
+                name_text = f'{name} ({level})'
+            else:
+                name_text = name
+            
             name_cell = Table([
-                [Paragraph(f'{name} ({level})', name_style)],
+                [Paragraph(name_text, name_style)],
                 [Paragraph(description, desc_style)]
             ], colWidths=[comp_col_width - 5])
             name_cell.setStyle(TableStyle([
@@ -1753,22 +1866,13 @@ class SkillsGaugeReport:
         
         # Create table
         comp_table = Table(table_data, colWidths=col_widths)
-        comp_table.setStyle(TableStyle([
+        
+        # Build dynamic style commands
+        style_commands = [
             # Header row styling
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#F5F5F5')),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
-            # Span score bar across 5 columns
-            ('SPAN', (2, 1), (6, 1)),
-            ('SPAN', (2, 2), (6, 2)),
-            ('SPAN', (2, 3), (6, 3)),
-            ('SPAN', (2, 4), (6, 4)),
-            ('SPAN', (2, 5), (6, 5)),
-            ('SPAN', (2, 6), (6, 6)),
-            ('SPAN', (2, 7), (6, 7)),
-            ('SPAN', (2, 8), (6, 8)),
-            ('SPAN', (2, 9), (6, 9)),
-            ('SPAN', (2, 10), (6, 10)),
             # Borders
             ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
             ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
@@ -1777,7 +1881,13 @@ class SkillsGaugeReport:
             ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
             ('LEFTPADDING', (0, 0), (-1, -1), 3),
             ('RIGHTPADDING', (0, 0), (-1, -1), 3),
-        ]))
+        ]
+        
+        # Dynamically add SPAN commands for each competency row (row 1 onwards)
+        for row_idx in range(1, len(table_data)):
+            style_commands.append(('SPAN', (2, row_idx), (6, row_idx)))
+        
+        comp_table.setStyle(TableStyle(style_commands))
         
         return comp_table
     
@@ -1830,7 +1940,10 @@ class SkillsGaugeReport:
             d.add(Line(x, bar_y - 2, x, bar_y + bar_height + 2, strokeColor=WHITE, strokeWidth=1))
         
         # User score marker (circle) - white with dark border
+        # Cap score_x so circle doesn't cross the right border (circle radius is 5)
         score_x = (score / 100) * bar_width
+        score_x = min(score_x, bar_width - 5)  # Keep circle inside bar
+        score_x = max(score_x, 5)  # Keep circle inside bar on left too
         d.add(Circle(score_x, bar_y + bar_height/2, 5, fillColor=WHITE, strokeColor=colors.HexColor('#333333'), strokeWidth=2))
         
         return d
@@ -1889,24 +2002,25 @@ class SkillsGaugeReport:
         elements.append(Spacer(1, 0.08*inch))
         
         # Info text for conversations
-        info_label_style = ParagraphStyle('ConvInfoLabel2', fontSize=9, fontName='Helvetica-Bold', leading=14)
-        info_val_style = ParagraphStyle('ConvInfoVal2', fontSize=9, leading=14)
+        # For roleplay/activity page: show Total Interactions and Attempted Interactions with time
+        info_label_style = ParagraphStyle('ConvInfoLabel2', fontSize=11, fontName='Helvetica-Bold', leading=16)
+        info_val_style = ParagraphStyle('ConvInfoVal2', fontSize=11, leading=16)
         
-        total_conv = activity_stats.get('total', 2) if activity_stats else 2
-        attempted_conv = activity_stats.get('attempted', 2) if activity_stats else 2
-        time_available = activity_stats.get('time_available', '1Hr : 39Min') if activity_stats else '1Hr : 39Min'
-        time_taken = activity_stats.get('time_taken', '0Hr : 41Min') if activity_stats else '0Hr : 41Min'
+        total_interactions = activity_stats.get('total', 2) if activity_stats else 2
+        attempted_interactions = activity_stats.get('attempted', 2) if activity_stats else 2
+        time_available = activity_stats.get('time_available', '0Hr : 30Min') if activity_stats else '0Hr : 30Min'
+        time_taken = activity_stats.get('time_taken', '0Hr : 0Min') if activity_stats else '0Hr : 0Min'
         
         conv_info_table = Table([
-            [Paragraph('Total Conversations', info_label_style), 
-             Paragraph(f'- {total_conv}', info_val_style),
+            [Paragraph('Total Interactions', info_label_style), 
+             Paragraph(f'- {total_interactions}', info_val_style),
              Paragraph('Time available', info_label_style), 
              Paragraph(f'- {time_available}', info_val_style)],
-            [Paragraph('Attempted Conversations', info_label_style), 
-             Paragraph(f'- {attempted_conv}', info_val_style),
+            [Paragraph('Attempted Interactions', info_label_style), 
+             Paragraph(f'- {attempted_interactions}', info_val_style),
              Paragraph('Time taken', info_label_style), 
              Paragraph(f'- {time_taken}', info_val_style)],
-        ], colWidths=[1.5*inch, 0.4*inch, 1.1*inch, 1.1*inch])
+        ], colWidths=[1.7*inch, 0.35*inch, 1.1*inch, 1.1*inch])
         conv_info_table.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('LEFTPADDING', (0, 0), (-1, -1), 0),
@@ -1915,19 +2029,29 @@ class SkillsGaugeReport:
             ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
         ]))
         
-        # Logo and info side by side
-        conv_header = Table([[conv_logo, conv_info_table]], colWidths=[logo_size + 0.1*inch, total_width - logo_size - 0.1*inch])
+        # Logo and info side by side - centered
+        info_width = 1.7*inch + 0.35*inch + 1.1*inch + 1.1*inch  # Total width of info columns
+        conv_header = Table([[conv_logo, conv_info_table]], colWidths=[logo_size + 0.1*inch, info_width])
         conv_header.setStyle(TableStyle([
             ('VALIGN', (0, 0), (0, 0), 'MIDDLE'),
             ('VALIGN', (1, 0), (1, 0), 'MIDDLE'),
             ('LEFTPADDING', (0, 0), (0, 0), 0),
             ('LEFTPADDING', (1, 0), (1, 0), 10),
         ]))
-        elements.append(conv_header)
+        
+        # Wrap in centering table
+        centered_header = Table([[conv_header]], colWidths=[total_width])
+        centered_header.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        elements.append(centered_header)
         elements.append(Spacer(1, 0.15*inch))
         
         # Topic header with percentage - bright green bar
-        topic_header = Table([[Paragraph(f'<font color="white"><b>Topic - {topic_name}: {topic_score}%</b></font>',
+        # Round topic_score to 2 decimal places for display
+        topic_score_display = round(topic_score, 2) if isinstance(topic_score, (int, float)) else topic_score
+        topic_header = Table([[Paragraph(f'<font color="white"><b>Topic - {topic_name}: {topic_score_display}%</b></font>',
                                          ParagraphStyle('TopicHeader', fontSize=14, alignment=TA_CENTER))]],
                             colWidths=[total_width])
         topic_header.setStyle(TableStyle([
@@ -1964,7 +2088,7 @@ class SkillsGaugeReport:
     def _create_balance_scale_section(self, overused_competencies):
         """Create the balance scale section showing overused competencies.
         Only shows if there is at least one overused competency.
-        Displays the stone balance image centered, with red tiles below side by side.
+        Displays the stone balance image with title, and red tiles below side by side.
         """
         elements = []
         from flask import current_app
@@ -1975,24 +2099,17 @@ class SkillsGaugeReport:
         
         total_width = self.page_width - 2*self.margin
         
-        # Balance scale image - centered, no text
+        # Balance scale image with title next to it
         balance_img_path = os.path.join(current_app.root_path, 'static', 'images', 'balancescale.png')
         if not os.path.exists(balance_img_path):
             balance_img_path = os.path.join(current_app.root_path, 'static', 'images', 'balance_scale.png')
         
         if os.path.exists(balance_img_path):
-            # Center the image
-            img_width = 3*inch
-            img_height = 2.1*inch
+            # Only show the image, no title text
+            img_width = 3.5*inch
+            img_height = 2.5*inch
             balance_img = Image(balance_img_path, width=img_width, height=img_height)
-            
-            # Wrap in table to center
-            img_table = Table([[balance_img]], colWidths=[total_width])
-            img_table.setStyle(TableStyle([
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ]))
-            elements.append(img_table)
+            elements.append(balance_img)
         
         elements.append(Spacer(1, 0.15*inch))
         
@@ -2055,8 +2172,12 @@ class SkillsGaugeReport:
         return feedback_table
 
     def generate_competency_descriptors_page(self, competencies, client_logo_path=None, 
-                                            include_16pf=True, personality_data=None):
-        """Generate Competency Descriptors pages - 16PF factors (if enabled) and competency descriptions"""
+                                            include_16pf=True, personality_data=None, mode='full'):
+        """Generate Competency Descriptors pages - 16PF factors (if enabled) and competency descriptions
+        
+        Args:
+            mode: 'full' = all pages, 'activity_only' = only 16PF activity score pages, 'descriptors_only' = only descriptor tables
+        """
         elements = []
         from flask import current_app
         
@@ -2065,11 +2186,11 @@ class SkillsGaugeReport:
         # Header with logos
         traj_logo = os.path.join(current_app.root_path, 'static', 'images', 'logo-trajectorie-codrive.png')
         
-        # Competency Descriptors banner - use image
-        desc_banner_img = os.path.join(current_app.root_path, 'static', 'images', 'compdescriptors.png')
+        # Competency Descriptors banner - use Header Image.jpg with text overlay
+        header_banner_img = os.path.join(current_app.root_path, 'static', 'images', 'Header Image.jpg')
         
         # Only include 16PF descriptors if enabled
-        if include_16pf:
+        if include_16pf and mode in ['full', 'activity_only']:
             # NEW: Add the two activity score pages first
             # Page 1: Factors A through I with scores and rationales
             elements.extend(self._create_16pf_activity_score_page1(personality_data))
@@ -2079,87 +2200,76 @@ class SkillsGaugeReport:
             elements.extend(self._create_16pf_activity_score_page2(personality_data))
             elements.append(PageBreak())
             
-            # Then the original 16PF descriptors pages
+            # Then the original 16PF descriptors pages (skip if mode is activity_only)
+            if mode in ['full', 'descriptors_only']:
+                elements.append(self._create_logo_header(traj_logo, client_logo_path))
+                elements.append(Spacer(1, 0.2*inch))
+                
+                # Use the new competency descriptors banner with text overlay
+                elements.append(self._create_competency_descriptors_banner(client_logo_path))
+                elements.append(Spacer(1, 0.2*inch))
+                
+                # 16 Personality Factors section header
+                pf_header = Table([[Paragraph('<font color="white"><b>Descriptors: 16 Personality factors (PF)</b></font>',
+                                              ParagraphStyle('PFHeader', fontSize=12, alignment=TA_CENTER))]],
+                                 colWidths=[total_width])
+                pf_header.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, -1), GREEN_PRIMARY),
+                    ('TOPPADDING', (0, 0), (-1, -1), 8),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                ]))
+                elements.append(pf_header)
+                elements.append(Spacer(1, 0.1*inch))
+                
+                # Create 16PF descriptors table (first page - Factors A through I)
+                elements.append(self._create_16pf_descriptors_table_page1())
+                
+                elements.append(PageBreak())
+                
+                # Second page for 16PF (Factors L through Q4)
+                elements.append(self._create_logo_header(traj_logo, client_logo_path))
+                elements.append(Spacer(1, 0.2*inch))
+                
+                # Use the new competency descriptors banner with text overlay
+                elements.append(self._create_competency_descriptors_banner(client_logo_path))
+                elements.append(Spacer(1, 0.2*inch))
+                
+                elements.append(pf_header)
+                elements.append(Spacer(1, 0.1*inch))
+                
+                elements.append(self._create_16pf_descriptors_table_page2())
+                
+                elements.append(PageBreak())
+        
+        # Competency Descriptors page (alphabetically sorted) - include based on mode
+        if mode in ['full', 'descriptors_only']:
             elements.append(self._create_logo_header(traj_logo, client_logo_path))
             elements.append(Spacer(1, 0.2*inch))
             
-            if os.path.exists(desc_banner_img):
-                banner_width = total_width
-                banner_height = banner_width / 4.82
-                banner_img = Image(desc_banner_img, width=banner_width, height=banner_height)
-                elements.append(banner_img)
-            else:
-                elements.append(self._create_header_banner('Competency Descriptors', GREEN_PRIMARY))
-            elements.append(Spacer(1, 0.2*inch))
+            # Use the new competency descriptors banner with text overlay
+            elements.append(self._create_competency_descriptors_banner(client_logo_path))
+            elements.append(Spacer(1, 0.1*inch))
             
-            # 16 Personality Factors section header
-            pf_header = Table([[Paragraph('<font color="white"><b>Descriptors: 16 Personality factors (PF)</b></font>',
-                                          ParagraphStyle('PFHeader', fontSize=12, alignment=TA_CENTER))]],
-                             colWidths=[total_width])
-            pf_header.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, -1), GREEN_PRIMARY),
+            # Competency Descriptors header
+            comp_header = Table([[Paragraph('<font color="white"><b>Competency Descriptors</b></font>',
+                                            ParagraphStyle('CompDescHeader', fontSize=12, alignment=TA_CENTER))]],
+                               colWidths=[total_width])
+            comp_header.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#666666')),
                 ('TOPPADDING', (0, 0), (-1, -1), 8),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
             ]))
-            elements.append(pf_header)
-            elements.append(Spacer(1, 0.1*inch))
+            elements.append(comp_header)
+            elements.append(Spacer(1, 0))
             
-            # Create 16PF descriptors table (first page - Factors A through I)
-            elements.append(self._create_16pf_descriptors_table_page1())
-            
-            elements.append(PageBreak())
-            
-            # Second page for 16PF (Factors L through Q4)
-            elements.append(self._create_logo_header(traj_logo, client_logo_path))
-            elements.append(Spacer(1, 0.2*inch))
-            
-            if os.path.exists(desc_banner_img):
-                banner_width = total_width
-                banner_height = banner_width / 4.82
-                banner_img2 = Image(desc_banner_img, width=banner_width, height=banner_height)
-                elements.append(banner_img2)
-            else:
-                elements.append(self._create_header_banner('Competency Descriptors', GREEN_PRIMARY))
-            elements.append(Spacer(1, 0.2*inch))
-            
-            elements.append(pf_header)
-            elements.append(Spacer(1, 0.1*inch))
-            
-            elements.append(self._create_16pf_descriptors_table_page2())
+            # Sort competencies alphabetically and create table
+            if competencies:
+                sorted_comps = sorted(competencies, key=lambda x: x.get('name', '').lower())
+                elements.append(self._create_competency_descriptors_table(sorted_comps))
             
             elements.append(PageBreak())
-        
-        # Competency Descriptors page (alphabetically sorted) - always included
-        elements.append(self._create_logo_header(traj_logo, client_logo_path))
-        elements.append(Spacer(1, 0.2*inch))
-        
-        if os.path.exists(desc_banner_img):
-            banner_width = total_width
-            banner_height = banner_width / 4.82
-            banner_img3 = Image(desc_banner_img, width=banner_width, height=banner_height)
-            elements.append(banner_img3)
-        else:
-            elements.append(self._create_header_banner('Competency Descriptors', GREEN_PRIMARY))
-        elements.append(Spacer(1, 0.2*inch))
-        
-        # Competency Descriptors header
-        comp_header = Table([[Paragraph('<font color="white"><b>Competency Descriptors</b></font>',
-                                        ParagraphStyle('CompDescHeader', fontSize=12, alignment=TA_CENTER))]],
-                           colWidths=[total_width])
-        comp_header.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#666666')),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ]))
-        elements.append(comp_header)
-        elements.append(Spacer(1, 0.05*inch))
-        
-        # Sort competencies alphabetically and create table
-        if competencies:
-            sorted_comps = sorted(competencies, key=lambda x: x.get('name', '').lower())
-            elements.append(self._create_competency_descriptors_table(sorted_comps))
-        
-        elements.append(PageBreak())
         return elements
     
     def _create_16pf_descriptors_table_page1(self):
@@ -2339,9 +2449,9 @@ class SkillsGaugeReport:
             if description:
                 cell_content.append(Paragraph(description, desc_style))
             
-            cell_table = Table([[p] for p in cell_content], colWidths=[total_width - 10])
+            cell_table = Table([[p] for p in cell_content], colWidths=[total_width - 6])
             cell_table.setStyle(TableStyle([
-                ('LEFTPADDING', (0, 0), (-1, -1), 5),
+                ('LEFTPADDING', (0, 0), (-1, -1), 3),
                 ('TOPPADDING', (0, 0), (-1, -1), 2),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
             ]))
@@ -2354,7 +2464,8 @@ class SkillsGaugeReport:
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('TOPPADDING', (0, 0), (-1, -1), 5),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-            ('LEFTPADDING', (0, 0), (-1, -1), 3),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
             ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F5F5F5')),
         ]))
         
@@ -2366,7 +2477,8 @@ def generate_roleplay_report(user_name, user_email, roleplay_name, scenario,
                              completion_date=None, output_path=None,
                              cluster_name=None, client_logo_path=None,
                              personality_data=None, overall_role_fit=None,
-                             play_id=None):
+                             play_id=None, include_competency_descriptors=True,
+                             cluster_mode=False):
     """
     Generate a comprehensive Skills Gauge roleplay performance report
     
@@ -2385,29 +2497,32 @@ def generate_roleplay_report(user_name, user_email, roleplay_name, scenario,
         personality_data: 16PF personality analysis data (optional)
         overall_role_fit: Overall role fit percentage from 16PF analysis (optional)
         play_id: Play session ID for fetching 16PF data and time info (optional)
+        include_competency_descriptors: Whether to include competency descriptors page (default True)
+        cluster_mode: If True, reorder pages for cluster merge (Competency Score first, then 16PF)
     
     Returns:
         Path to the generated PDF file
     """
     if completion_date is None:
-        completion_date = datetime.now()
+        completion_date = get_ist_now()
     
     if output_path is None:
         from flask import current_app
         temp_dir = os.path.join(current_app.root_path, 'temp')
         os.makedirs(temp_dir, exist_ok=True)
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = get_ist_now().strftime('%Y%m%d_%H%M%S')
         output_path = os.path.join(temp_dir, f'skills_gauge_report_{user_email}_{timestamp}.pdf')
     
     # Initialize report generator
     report = SkillsGaugeReport(output_path)
     
-    # Get cover image path
+    # Get cover image path - use Cover.jpg
     from flask import current_app
-    cover_image_path = os.path.join(current_app.root_path, 'static', 'images', 'report_cover_collage.png')
+    cover_image_path = os.path.join(current_app.root_path, 'static', 'images', 'Cover.jpg')
     
     # Get actual play time from database if play_id is provided
     actual_time_taken = "0Hr : 0Min"
+    time_available = "0Hr : 30Min"  # Default, will be updated from config
     total_conversations = len(interactions) if interactions else 1
     attempted_conversations = total_conversations
     enable_16pf = False  # Default to disabled
@@ -2460,16 +2575,21 @@ def generate_roleplay_report(user_name, user_email, roleplay_name, scenario,
                 if play_result:
                     roleplay_id = play_result[0]
             
-            # Check enable_16pf_analysis flag from roleplay_config
+            # Check enable_16pf_analysis flag and max_total_time from roleplay_config
             if roleplay_id:
                 cur.execute("""
-                    SELECT enable_16pf_analysis FROM roleplay_config 
+                    SELECT enable_16pf_analysis, max_total_time FROM roleplay_config 
                     WHERE roleplay_id = %s
                 """, (roleplay_id,))
                 config_result = cur.fetchone()
                 if config_result:
                     enable_16pf = bool(config_result[0])
-                    print(f"[Report] 16PF analysis enabled: {enable_16pf}")
+                    max_total_time = config_result[1] if config_result[1] else 1800  # Default 30 min
+                    # Format time available from config
+                    config_hours = max_total_time // 3600
+                    config_minutes = (max_total_time % 3600) // 60
+                    time_available = f"{config_hours}Hr : {config_minutes}Min"
+                    print(f"[Report] 16PF analysis enabled: {enable_16pf}, time_available: {time_available}")
             
             cur.close()
             conn.close()
@@ -2530,21 +2650,21 @@ def generate_roleplay_report(user_name, user_email, roleplay_name, scenario,
             print(f"[Report] Error loading competency descriptions: {str(e)}")
     
     if completion_date is None:
-        completion_date = datetime.now()
+        completion_date = get_ist_now()
     
     if output_path is None:
         from flask import current_app
         temp_dir = os.path.join(current_app.root_path, 'temp')
         os.makedirs(temp_dir, exist_ok=True)
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = get_ist_now().strftime('%Y%m%d_%H%M%S')
         output_path = os.path.join(temp_dir, f'skills_gauge_report_{user_email}_{timestamp}.pdf')
     
     # Initialize report generator
     report = SkillsGaugeReport(output_path)
     
-    # Get cover image path
+    # Get cover image path - use Cover.jpg
     from flask import current_app
-    cover_image_path = os.path.join(current_app.root_path, 'static', 'images', 'report_cover_collage.png')
+    cover_image_path = os.path.join(current_app.root_path, 'static', 'images', 'Cover.jpg')
     
     # Create callback for cover page (first page)
     def draw_cover_page(canvas, doc):
@@ -2610,28 +2730,33 @@ def generate_roleplay_report(user_name, user_email, roleplay_name, scenario,
         activities.append({
             'name': '16PF Trait\nAssessment',
             'icon': 'meeting.png',
-            'time_available': '1Hr : 39Min',
-            'time_taken': actual_time_taken  # Use same time as test (recording during roleplay)
+            'time_available': time_available,
+            'time_taken': actual_time_taken  # Same session time as Critical Conversations
         })
     
     activities.append({
         'name': 'Critical\nConversations (AI)',
         'icon': 'live-chat.png',
-        'time_available': '1Hr : 39Min',
+        'time_available': time_available,
         'time_taken': actual_time_taken  # Use actual recorded time
     })
     
+    # Use configured time_available for the total time available on this roleplay
     all_elements.extend(report.generate_activity_summary_page(
         activities=activities,
-        total_time_available='5Hr : 50Min' if enable_16pf else '1Hr : 39Min',
+        total_time_available=time_available,
         total_time_taken=actual_time_taken,  # Use actual recorded time
         client_logo_path=client_logo_path
     ))
     
     # 3. Personality Fit Page (with 16PF data if available) - ONLY if 16PF is enabled
     pf16_personality_data = personality_data
+    pf16_raw_response = None  # Store raw response with rationales for activity tables
     pf16_role_fit = overall_role_fit
     pf16_analysis_available = False  # Track if we have real 16PF data
+
+    # Ensure pf16_fit_elements is always defined to avoid reference errors
+    pf16_fit_elements = []
     
     if enable_16pf:
         # Try to fetch 16PF data if play_id is provided and no personality data passed
@@ -2639,10 +2764,15 @@ def generate_roleplay_report(user_name, user_email, roleplay_name, scenario,
             try:
                 from app.queries import get_16pf_analysis_by_play_id
                 pf16_result = get_16pf_analysis_by_play_id(play_id)
+                print(f"[Report] 16PF query result for play_id {play_id}: {pf16_result}")
                 
                 if pf16_result and pf16_result.get('status') == 'completed':
                     # Get personality scores from DB result
                     personality_scores = pf16_result.get('personality_scores', {})
+                    # Get raw response with rationales from Persona360 API
+                    pf16_raw_response = pf16_result.get('raw_response', {})
+                    print(f"[Report] 16PF personality_scores raw: {personality_scores}")
+                    print(f"[Report] 16PF raw_response keys: {list(pf16_raw_response.keys()) if pf16_raw_response else 'None'}")
                     
                     # Only use data if we actually have personality scores
                     if personality_scores and len(personality_scores) > 0:
@@ -2657,13 +2787,35 @@ def generate_roleplay_report(user_name, user_email, roleplay_name, scenario,
                     print(f"[Report] 16PF analysis failed for play_id {play_id}: {pf16_result.get('error_message', 'Unknown error')}")
                 elif pf16_result and pf16_result.get('status') == 'pending':
                     print(f"[Report] 16PF analysis still pending for play_id {play_id}")
+                elif pf16_result and pf16_result.get('status') == 'processing':
+                    print(f"[Report] 16PF analysis still processing for play_id {play_id}")
                 else:
-                    print(f"[Report] No 16PF analysis found for play_id {play_id}")
+                    print(f"[Report] No 16PF analysis found for play_id {play_id}, result was: {pf16_result}")
             except Exception as e:
                 print(f"[Report] Error loading 16PF data: {str(e)}")
         elif personality_data:
-            # If personality_data was passed but is in simple format, convert it
-            if personality_data and isinstance(personality_data, list) and len(personality_data) > 0:
+            # If personality_data was passed, convert it to display format
+            # Also store the raw response for activity score pages with rationales
+            if isinstance(personality_data, dict):
+                # Dict format - could be raw_response with 'predictions' or direct scores dict
+                # Store as pf16_raw_response for activity score pages (contains rationales)
+                pf16_raw_response = personality_data
+                
+                scores = None
+                if 'predictions' in personality_data:
+                    scores = personality_data.get('predictions', {})
+                elif 'personality_scores' in personality_data:
+                    scores = personality_data.get('personality_scores', {})
+                else:
+                    # Assume it's a direct scores dict
+                    scores = personality_data
+                
+                if scores and isinstance(scores, dict) and len(scores) > 0:
+                    pf16_personality_data = convert_personality_data_to_16pf_format(scores)
+                    if pf16_personality_data:
+                        pf16_analysis_available = True
+                        print(f"[Report] Converted passed dict personality_data: {len(pf16_personality_data)} traits")
+            elif isinstance(personality_data, list) and len(personality_data) > 0:
                 first_item = personality_data[0]
                 if 'left_name' not in first_item and 'name' in first_item:
                     # Simple format - convert to full format
@@ -2673,14 +2825,26 @@ def generate_roleplay_report(user_name, user_email, roleplay_name, scenario,
                 else:
                     pf16_analysis_available = True
         
-        
-        # Add Personality Fit page only if 16PF is enabled AND we have real data
+        # Build 16PF Personality Fit page elements (will add later if cluster_mode)
+        pf16_fit_elements = []
         if pf16_analysis_available and pf16_personality_data:
-            all_elements.extend(report.generate_personality_fit_page(
+            # Build activity stats for 16PF page
+            pf16_activity_stats = {
+                'total': total_conversations,
+                'attempted': attempted_conversations,
+                'time_available': time_available,
+                'time_taken': actual_time_taken
+            }
+            pf16_fit_elements = report.generate_personality_fit_page(
                 personality_data=pf16_personality_data,
                 overall_role_fit=pf16_role_fit,
-                client_logo_path=client_logo_path
-            ))
+                client_logo_path=client_logo_path,
+                activity_stats=pf16_activity_stats
+            )
+            
+            # In normal mode, add 16PF Personality Fit page here (before Competency Score)
+            if not cluster_mode:
+                all_elements.extend(pf16_fit_elements)
         else:
             print(f"[Report] Skipping 16PF Personality Fit page - no valid analysis data available")
     
@@ -2694,8 +2858,9 @@ def generate_roleplay_report(user_name, user_email, roleplay_name, scenario,
         score = item.get('score', 0)
         total = item.get('total_possible', 3)
         
-        # Calculate percentage
+        # Calculate percentage (capped at 100% for display)
         percentage = (score / total * 100) if total > 0 else 0
+        percentage = min(100, percentage)  # Cap at 100%
         
         # Get description from master file or use provided description
         description = item.get('description', '')
@@ -2728,43 +2893,48 @@ def generate_roleplay_report(user_name, user_email, roleplay_name, scenario,
     
     cluster_display_name = cluster_name if cluster_name else roleplay_name
     
+    # overall_score is already a percentage (0-100) calculated in routes.py
+    # Formula: (sum of interaction scores / (3 * number of interactions)) * 100
+    overall_score_percentage = min(100, overall_score)  # Cap at 100%
+    
     # Calculate a feedback score based on overall performance
-    feedback_score = min(5, max(1, int(overall_score / 20)))  # 1-5 based on score
+    feedback_score = min(5, max(1, int(overall_score_percentage / 20)))  # 1-5 based on score
     
-    # Activity stats for Critical Conversations section
-    cluster_activity_stats = {
-        'total': total_conversations,
-        'attempted': attempted_conversations,
-        'time_available': '1Hr : 39Min',
-        'time_taken': actual_time_taken
-    }
+    # Activity stats for Critical Conversations section - NOT USED since we're skipping cluster page
+    # cluster_activity_stats = {
+    #     'total': total_conversations,
+    #     'attempted': attempted_conversations,
+    #     'time_available': '1Hr : 39Min',
+    #     'time_taken': actual_time_taken
+    # }
     
-    all_elements.extend(report.generate_cluster_score_page(
-        cluster_name=cluster_display_name,
-        cluster_score=overall_score,
-        competencies=competencies,
-        overused_competencies=overused if overused else None,
-        client_logo_path=client_logo_path,
-        feedback_name='Feedback (Basic)',
-        feedback_score=feedback_score,
-        feedback_max=3,
-        activity_stats=cluster_activity_stats
-    ))
+    # REMOVED: Competency Score by Cluster page - keeping only Activity page
+    # all_elements.extend(report.generate_cluster_score_page(
+    #     cluster_name=cluster_display_name,
+    #     cluster_score=overall_score_percentage,
+    #     competencies=competencies,
+    #     overused_competencies=overused if overused else None,
+    #     client_logo_path=client_logo_path,
+    #     feedback_name='Feedback (Basic)',
+    #     feedback_score=feedback_score,
+    #     feedback_max=3,
+    #     activity_stats=cluster_activity_stats
+    # ))
     
-    # 5. Competency Score by Activity (Roleplays)
+    # 5. Competency Score by Activity (using roleplay name as topic)
     # Use actual conversation stats
     activity_stats = {
         'total': total_conversations,
         'attempted': attempted_conversations,
-        'time_available': '1Hr : 39Min',
+        'time_available': time_available ,
         'time_taken': actual_time_taken  # Use actual recorded time
     }
     
     all_elements.extend(report.generate_activity_score_page(
         activity_name='Critical Conversations',
         activity_stats=activity_stats,
-        topic_name='Roleplays',
-        topic_score=overall_score,
+        topic_name=roleplay_name,  # Use roleplay name instead of 'Roleplays'
+        topic_score=overall_score_percentage,  # Use calculated percentage
         competencies=competencies,
         overused_competencies=overused if overused else None,
         client_logo_path=client_logo_path,
@@ -2773,14 +2943,42 @@ def generate_roleplay_report(user_name, user_email, roleplay_name, scenario,
         feedback_max=3
     ))
     
+    # In cluster_mode, add 16PF Personality Fit page AFTER Competency Score
+    if cluster_mode and pf16_fit_elements:
+        all_elements.extend(pf16_fit_elements)
+        print(f"[Report] Added 16PF Personality Fit page after Competency Score (cluster_mode)")
+    
     # 6. Competency Descriptors pages
     # Include 16PF descriptors only if 16PF is enabled AND we have valid data
-    all_elements.extend(report.generate_competency_descriptors_page(
-        competencies=competencies,
-        client_logo_path=client_logo_path,
-        include_16pf=enable_16pf and pf16_analysis_available,
-        personality_data=pf16_personality_data if pf16_analysis_available else None
-    ))
+    # Pass raw_response for activity tables (contains rationales), fallback to pf16_personality_data
+    print(f"[Report] Competency descriptors: enable_16pf={enable_16pf}, pf16_analysis_available={pf16_analysis_available}")
+    print(f"[Report] pf16_raw_response type: {type(pf16_raw_response)}, is None: {pf16_raw_response is None}")
+    if pf16_raw_response and isinstance(pf16_raw_response, dict):
+        print(f"[Report] pf16_raw_response keys: {list(pf16_raw_response.keys())}")
+    
+    if include_competency_descriptors:
+        # Full mode: includes 16PF activity scores + 16PF descriptors + competency descriptors
+        pf16_activity_data = pf16_raw_response if pf16_raw_response else pf16_personality_data
+        print(f"[Report] Using pf16_activity_data (full mode): type={type(pf16_activity_data)}")
+        all_elements.extend(report.generate_competency_descriptors_page(
+            competencies=competencies,
+            client_logo_path=client_logo_path,
+            include_16pf=enable_16pf and pf16_analysis_available,
+            personality_data=pf16_activity_data if pf16_analysis_available else None,
+            mode='full'
+        ))
+    else:
+        # Activity only mode: includes only 16PF activity score pages with rationales
+        # This is used for cluster reports - each roleplay contributes its 16PF activity pages
+        pf16_activity_data = pf16_raw_response if pf16_raw_response else pf16_personality_data
+        print(f"[Report] Using pf16_activity_data (activity_only mode): type={type(pf16_activity_data)}")
+        all_elements.extend(report.generate_competency_descriptors_page(
+            competencies=competencies,
+            client_logo_path=client_logo_path,
+            include_16pf=enable_16pf and pf16_analysis_available,
+            personality_data=pf16_activity_data if pf16_analysis_available else None,
+            mode='activity_only'
+        ))
     
     # Build PDF
     doc.build(all_elements)
@@ -2799,3 +2997,350 @@ def get_score_color(score):
         return colors.HexColor('#ff9800')  # Orange
     else:
         return colors.HexColor('#dc3545')  # Red
+
+
+def generate_cluster_summary_report(
+    user_name,
+    user_email,
+    cluster_name,
+    cluster_id,
+    roleplay_reports_data,  # List of dicts with roleplay data for each completed roleplay
+    completion_date=None,
+    output_path=None,
+    client_logo_path=None,
+    include_activity_pages=True  # Kept for backwards compatibility, but ignored now
+):
+    """
+    Generate a cluster history report by:
+    1. Creating cluster summary pages (cover + cluster score)
+    2. Generating individual roleplay reports using generate_roleplay_report
+    3. Merging PDFs: cluster summary + each roleplay report (skipping pages 1-2 from each)
+    
+    This approach reuses the exact same pages from individual reports instead of
+    regenerating content, ensuring consistency.
+    
+    Args:
+        user_name: Name of the user
+        user_email: Email of the user
+        cluster_name: Name of the cluster
+        cluster_id: ID of the cluster
+        roleplay_reports_data: List of dicts, each containing:
+            - roleplay_name: Name of the roleplay
+            - overall_score: Overall score percentage
+            - score_breakdown: List of competency scores
+            - interactions: List of interactions (optional)
+            - actual_time_taken: Time taken for the roleplay
+            - play_id: Play session ID
+            - personality_data: 16PF data (optional)
+        completion_date: Date of completion
+        output_path: Path to save the PDF
+        client_logo_path: Path to client logo
+        include_activity_pages: Ignored (kept for backwards compatibility)
+    
+    Returns:
+        Path to the generated PDF file
+    """
+    from flask import current_app
+    import re
+    
+    if completion_date is None:
+        completion_date = get_ist_now()
+    
+    temp_dir = os.path.join(current_app.root_path, 'temp')
+    os.makedirs(temp_dir, exist_ok=True)
+    timestamp = get_ist_now().strftime('%Y%m%d_%H%M%S')
+    
+    if output_path is None:
+        output_path = os.path.join(temp_dir, f'cluster_report_{cluster_id}_{user_email}_{timestamp}.pdf')
+    
+    # =========================================================================
+    # STEP 1: Generate cluster summary PDF (cover + cluster score page only)
+    # =========================================================================
+    cluster_summary_path = os.path.join(temp_dir, f'cluster_summary_{cluster_id}_{timestamp}.pdf')
+    
+    # Initialize report generator for cluster summary
+    report = SkillsGaugeReport(cluster_summary_path)
+    cover_image_path = os.path.join(current_app.root_path, 'static', 'images', 'Cover.jpg')
+    
+    def draw_cover_page_callback(canvas, doc):
+        report.draw_cover_page(canvas, doc, user_name, completion_date, cover_image_path, client_logo_path,
+                              subtitle=f"Cluster: {cluster_name}")
+    
+    def draw_later_pages(canvas, doc):
+        page_num = doc.page
+        page_width, page_height = A4
+        canvas.saveState()
+        circle_x = page_width / 2
+        circle_y = 0.3 * inch
+        circle_radius = 12
+        canvas.setFillColor(GREEN_PRIMARY)
+        canvas.circle(circle_x, circle_y, circle_radius, fill=True, stroke=False)
+        canvas.setFillColor(WHITE)
+        canvas.setFont('Helvetica-Bold', 10)
+        canvas.drawCentredString(circle_x, circle_y - 4, str(page_num))
+        canvas.restoreState()
+    
+    page_width, page_height = A4
+    cover_frame = Frame(0, 0, page_width, page_height, id='cover')
+    content_frame = Frame(0.5*inch, 0.4*inch, page_width - 1*inch, page_height - 0.8*inch, id='content')
+    cover_template = PageTemplate(id='Cover', frames=[cover_frame], onPage=draw_cover_page_callback)
+    content_template = PageTemplate(id='Content', frames=[content_frame], onPage=draw_later_pages)
+    
+    doc = BaseDocTemplate(cluster_summary_path, pagesize=A4)
+    doc.addPageTemplates([cover_template, content_template])
+    
+    all_elements = []
+    
+    # Cover page
+    all_elements.append(Spacer(1, 1))
+    all_elements.append(NextPageTemplate('Content'))
+    all_elements.append(PageBreak())
+    
+    # Calculate aggregated stats for cluster score page
+    aggregated_competencies = {}
+    total_overall_score = 0
+    total_conversations = 0
+    total_time_seconds = 0
+    
+    for rp_data in roleplay_reports_data:
+        total_overall_score += rp_data.get('overall_score', 0)
+        total_conversations += 1
+        
+        time_str = rp_data.get('actual_time_taken', '0Hr : 0Min')
+        try:
+            if 'Hr' in time_str and 'Min' in time_str:
+                parts = time_str.replace('Hr', '').replace('Min', '').replace(':', '').split()
+                if len(parts) >= 2:
+                    total_time_seconds += (int(parts[0]) * 3600) + (int(parts[1]) * 60)
+        except:
+            pass
+        
+        for item in rp_data.get('score_breakdown', []):
+            name = item.get('name', 'Unknown')
+            score = item.get('score', 0)
+            total = item.get('total_possible', 3)
+            if name not in aggregated_competencies:
+                aggregated_competencies[name] = {'total_score': 0, 'total_possible': 0, 'description': item.get('description', '')}
+            aggregated_competencies[name]['total_score'] += score
+            aggregated_competencies[name]['total_possible'] += total
+    
+    num_roleplays = len(roleplay_reports_data)
+    avg_overall_score = round(min(100, total_overall_score / num_roleplays if num_roleplays > 0 else 0), 2)
+    total_hours = total_time_seconds // 3600
+    total_minutes = (total_time_seconds % 3600) // 60
+    total_time_formatted = f"{total_hours}Hr : {total_minutes}Min"
+    
+    cluster_competencies = []
+    overused = []
+    for name, data in aggregated_competencies.items():
+        total_score = data['total_score']
+        total_possible = data['total_possible']
+        percentage = min(100, (total_score / total_possible * 100) if total_possible > 0 else 0)
+        cluster_competencies.append({
+            'name': name, 'description': data['description'], 'score': percentage,
+            'target': 60, 'raw_score': total_score, 'max_score': total_possible
+        })
+        if total_score > total_possible:
+            overused.append({'name': name, 'score': total_score, 'max_score': total_possible})
+    cluster_competencies.sort(key=lambda x: x.get('name', '').lower())
+    
+    # Calculate total time available
+    total_time_available_seconds = 0
+    for rp in roleplay_reports_data:
+        ta = rp.get('time_available', '0Hr : 0Min')
+        try:
+            m = re.search(r"(\d+)\s*Hr\s*:\s*(\d+)\s*Min", ta)
+            if m:
+                total_time_available_seconds += int(m.group(1)) * 3600 + int(m.group(2)) * 60
+        except:
+            pass
+    total_avail_hours = total_time_available_seconds // 3600
+    total_avail_minutes = (total_time_available_seconds % 3600) // 60
+    
+    cluster_activity_stats = {
+        'total': total_conversations,
+        'attempted': total_conversations,
+        'time_available': f"{total_avail_hours}Hr : {total_avail_minutes}Min",
+        'time_taken': total_time_formatted
+    }
+    
+    # Generate cluster score page
+    all_elements.extend(report.generate_cluster_score_page(
+        cluster_name=cluster_name,
+        cluster_score=avg_overall_score,
+        competencies=cluster_competencies,
+        overused_competencies=overused if overused else None,
+        client_logo_path=client_logo_path,
+        feedback_name='Feedback (Basic)',
+        feedback_score=min(5, max(1, int(avg_overall_score / 20))),
+        feedback_max=3,
+        activity_stats=cluster_activity_stats
+    ))
+    
+    # Build cluster summary PDF (cover + cluster score page only)
+    doc.build(all_elements)
+    print(f"[Cluster Report] Generated cluster summary: {cluster_summary_path}")
+    
+    # =========================================================================
+    # STEP 1b: Generate cluster-level Competency Descriptors PDF (for end of report)
+    # =========================================================================
+    cluster_descriptors_path = os.path.join(temp_dir, f'cluster_descriptors_{cluster_id}_{timestamp}.pdf')
+    
+    # Check if any roleplay has 16PF personality data for cluster-level descriptors
+    cluster_personality_data = None
+    cluster_16pf_available = False
+    for rp in roleplay_reports_data:
+        pd = rp.get('personality_data')
+        if pd:
+            # Normalize and check for valid scores
+            scores = None
+            if isinstance(pd, dict) and 'predictions' in pd:
+                scores = pd.get('predictions', {})
+            elif isinstance(pd, dict) and 'personality_scores' in pd:
+                scores = pd.get('personality_scores', {})
+            elif isinstance(pd, dict):
+                scores = pd
+            
+            if scores and isinstance(scores, dict) and len(scores) > 0:
+                cluster_personality_data = convert_personality_data_to_16pf_format(scores)
+                if cluster_personality_data:
+                    cluster_16pf_available = True
+                    break
+    
+    # Generate cluster descriptors PDF with its own page template
+    desc_report = SkillsGaugeReport(cluster_descriptors_path)
+    
+    def draw_desc_pages(canvas, doc):
+        page_num = doc.page
+        page_width, page_height = A4
+        canvas.saveState()
+        circle_x = page_width / 2
+        circle_y = 0.3 * inch
+        circle_radius = 12
+        canvas.setFillColor(GREEN_PRIMARY)
+        canvas.circle(circle_x, circle_y, circle_radius, fill=True, stroke=False)
+        canvas.setFillColor(WHITE)
+        canvas.setFont('Helvetica-Bold', 10)
+        canvas.drawCentredString(circle_x, circle_y - 4, str(page_num))
+        canvas.restoreState()
+    
+    desc_content_frame = Frame(0.5*inch, 0.4*inch, page_width - 1*inch, page_height - 0.8*inch, id='desc_content')
+    desc_content_template = PageTemplate(id='DescContent', frames=[desc_content_frame], onPage=draw_desc_pages)
+    
+    desc_doc = BaseDocTemplate(cluster_descriptors_path, pagesize=A4)
+    desc_doc.addPageTemplates([desc_content_template])
+    
+    desc_elements = []
+    desc_elements.extend(desc_report.generate_competency_descriptors_page(
+        competencies=cluster_competencies,
+        client_logo_path=client_logo_path,
+        include_16pf=cluster_16pf_available,
+        personality_data=cluster_personality_data if cluster_16pf_available else None,
+        mode='descriptors_only'  # Only descriptor tables, not activity scores (those come from individual reports)
+    ))
+    desc_doc.build(desc_elements)
+    print(f"[Cluster Report] Generated cluster descriptors: {cluster_descriptors_path}")
+    
+    # =========================================================================
+    # STEP 2: Generate individual roleplay reports with cluster_mode page order
+    # cluster_mode=True puts Competency Score BEFORE 16PF pages
+    # =========================================================================
+    individual_report_paths = []
+    
+    for rp_data in roleplay_reports_data:
+        roleplay_name = rp_data.get('roleplay_name', 'Roleplay')
+        play_id = rp_data.get('play_id')
+        
+        if not play_id:
+            print(f"[Cluster Report] WARNING: No play_id for {roleplay_name}, play_id missing; generating report without DB enrichments")
+        
+        # Generate individual report with cluster_mode for correct page order
+        rp_report_path = os.path.join(temp_dir, f'rp_report_{play_id}_{timestamp}.pdf')
+        
+        try:
+            generated_path = generate_roleplay_report(
+                user_name=user_name,
+                user_email=user_email,
+                roleplay_name=roleplay_name,
+                scenario=rp_data.get('scenario', ''),
+                overall_score=rp_data.get('overall_score', 0),
+                score_breakdown=rp_data.get('score_breakdown', []),
+                interactions=rp_data.get('interactions', []),
+                completion_date=completion_date,
+                output_path=rp_report_path,
+                cluster_name=cluster_name,
+                client_logo_path=client_logo_path,
+                personality_data=rp_data.get('personality_data'),
+                overall_role_fit=None,
+                play_id=play_id,
+                include_competency_descriptors=True,  # Include all pages
+                cluster_mode=True  # Competency Score first, then 16PF pages
+            )
+            individual_report_paths.append(generated_path)
+            print(f"[Cluster Report] Generated individual report for {roleplay_name}: {generated_path}")
+        except Exception as e:
+            print(f"[Cluster Report] ERROR generating report for {roleplay_name}: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    # =========================================================================
+    # STEP 3: Merge PDFs - cluster summary + individual reports (pages 3+ from each)
+    # =========================================================================
+    try:
+        from pypdf import PdfReader, PdfWriter
+    except ImportError:
+        # Fallback to PyPDF2 if pypdf not available
+        from PyPDF2 import PdfReader, PdfWriter
+    
+    writer = PdfWriter()
+    
+    # Add all pages from cluster summary (cover + cluster score page)
+    cluster_reader = PdfReader(cluster_summary_path)
+    for page in cluster_reader.pages:
+        writer.add_page(page)
+    print(f"[Cluster Report] Added {len(cluster_reader.pages)} pages from cluster summary")
+    
+    # Add pages from each individual report, skipping first 2 pages (cover + activity summary)
+    # Each individual report has ALL its pages including 16PF and descriptors
+    for rp_path in individual_report_paths:
+        try:
+            rp_reader = PdfReader(rp_path)
+            total_pages = len(rp_reader.pages)
+            print(f"[Cluster Report] Individual report {rp_path} has {total_pages} pages")
+            
+            # Skip pages 0 and 1 (cover and activity summary), add ALL remaining pages
+            # Page 0 = Cover
+            # Page 1 = Activity Summary  
+            # Page 2+ = All content pages (16PF, Competency Score, Descriptors, etc.)
+            pages_to_skip = 2
+            if total_pages > pages_to_skip:
+                for i in range(pages_to_skip, total_pages):
+                    writer.add_page(rp_reader.pages[i])
+                print(f"[Cluster Report] Added pages {pages_to_skip+1}-{total_pages} from {rp_path}")
+            else:
+                # If the individual report has only cover/activity pages (<= pages_to_skip),
+                # include whatever pages are available so the roleplay is not omitted from the cluster PDF.
+                for i in range(0, total_pages):
+                    writer.add_page(rp_reader.pages[i])
+                print(f"[Cluster Report] Report had only {total_pages} pages; added all pages 1-{total_pages} from {rp_path}")
+        except Exception as e:
+            print(f"[Cluster Report] ERROR reading {rp_path}: {e}")
+    
+    # Write final merged PDF
+    with open(output_path, 'wb') as out_file:
+        writer.write(out_file)
+    
+    print(f"[Cluster Report] Final merged report: {output_path}")
+    
+    # Cleanup temp files
+    try:
+        os.remove(cluster_summary_path)
+        # Also remove cluster descriptors if it was generated
+        if os.path.exists(cluster_descriptors_path):
+            os.remove(cluster_descriptors_path)
+        for rp_path in individual_report_paths:
+            os.remove(rp_path)
+    except Exception as e:
+        print(f"[Cluster Report] Cleanup warning: {e}")
+    
+    return output_path

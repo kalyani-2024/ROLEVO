@@ -31,10 +31,10 @@ def test_api_with_audio(audio_file_path, age=30, gender="Male"):
     
     headers = {"accept": "application/json"}
     if API_KEY:
-        headers["Authorization"] = f"Bearer {API_KEY}"
+        headers["x-api-key"] = API_KEY
     
     data = {
-        "mode": "audio_only",
+        "mode": "audio",
         "age": str(age),
         "gender": gender
     }

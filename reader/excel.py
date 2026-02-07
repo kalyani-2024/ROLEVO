@@ -13,23 +13,12 @@ try:
 except ImportError:
     XLRD_AVAILABLE = False
 
-# ============================================================================
-# DEBUG MODE: Set to False for production to disable all console output
-# ============================================================================
-DEBUG_MODE = False
-
-# Override print function to be silent in production
-if not DEBUG_MODE:
-    import builtins
-    _original_print = builtins.print
-    def silent_print(*args, **kwargs):
-        pass  # Do nothing
-    builtins.print = silent_print
+# Debug prints are always enabled - no print override
 
 
 def convert_gdrive_link(url):
     """
-    Convert Google Drive sharing links to direct download/view links.
+    Convert Google Drive sharing links to direct embeddable image URLs.
     
     Supported formats:
     - https://drive.google.com/file/d/FILE_ID/view?usp=sharing
@@ -38,7 +27,9 @@ def convert_gdrive_link(url):
     - https://drive.usercontent.google.com/download?id=FILE_ID&...
     
     Returns the direct link format that can be used as image src.
-    Uses lh3.googleusercontent.com for more reliable image embedding.
+    Uses lh3.googleusercontent.com format for reliable browser embedding.
+    
+    IMPORTANT: The file must be shared with "Anyone with link can view" permissions.
     """
     if not url or not isinstance(url, str):
         return url
@@ -47,6 +38,7 @@ def convert_gdrive_link(url):
     
     # Skip if not a Google Drive link
     if 'drive.google.com' not in url and 'drive.usercontent.google.com' not in url:
+        print(f"[GDRIVE] Not a Google Drive link: {url[:50]}...")
         return url
     
     file_id = None
@@ -62,16 +54,19 @@ def convert_gdrive_link(url):
         if match:
             file_id = match.group(1)
     
-    # Pattern 3: /uc?export=view&id=FILE_ID (already correct format)
-    if not file_id and '/uc?' in url and 'id=' in url:
-        # Already in correct format
+    # Pattern 3: Already in lh3 format
+    if 'lh3.googleusercontent.com' in url:
+        print(f"[GDRIVE] Already in lh3 format: {url}")
         return url
     
     if file_id:
-        # Use lh3.googleusercontent.com for reliable image embedding
-        # This format works better for embedding images in HTML
-        return f'https://lh3.googleusercontent.com/d/{file_id}'
+        # Use lh3.googleusercontent.com format - this works reliably in browser <img> tags
+        # The uc?export=view format often gets blocked by CORS/redirects
+        converted = f'https://lh3.googleusercontent.com/d/{file_id}'
+        print(f"[GDRIVE] Converted: {url[:50]}... -> {converted}")
+        return converted
     
+    print(f"[GDRIVE] Could not extract file ID from: {url}")
     # If we couldn't extract file ID, return original
     return url
 
@@ -135,10 +130,89 @@ class ExcelReader:
 
     def get_all_competencies(self) -> dict:
         """
-        returns all enbled competencies for this roleplay
+        Returns all competencies listed in the tags sheet, regardless of 'Enabled'.
         """
-        mapping_dict = self.tag_data.loc[self.tag_data['Enabled'] == 'Y'].set_index('Competency')['Max Score'].to_dict()
-        return mapping_dict
+        if 'Competency' in self.tag_data.columns and 'Max Score' in self.tag_data.columns:
+            mapping_dict = self.tag_data.set_index('Competency')['Max Score'].to_dict()
+            return mapping_dict
+        return {}
+    
+    def get_max_scores_from_flow(self) -> dict:
+        """
+        Calculate the maximum possible score for each competency based on the flow sheet.
+        For each interaction, find the BEST (highest) score for each competency,
+        then sum those best scores across all interactions.
+        
+        Returns: dict mapping competency full name -> max possible score
+        """
+        # Track best scores per competency per interaction
+        # Structure: {competency_name: {interaction_num: best_score}}
+        competency_interaction_scores = {}
+        
+        # Find all interactions in the flow sheet
+        # Interactions are identified by numeric values in column A (index 0)
+        for row_idx in range(len(self.data)):
+            interaction_num = self.data.iloc[row_idx, 0]
+            
+            # Skip non-numeric rows (headers, empty rows, etc.)
+            if pd.isna(interaction_num) or not isinstance(interaction_num, (int, float)):
+                continue
+            
+            interaction_num = int(interaction_num)
+            
+            # The competency row is at row_idx + 1 (one row below the interaction number)
+            comp_row_idx = row_idx + 1
+            if comp_row_idx >= len(self.data):
+                continue
+            
+            # Read competency cells from columns C, D, E (indices 2, 3, 4) for scores 1, 2, 3
+            for col_idx in range(2, 5):  # Columns C, D, E
+                if col_idx >= self.data.shape[1]:
+                    continue
+                    
+                cell_value = self.data.iloc[comp_row_idx, col_idx]
+                if pd.isna(cell_value) or not cell_value:
+                    continue
+                
+                # Parse competency entries (may have multiple per cell, separated by newlines)
+                comp_entries = str(cell_value).split("\n")
+                for comp_entry in comp_entries:
+                    comp_entry = comp_entry.strip()
+                    if not comp_entry:
+                        continue
+                    
+                    # Parse "ABBR LEVEL X:score" format
+                    parts = comp_entry.split(":")
+                    abbr_key = parts[0].strip()
+                    
+                    # Get score (after colon, or default to column level)
+                    score = col_idx - 1  # Default: col C=1, D=2, E=3
+                    if len(parts) > 1:
+                        try:
+                            score = int(parts[1].strip())
+                        except ValueError:
+                            pass
+                    
+                    # Get full competency name from master file
+                    if abbr_key in self.master:
+                        full_name = self.master[abbr_key].get('name', abbr_key)
+                    else:
+                        full_name = abbr_key  # Use abbr as fallback
+                    
+                    # Track the best score for this competency in this interaction
+                    if full_name not in competency_interaction_scores:
+                        competency_interaction_scores[full_name] = {}
+                    
+                    current_best = competency_interaction_scores[full_name].get(interaction_num, 0)
+                    if score > current_best:
+                        competency_interaction_scores[full_name][interaction_num] = score
+        
+        # Sum the best scores across all interactions for each competency
+        max_scores = {}
+        for comp_name, interaction_scores in competency_interaction_scores.items():
+            max_scores[comp_name] = sum(interaction_scores.values())
+        
+        return max_scores
     
     def get_system_prompt(self):
         """
@@ -224,10 +298,18 @@ class ExcelReader:
         Both the player and computer responses in order to create an effective prompt
         """
 
-        current_index = self.data.loc[self.data[0] == current_interaction_number]
-        if len(current_index.index) == 0:
+        matching_rows = self.data.loc[self.data[0] == current_interaction_number]
+        if len(matching_rows.index) == 0:
+            print(f"❌ ERROR: No rows found with interaction number {current_interaction_number}")
             return False
-        current_index = current_index.index[0]
+        
+        if len(matching_rows.index) > 1:
+            print(f"⚠️ WARNING: Multiple rows found with interaction number {current_interaction_number}!")
+            print(f"   Found at DataFrame indices: {list(matching_rows.index)}")
+            print(f"   (Excel rows: {[idx + 1 for idx in matching_rows.index]})")
+            print(f"   Using first match: index {matching_rows.index[0]} (Excel row {matching_rows.index[0] + 1})")
+        
+        current_index = matching_rows.index[0]
         
         print(f"\n📖 READING INTERACTION #{current_interaction_number}")
         print(f"   Excel Row for interaction: {current_index + 1}")  # +1 for Excel row numbering
@@ -349,22 +431,61 @@ class ExcelReader:
             print(f"Error getting images for interaction {current_interaction_number}: {e}")
             return {"images": [placeholder, placeholder, placeholder]}
         
-    def _process_choice_competencies(self, options: List[str], descriptions: dict) -> List[str]:
+    def _process_choice_competencies(self, options: List[str], descriptions: dict) -> List[dict]:
         """
-        Input: List of competency strings, master dict of competencies
-        Output: RETURNS COMPETENCIES FOR THIS INTERACTION IN A SINGLE LIST
+        Input: List of competency strings (e.g., "MOTVN LEVEL 2:2"), master dict of competencies
+        Output: RETURNS COMPETENCIES FOR THIS INTERACTION AS LIST OF DICTS
+                Each dict contains: name, description, examples, expected_score, column_level
+                
+        NOTE: Returns ALL competencies from ALL columns (1, 2, 3) so that we can
+        pick the correct scores based on which response the user matched.
         """
+        print(f"\n📋 PROCESSING COMPETENCIES FROM EXCEL:")
+        print(f"   Raw competency data from columns C/D/E:")
+        for i, opt in enumerate(options):
+            print(f"   Column {i+1} (score {i+1}): {opt}")
+        
         final_list = []
-        for c_string in options:
-            comps = c_string.split("\n")
+        
+        for col_idx, c_string in enumerate(options):
+            # col_idx: 0=score1, 1=score2, 2=score3
+            column_level = col_idx + 1  # 1, 2, or 3
+            
+            if pd.isna(c_string) or not c_string:
+                continue
+                
+            comps = str(c_string).split("\n")
             for comp in comps:
-                key = comp.strip().split(":")[0]
+                comp = comp.strip()
+                if not comp:
+                    continue
+                    
+                # Parse "ABBR LEVEL X:score" format
+                # e.g., "MOTVN LEVEL 2:2" -> key="MOTVN LEVEL 2", score=2
+                parts = comp.split(":")
+                key = parts[0].strip()
+                
+                # Extract the score if provided (after the colon)
+                comp_score = column_level  # Default to column level
+                if len(parts) > 1:
+                    try:
+                        comp_score = int(parts[1].strip())
+                    except ValueError:
+                        comp_score = column_level
+                
                 if key not in descriptions:
                     # Better error message showing what's wrong
                     available_keys = list(descriptions.keys())
                     raise ValueError(f"Could not find competency '{key}' in master file. Check spelling and spacing. Available: {available_keys}")
-                if descriptions[key] not in final_list:
-                    final_list.append(descriptions[key])
+                
+                comp_data = descriptions[key].copy()  # Get name, description, examples
+                comp_data["expected_score"] = comp_score  # Score value for this competency
+                comp_data["column_level"] = column_level  # Which response column (1, 2, or 3)
+                
+                # Add ALL competencies (including same name from different columns)
+                # The openai.py will filter based on matched column
+                final_list.append(comp_data)
+                    
         return final_list
 
     def get_next_interaction(self, interaction_number: int, score: int):
@@ -379,11 +500,23 @@ class ExcelReader:
             raise ValueError("Invalid Score")
         
         print(f"\n🔍 GET_NEXT_INTERACTION: Current interaction={interaction_number}, Score={score}")
-        print(f"   Current Excel row index: {current_index}")
+        print(f"   Current DataFrame index: {current_index} (Excel row {current_index + 1})")
+        
+        # Debug: Show the structure of this interaction block
+        print(f"   📋 INTERACTION BLOCK STRUCTURE:")
+        print(f"      Row {current_index} (Excel {current_index+1}): Player row - Col A = {self.data.iloc[current_index, 0]}")
+        print(f"      Row {current_index+1} (Excel {current_index+2}): Competency row - Col A = {self.data.iloc[current_index+1, 0] if current_index+1 < len(self.data) else 'OUT OF BOUNDS'}")
+        print(f"      Row {current_index+2} (Excel {current_index+3}): Computer row - Col A = {self.data.iloc[current_index+2, 0] if current_index+2 < len(self.data) else 'OUT OF BOUNDS'}")
+        if current_index+3 < len(self.data):
+            print(f"      Row {current_index+3} (Excel {current_index+4}): Action row - Col A = {self.data.iloc[current_index+3, 0]}")
+            print(f"         Action row full contents: {self.data.iloc[current_index+3, :5].tolist()}")
+        else:
+            print(f"      Row {current_index+3} (Excel {current_index+4}): OUT OF BOUNDS - End of data")
+            return -1
         
         # Check the next row (current_index + 3) to see if it has an interaction number
         next_row_value = self.data.iloc[current_index+3, 0]
-        print(f"   Next row (index {current_index+3}) Column A value: {next_row_value}")
+        print(f"   Checking for next interaction number in row {current_index+3}: '{next_row_value}'")
         
         if pd.isnull(next_row_value):
             # No interaction number in next row, check the action cell
@@ -392,10 +525,45 @@ class ExcelReader:
             todo_original = str(todo)
             print(f"   Action cell (row {current_index+3}, col {action_cell_col}): '{todo_original}'")
             
-            # Handle NaN/None values
+            # Handle NaN/None values - the 4th row might be a blank separator row
+            # In that case, look for the next interaction in the 5th row (current_index + 4)
             if pd.isna(todo):
-                print(f"   ❌ Action cell is NaN/None - ENDING roleplay (returning -1)")
-                return -1
+                print(f"   ⚠️ Action cell is NaN/None - checking if this is a blank separator row...")
+                # Check all cells in row current_index+3 to see if it's completely blank
+                row_data = self.data.iloc[current_index+3, :]
+                is_blank_row = all(pd.isna(cell) or str(cell).strip() == '' for cell in row_data)
+                
+                if is_blank_row:
+                    # This is a blank separator row, look for next interaction in row current_index+4
+                    print(f"   ℹ️ Row {current_index+3} is a blank separator row")
+                    try:
+                        next_int_value = self.data.iloc[current_index+4, 0]
+                        if pd.notna(next_int_value):
+                            next_int = int(next_int_value)
+                            print(f"   ➡️ Found next interaction in row {current_index+4}: {next_int}")
+                            return next_int
+                        else:
+                            print(f"   ❌ Row {current_index+4} column A is also empty - ENDING roleplay")
+                            return -1
+                    except (IndexError, ValueError) as e:
+                        print(f"   ❌ Error finding next interaction: {e} - ENDING roleplay")
+                        return -1
+                else:
+                    # Row is not completely blank but action cell for this score is empty
+                    # Try to find next interaction
+                    print(f"   ⚠️ Action cell for score {score} is empty but row has other data")
+                    try:
+                        next_int_value = self.data.iloc[current_index+4, 0]
+                        if pd.notna(next_int_value):
+                            next_int = int(next_int_value)
+                            print(f"   ➡️ Found next interaction in row {current_index+4}: {next_int}")
+                            return next_int
+                        else:
+                            print(f"   ❌ No next interaction found - ENDING roleplay")
+                            return -1
+                    except (IndexError, ValueError) as e:
+                        print(f"   ❌ Error finding next interaction: {e} - ENDING roleplay")
+                        return -1
             
             todo_processed = str(todo).lower().strip()
             todo_processed = re.sub('[^A-Za-z0-9]+', ' ', todo_processed).strip()
@@ -439,7 +607,28 @@ class ExcelReader:
                     print(f"   Treating {goto_row_number} as interaction number (fallback)")
                     return goto_row_number
             elif "end" in todo_processed:
-                print(f"   ❌ Found 'end' keyword - ENDING roleplay (returning -1)")
+                # "End Scenario" found - but check if there's actually a next interaction
+                # In some Excel formats, "End Scenario" is just a label and the next interaction follows
+                print(f"   ⚠️ Found 'end' keyword in action cell for score {score}")
+                print(f"   📋 Checking all action cells in this row:")
+                for col in range(1, 5):  # Columns B, C, D, E
+                    cell_val = self.data.iloc[current_index+3, col] if current_index+3 < len(self.data) else 'OUT OF BOUNDS'
+                    print(f"      Column {col}: '{cell_val}'")
+                
+                # Check if the next row has a new interaction - if so, go there instead of ending
+                try:
+                    if current_index+4 < len(self.data):
+                        next_row_int = self.data.iloc[current_index+4, 0]
+                        print(f"   📋 Checking row after action row: index {current_index+4} (Excel row {current_index+5}), Col A = '{next_row_int}'")
+                        if pd.notna(next_row_int) and isinstance(next_row_int, (int, float)):
+                            next_int = int(next_row_int)
+                            print(f"   ✅ Found next interaction #{next_int} after 'End Scenario' - continuing to it!")
+                            return next_int
+                except Exception as e:
+                    print(f"   ⚠️ Error checking for next interaction: {e}")
+                
+                # No next interaction found - truly end the roleplay
+                print(f"   ❌ No next interaction found - ENDING roleplay (returning -1)")
                 return -1
             else:
                 # No clear instruction, try to go to next numbered interaction

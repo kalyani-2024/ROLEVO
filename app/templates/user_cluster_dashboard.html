@@ -12,6 +12,8 @@
         background-size: cover;
         min-height: 100vh;
     }
+    /* Ensure readable minimum font size across the dashboard */
+    html { font-size: 16px; }
     
     /* Header Navbar */
     .top-navbar {
@@ -45,7 +47,7 @@
     }
     
     .user-email {
-        font-size: 14px;
+        font-size: 16px;
         color: #666;
         display: flex;
         align-items: center;
@@ -63,7 +65,7 @@
         border: none;
         padding: 8px 20px;
         border-radius: 20px;
-        font-size: 14px;
+        font-size: 16px;
         font-weight: bold;
         cursor: pointer;
         transition: all 0.3s ease;
@@ -84,7 +86,7 @@
         border: none;
         padding: 8px 20px;
         border-radius: 20px;
-        font-size: 14px;
+        font-size: 16px;
         font-weight: bold;
         cursor: pointer;
         transition: all 0.3s ease;
@@ -114,6 +116,9 @@
         box-shadow: 0 8px 32px rgba(0,0,0,0.15);
         position: relative;
         z-index: 9998;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
     }
     
     .main-title {
@@ -121,17 +126,60 @@
         font-size: 2rem;
         font-weight: 700;
         margin-bottom: 25px;
+        display: block;
+        width: fit-content;
+        margin-left: auto;
+        margin-right: auto;
     }
     
     .cluster-info {
         display: flex;
         justify-content: center;
         align-items: center;
-        gap: 30px;
-        margin: 20px 0;
+        gap: 28px;
+        margin: 12px auto; /* center block horizontally and reduce vertical gap */
+        position: relative;
         flex-wrap: nowrap;
-        padding-bottom: 15px;
+        padding-bottom: 12px;
         border-bottom: 1px solid #e5e7eb;
+        width: fit-content; /* tight container so centering matches title visually */
+        max-width: 90%;
+    }
+
+    /* Ensure left and right items balance so the whole block centers under the title */
+    .cluster-info .info-badge,
+    .cluster-info .click-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 0; /* allow natural sizing so centers align */
+        padding: 0 6px; /* small horizontal padding for breathing room */
+    }
+
+    /* Nudge the conversations badge slightly left to balance visually */
+    .cluster-info .info-badge {
+        transform: translateX(-28px);
+    }
+
+    @media (max-width: 900px) {
+        .cluster-info .info-badge,
+        .cluster-info .click-container {
+            min-width: auto;
+        }
+        .cluster-info .info-badge {
+            transform: none; /* reset on small screens */
+        }
+    }
+
+    /* Centered divider that aligns under the title midpoint (absolute within cluster-info) */
+    .cluster-info .center-divider {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        top: calc(50% - 20px); /* center vertically within the badges area */
+        height: 40px;
+        width: 1px;
+        background: #e5e7eb;
     }
     
     .info-badge {
@@ -183,7 +231,7 @@
     }
     
     .click-before-btn {
-        background: linear-gradient(135deg, #ff6b9d 0%, #c9184a 100%);
+        background: linear-gradient(135deg, #e63e46 0%, #dd2626 100%);
         color: white;
         border: none;
         padding: 14px 32px;
@@ -203,7 +251,7 @@
     .click-before-btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 16px rgba(255, 107, 157, 0.4);
-        background: linear-gradient(135deg, #ff5286 0%, #b01139 100%);
+        background: linear-gradient(135deg, #e4222c 0%, #b01139 100%);
     }
     
     /* Tooltip for Click Before Starting */
@@ -275,8 +323,8 @@
     
     .roleplay-grid {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 20px;
+        grid-template-columns: repeat(3, 1fr); /* fewer columns so tiles are wider */
+        gap: 26px; /* slightly larger gap to give cards more breathing room */
         margin-top: 30px;
         max-width: 1400px;
         margin-left: auto;
@@ -308,8 +356,8 @@
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         transition: all 0.3s ease;
         border: 2px solid #f3f4f6;
-        padding: 20px 15px;
-        min-height: 380px;
+        padding: 22px 17px; /* reduced horizontal padding by 1px each side (-2px total) */
+        min-height: 420px; /* increased height to avoid overlapping content */
         display: flex;
         flex-direction: column;
     }
@@ -353,14 +401,31 @@
     
     .character-name {
         color: #16a34a;
-        font-size: 1.1rem;
+        font-size: 20px;
         font-weight: 700;
         margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 85%;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
     }
+
+    /* Ensure any h5 card titles in roleplay views match admin clusters */
+    h5.card-title { font-size: 20px; }
     
     .character-role {
         color: #6b7280;
         font-size: 1rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 85%;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
     }
     
     .difficulty-section {
@@ -412,6 +477,13 @@
     .card-actions {
         text-align: center;
         margin-top: auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center; /* center actions vertically within reserved area */
+        position: relative; /* allow attempts text to be absolutely positioned above the button without shifting it */
+        min-height: 86px; /* reserve space so single-button and two-line actions align */
+        gap: 8px;
     }
     
     .start-btn {
@@ -454,11 +526,26 @@
         box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
     }
     
+    .start-btn.resume {
+        background: #3b82f6;
+    }
+    
+    .start-btn.resume:hover {
+        background: #2563eb;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    
     .attempts-info {
+        position: absolute; /* keep attempts text visually above the button without affecting vertical centering */
+        top: -10px; /* moved up to avoid overlapping the button */
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 3; /* ensure attempts text appears above button area */
         text-align: center;
-        margin-top: 10px;
+        margin: 0;
         color: #6b7280;
         font-size: 1rem;
+        line-height: 1;
     }
     
     .attempts-info.warning {
@@ -855,7 +942,7 @@
         <span class="user-email">
             <i class="fas fa-user-circle"></i> {{ session.get('user_email', 'User') }}
         </span>
-        <button class="btn-home" onclick="location.href='{{ url_for('user_dashboard', user_id=user_id) }}'">
+        <button class="btn-home" onclick="location.reload()">
             <i class="fas fa-home"></i> Home
         </button>
         <button class="btn-logout" onclick="location.href='{{ url_for('logout') }}'">
@@ -906,28 +993,23 @@
         
         <div class="cluster-info">
             <div class="info-badge">
-                <div class="info-icon clock-icon">🕐</div>
+                <div class="info-icon users-icon"></div>
                 <div class="info-text">
-                    <strong>Duration</strong>
-                    <span>60:00 mins</span>
+                    <div style="display: flex; align-items: center; gap: 8px; justify-content: center;">
+                        <img src="{{ url_for('static', filename='images/show_ideal_discussion.png') }}" alt="Ideal Discussion" style="height:52px; display:block;" />
+                        <div style="display: flex; flex-direction: column; align-items: flex-start; justify-content: center;">
+                            <strong>No. of Conversations</strong>
+                            <span>{{ roleplays|length }}</span>
+                        </div>
+                    </div>
                 </div>
             </div>
             
-            <div style="height: 40px; width: 1px; background: #e5e7eb;"></div>
+            <div class="center-divider" aria-hidden="true"></div>
             
-            <div class="info-badge">
-                <div class="info-icon users-icon">💬</div>
-                <div class="info-text">
-                    <strong>No. of Conversations</strong>
-                    <span>{{ roleplays|length }}</span>
-                </div>
-            </div>
-            
-            <div style="height: 40px; width: 1px; background: #e5e7eb;"></div>
-            
-            <div style="position: relative;">
+            <div class="click-container" style="position: relative;">
                 <button class="click-before-btn" onclick="showInstructions()">
-                    ✋ Click Before Starting
+                    Click Before Starting
                 </button>
                 <div id="clickTooltip" class="btn-tooltip">
                     Please click on this button to read the instructions before starting any conversation
@@ -950,8 +1032,8 @@
                         👤
                     {% endif %}
                 </div>
-                <div class="character-name">{{ roleplay.name }}</div>
-                <div class="character-role">{{ roleplay.person_name }}</div>
+                <div class="character-name" title="{{ roleplay.name }}" >{{ roleplay.name }}</div>
+                <div class="character-role" title="{{ roleplay.person_name }}">{{ roleplay.person_name }}</div>
             </div>
             
             <div class="difficulty-section">
@@ -1005,22 +1087,35 @@
                         data-scenario="{{ roleplay.scenario }}"
                         data-scenario-file="{{ roleplay.scenario_file_path or '' }}"
                         data-input-type="{{ roleplay.input_type }}"
+                        data-available-languages="{{ roleplay.available_languages }}"
                         onclick="showSituationFromButton(this)">
                     <i class="fas fa-play"></i> START
                 </button>
+                {% elif roleplay.status == 'in_progress' %}
+                <button class="start-btn resume" 
+                        data-roleplay-id="{{ roleplay.id }}" 
+                        data-person-name="{{ roleplay.person_name }}" 
+                        data-scenario="{{ roleplay.scenario }}"
+                        data-scenario-file="{{ roleplay.scenario_file_path or '' }}"
+                        data-input-type="{{ roleplay.input_type }}"
+                        data-available-languages="{{ roleplay.available_languages }}"
+                        onclick="showSituationFromButton(this)">
+                    <i class="fas fa-play-circle"></i> CONTINUE
+                </button>
                 {% elif roleplay.status == 'attempted' and roleplay.attempts_remaining > 0 %}
+                <div class="attempts-info">
+                    {{ roleplay.attempts_remaining }} attempt(s) remaining
+                </div>
                 <button class="start-btn retry" 
                         data-roleplay-id="{{ roleplay.id }}" 
                         data-person-name="{{ roleplay.person_name }}" 
                         data-scenario="{{ roleplay.scenario }}"
                         data-scenario-file="{{ roleplay.scenario_file_path or '' }}"
                         data-input-type="{{ roleplay.input_type }}"
+                        data-available-languages="{{ roleplay.available_languages }}"
                         onclick="showSituationFromButton(this)">
                     <i class="fas fa-redo"></i> REATTEMPT
                 </button>
-                <div class="attempts-info">
-                    {{ roleplay.attempts_remaining }} attempt(s) remaining
-                </div>
                 {% elif roleplay.status == 'attempted' or roleplay.status == 'completed' %}
                 <button class="start-btn completed" disabled>
                     <i class="fas fa-check-circle"></i> COMPLETED
@@ -1064,10 +1159,10 @@
                     <li>When you click "Accept" you'll begin your roleplay. You're encouraged to treat it like a real conversation.</li>
                     <li><strong>It is OKAY to pause or to take your time</strong> between your responses (we all know that can happen in real life, but do not abuse this with intent).</li>
                     <li>Once you start the timer will start running for that particular roleplay and will not stop even if you close or exit the browser.</li>
-                    <li><strong>Avoid overlaps</strong>. For optimal user experience, it's recommended you allow your response time appropriately.</li>
+                    <li><strong>Avoid overlaps</strong>. For optimal user experience, it's recommended you follow your response time appropriately.</li>
                     <li>If the other-party (in this roleplay) doesn't respond immediately, don't worry. Just wait, hear what they say, and only then give your response.</li>
                     <li>There is a time limit for the overall roleplays, <strong>and</strong> a time limit for each response. This ensures the conversation is realistic. In case you don't complete a response in the given time, the other person in the roleplay will simply respond to whatever has been your response till then.</li>
-                    <li>Once you finish the response, you can review it and save it (in case there is still some time left).</li>
+                    
                 </ul>
                 <div class="modal-actions" style="margin-top: 20px; text-align: center;">
                     <button class="modal-btn modal-btn-primary" onclick="closeInstructions()">
@@ -1096,19 +1191,19 @@
                 <ul style="list-style: none; padding: 0; margin: 0;">
                     <li style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; font-size: 1rem; color: #374151; line-height: 1.5;">
                         <i class="fas fa-arrow-right" style="color: #dc2626; margin-top: 3px; flex-shrink: 0;"></i>
-                        <span>Read each context, imagine you really are meeting and talking to them</span>
+                        <span>Read the scenario carefully and understand your role in the conversation</span>
                     </li>
                     <li style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; font-size: 1rem; color: #374151; line-height: 1.5;">
                         <i class="fas fa-arrow-right" style="color: #dc2626; margin-top: 3px; flex-shrink: 0;"></i>
-                        <span>Then, put on your headphones before you "Start" a conversation with any of them</span>
+                        <span>Respond naturally and professionally as you would in a real workplace situation</span>
                     </li>
                     <li style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; font-size: 1rem; color: #374151; line-height: 1.5;">
                         <i class="fas fa-arrow-right" style="color: #dc2626; margin-top: 3px; flex-shrink: 0;"></i>
-                        <span>Then, listen carefully to what the virtual stakeholder says, and respond by choosing between 2 response options</span>
+                        <span>Take your time to think through your responses before submitting</span>
                     </li>
                     <li style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; font-size: 1rem; color: #374151; line-height: 1.5;">
                         <i class="fas fa-arrow-right" style="color: #dc2626; margin-top: 3px; flex-shrink: 0;"></i>
-                        <span>Continue the conversation... listening, selecting as if you are really talking to them</span>
+                        <span>You can use the microphone button to record your voice responses</span>
                     </li>
                     <li style="display: flex; align-items: flex-start; gap: 10px; font-size: 1rem; color: #374151; line-height: 1.5;">
                         <i class="fas fa-arrow-right" style="color: #dc2626; margin-top: 3px; flex-shrink: 0;"></i>
@@ -1121,7 +1216,7 @@
             <div class="scenario-box">
                 <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
                     <i class="fas fa-file-alt" style="color: #16a34a; font-size: 20px;"></i>
-                    <h3 style="margin: 0; color: #dc2626; font-size: 1.05rem; font-weight: 600;">Scenario</h3>
+                    <h3 style="margin: 0; color: #dc2626; font-size: 1.1rem; font-weight: 600;">Scenario</h3>
                 </div>
                 <div class="scenario-text" id="situationText"></div>
                 <div id="scenarioFileDownload" style="margin-top: 15px; display: none;">
@@ -1133,7 +1228,7 @@
             
             <!-- Language Selection -->
             <div class="language-selection" style="margin: 20px 0;">
-                <label for="languageDropdown" style="display: flex; align-items: center; gap: 8px; font-size: 1rem; color: #374151; font-weight: 600; margin-bottom: 10px;">
+                <label for="languageDropdown" style="display: flex; align-items: center; gap: 8px; font-size: 1.1rem; color: #374151; font-weight: 600; margin-bottom: 10px;">
                     <i class="fas fa-language" style="color: #16a34a;"></i>
                     Choose Language You Wish to Respond In
                 </label>
@@ -1269,8 +1364,9 @@ function showSituationFromButton(button) {
     const scenario = button.getAttribute('data-scenario');
     const scenarioFile = button.getAttribute('data-scenario-file');
     const inputType = button.getAttribute('data-input-type');
+    const availableLanguages = button.getAttribute('data-available-languages');
     
-    showSituation(roleplayId, personName, scenario, inputType, scenarioFile);
+    showSituation(roleplayId, personName, scenario, inputType, scenarioFile, availableLanguages);
 }
 
 function showInstructions() {
@@ -1289,8 +1385,8 @@ function closeInstructions() {
     document.getElementById('instructionsModal').classList.remove('show');
 }
 
-function showSituation(roleplayId, personName, scenario, inputType, scenarioFile = '') {
-    console.log('showSituation called with:', { roleplayId, personName, scenario, inputType, scenarioFile });
+function showSituation(roleplayId, personName, scenario, inputType, scenarioFile = '', availableLanguages = '["English"]') {
+    console.log('showSituation called with:', { roleplayId, personName, scenario, inputType, scenarioFile, availableLanguages });
     
     // Hide the page overlay when showing situation modal
     document.getElementById('pageOverlay').classList.remove('show');
@@ -1345,8 +1441,29 @@ function showSituation(roleplayId, personName, scenario, inputType, scenarioFile
         fileDownloadDiv.style.display = 'none';
     }
     
-    // Enable/disable language dropdown based on input type
+    // Filter language dropdown based on available_languages from admin config
     const languageDropdown = document.getElementById('languageDropdown');
+    let languages = ['English']; // Default fallback
+    try {
+        // Parse the available languages JSON string
+        if (availableLanguages && availableLanguages.trim() !== '') {
+            languages = JSON.parse(availableLanguages);
+        }
+    } catch (e) {
+        console.error('Error parsing available languages:', e);
+        languages = ['English'];
+    }
+    
+    // Clear existing options and add only available languages
+    languageDropdown.innerHTML = '';
+    languages.forEach(function(lang) {
+        const option = document.createElement('option');
+        option.value = lang;
+        option.textContent = lang;
+        languageDropdown.appendChild(option);
+    });
+    
+    // Enable/disable language dropdown based on input type
     if (inputType === 'audio') {
         languageDropdown.disabled = false;
         languageDropdown.style.cursor = 'pointer';

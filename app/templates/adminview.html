@@ -7,41 +7,73 @@
 <link href="{{url_for('static', filename='css/style.css')}}" rel="stylesheet">
 <link href="{{url_for('static', filename='css/my.css')}}" rel="stylesheet">
 <link href="{{url_for('static', filename='css/slick-theme.css')}}" rel="stylesheet">
+<link href="{{url_for('static', filename='css/slick-theme.css')}}" rel="stylesheet">
 <script src="{{url_for('static', filename='js/fontawesome.js')}}" crossorigin="anonymous"></script>
 
 <!-- Quill Rich Text Editor (No API Key Required) -->
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
 
-<style>     
-    body{background: url("{{url_for('static', filename='images/login_page_bg.jpg')}}");}
-</style>
-<style type="text/css">.jqstooltip { position: absolute;left: 0px;top: 0px;visibility: hidden;background: rgb(0, 0, 0) transparent;background-color: rgba(0,0,0,0.6);filter:progid:DXImageTransform.Microsoft.gradient(startColorstr=#99000000, endColorstr=#99000000);-ms-filter: "progid:DXImageTransform.Microsoft.gradient(startColorstr=#99000000, endColorstr=#99000000)";color: white;font: 10px arial, san serif;text-align: left;white-space: nowrap;padding: 5px;border: 1px solid white;z-index: 10000;}.jqsfield { color: white;font: 10px arial, san serif;text-align: left;}</style>
 <style>
-    .canvasjs-chart-credit{display:none;}
-    .modal-content .col-md-3 img{margin:0 auto;}
-    
+    body {
+        background: url("{{url_for('static', filename='images/login_page_bg.jpg')}}");
+    }
+</style>
+<style type="text/css">
+    .jqstooltip {
+        position: absolute;
+        left: 0px;
+        top: 0px;
+        visibility: hidden;
+        background: rgb(0, 0, 0) transparent;
+        background-color: rgba(0, 0, 0, 0.6);
+        filter: progid:DXImageTransform.Microsoft.gradient(startColorstr=#99000000, endColorstr=#99000000);
+        -ms-filter: "progid:DXImageTransform.Microsoft.gradient(startColorstr=#99000000, endColorstr=#99000000)";
+        color: white;
+        font: 10px arial, san serif;
+        text-align: left;
+        white-space: nowrap;
+        padding: 5px;
+        border: 1px solid white;
+        z-index: 10000;
+    }
+
+    .jqsfield {
+        color: white;
+        font: 10px arial, san serif;
+        text-align: left;
+    }
+</style>
+<style>
+    .canvasjs-chart-credit {
+        display: none;
+    }
+
+    .modal-content .col-md-3 img {
+        margin: 0 auto;
+    }
+
     /* Make validation modal completely persistent */
     #validationModal {
         z-index: 9999 !important;
     }
-    
+
     #validationModal .modal-content {
         border: 3px solid #dc3545 !important;
         box-shadow: 0 0 20px rgba(220, 53, 69, 0.5) !important;
     }
-    
+
     #validationModal .alert {
         animation: none !important;
         transition: none !important;
         opacity: 1 !important;
     }
-    
+
     /* Prevent any fade effects */
     #validationModal .alert.fade {
         opacity: 1 !important;
     }
-    
+
     /* Make the OK button more prominent */
     #validationModal .btn-primary {
         background-color: #dc3545 !important;
@@ -50,27 +82,57 @@
         padding: 10px 30px !important;
         font-size: 16px !important;
     }
-    
+
     #validationModal .btn-primary:hover {
         background-color: #c82333 !important;
         border-color: #bd2130 !important;
     }
-    
-    @media (min-width:769px) and (max-width:1024px){
-    .detail-page-button-leaderboard .leaderboard-icon{width:39px!important;}
-    .detail-page-button-leaderboard .leaderboard-icon img{width:30px!important;}
-    .score-title{font-size:1rem!important;}
-    .time-progress-counter{width:90%!important;}
-    .leaderboard-title{font-size:1rem!important;}
+
+    @media (min-width:769px) and (max-width:1024px) {
+        .detail-page-button-leaderboard .leaderboard-icon {
+            width: 39px !important;
+        }
+
+        .detail-page-button-leaderboard .leaderboard-icon img {
+            width: 30px !important;
+        }
+
+        .score-title {
+            font-size: 1rem !important;
+        }
+
+        .time-progress-counter {
+            width: 90% !important;
+        }
+
+        .leaderboard-title {
+            font-size: 1rem !important;
+        }
     }
-    @media (min-device-width:769px) and (max-device-width:1024px){
-    .detail-page-button-leaderboard .leaderboard-icon{width:39px!important;}
-    .detail-page-button-leaderboard .leaderboard-icon img{width:30px!important;}
-    .score-title{font-size:1rem!important;}
-    .time-progress-counter{width:90%!important;}
-    .leaderboard-title{font-size:1rem!important;}
+
+    @media (min-device-width:769px) and (max-device-width:1024px) {
+        .detail-page-button-leaderboard .leaderboard-icon {
+            width: 39px !important;
+        }
+
+        .detail-page-button-leaderboard .leaderboard-icon img {
+            width: 30px !important;
+        }
+
+        .score-title {
+            font-size: 1rem !important;
+        }
+
+        .time-progress-counter {
+            width: 90% !important;
+        }
+
+        .leaderboard-title {
+            font-size: 1rem !important;
+        }
     }
-    input{
+
+    input {
         width: 100%;
         margin-bottom: 30px;
     }
@@ -92,17 +154,23 @@
             <div class="navbar-header">
                 <a class="navbar-brand" href="{{ url_for('admin') }}">
                     <b class="logo-icon">
-                        <img src="{{url_for('static', filename='images/logo-trajectorie-codrive.png')}}" alt="Trajectorie : CODrive" width="130" class="light-logo">
+                        <img src="{{url_for('static', filename='images/logo-trajectorie-codrive.png')}}"
+                            alt="Trajectorie : CODrive" width="130" class="light-logo">
                     </b>
                 </a>
-                <a class="nav-toggler waves-effect waves-light d-block d-md-none" href="javascript:void(0)" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><i class="ti-menu ti-close"></i></a>
+                <a class="nav-toggler waves-effect waves-light d-block d-md-none" href="javascript:void(0)"
+                    data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent"
+                    aria-expanded="false" aria-label="Toggle navigation"><i class="ti-menu ti-close"></i></a>
             </div>
             <div class="navbar-collapse collapse" id="navbarSupportedContent">
                 <ul class="navbar-nav ml-auto">
-                    <li class="nav-item"><a href="{{ url_for('admin') }}" class="btn btn-rounded btn-primary mr-2">HOME</a></li>
+                    <li class="nav-item"><a href="{{ url_for('admin') }}"
+                            class="btn btn-rounded btn-primary mr-2">HOME</a></li>
                     <li class="nav-item"><a href="/admin/users" class="btn btn-rounded btn-success mr-2">USERS</a></li>
-                    <li class="nav-item"><a href="/admin/clusters" class="btn btn-rounded btn-info mr-2">CLUSTERS</a></li>
-                    <li class="nav-item"><a href="{{ url_for('logout') }}" class="btn btn-rounded btn-danger"><i class="fas fa-sign-out-alt"></i> LOGOUT</a></li>
+                    <li class="nav-item"><a href="/admin/clusters" class="btn btn-rounded btn-info mr-2">CLUSTERS</a>
+                    </li>
+                    <li class="nav-item"><a href="{{ url_for('logout') }}" class="btn btn-rounded btn-danger"><i
+                                class="fas fa-sign-out-alt"></i> LOGOUT</a></li>
                 </ul>
             </div>
         </nav>
@@ -110,141 +178,171 @@
             <div class="row">
                 <div class="col-md-9 mx-auto" style="background-color: white;">
                     {% with messages = get_flashed_messages() %}
-                        {% if messages %}
-                            <!-- Flash Messages - Pink Alert Style like your screenshot -->
-                            <style>
-                                .flash-messages .alert {
-                                    padding: 12px 16px;
-                                    border-radius: 8px;
-                                    border: none;
-                                    font-size: 14px;
-                                    line-height: 1.4;
-                                    position: relative;
-                                }
-                                
-                                .flash-messages .alert-success {
-                                    background-color: #d1e7dd !important;
-                                    color: #0f5132 !important;
-                                    border-left: 4px solid #198754 !important;
-                                }
-                                
-                                .flash-messages .alert-warning {
-                                    background-color: #fff3cd !important;
-                                    color: #664d03 !important;
-                                    border-left: 4px solid #ffc107 !important;
-                                }
-                                
-                                .flash-messages .alert-danger {
-                                    background-color: #f8d7da !important;
-                                    color: #842029 !important;
-                                    border-left: 4px solid #dc3545 !important;
-                                }
-                                
-                                .flash-messages .btn-close {
-                                    position: absolute;
-                                    top: 8px;
-                                    right: 12px;
-                                    opacity: 0.7;
-                                    font-size: 16px;
-                                }
-                                
-                                .flash-messages .btn-close:hover {
-                                    opacity: 1;
-                                }
-                            </style>
-                            
-                            <div class="flash-messages mb-4">
-                                {% for message in messages %}
-                                    {% if "✅" in message or "successfully" in message.lower() %}
-                                        <!-- Success Message - Green -->
-                                        <div class="alert alert-success alert-dismissible fade show" role="alert" style="background-color: #d1e7dd; border-color: #badbcc; color: #0f5132; border-radius: 8px; margin-bottom: 10px;">
-                                            <i class="fas fa-check-circle me-2"></i>{{ message }}
-                                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                                        </div>
-                                    {% elif "recommendations" in message.lower() or "⚠️" in message %}
-                                        <!-- Warning Message - Orange -->
-                                        <div class="alert alert-warning alert-dismissible fade show" role="alert" style="background-color: #fff3cd; border-color: #ffecb5; color: #664d03; border-radius: 8px; margin-bottom: 10px;">
-                                            <i class="fas fa-exclamation-triangle me-2"></i>{{ message }}
-                                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                                        </div>
-                                    {% else %}
-                                        <!-- Error/Info Message - Pink like your screenshot -->
-                                        <div class="alert alert-danger alert-dismissible fade show" role="alert" style="background-color: #f8d7da; border-color: #f5c2c7; color: #842029; border-radius: 8px; margin-bottom: 10px;">
-                                            {% if "❌" in message %}
-                                                <i class="fas fa-times-circle me-2"></i>
-                                            {% else %}
-                                                <i class="fas fa-info-circle me-2"></i>
-                                            {% endif %}
-                                            {{ message }}
-                                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                                        </div>
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
+                    {% if messages %}
+                    <!-- Flash Messages - Pink Alert Style like your screenshot -->
+                    <style>
+                        .flash-messages .alert {
+                            padding: 12px 16px;
+                            border-radius: 8px;
+                            border: none;
+                            font-size: 14px;
+                            line-height: 1.4;
+                            position: relative;
+                        }
+
+                        .flash-messages .alert-success {
+                            background-color: #d1e7dd !important;
+                            color: #0f5132 !important;
+                            border-left: 4px solid #198754 !important;
+                        }
+
+                        .flash-messages .alert-warning {
+                            background-color: #fff3cd !important;
+                            color: #664d03 !important;
+                            border-left: 4px solid #ffc107 !important;
+                        }
+
+                        .flash-messages .alert-danger {
+                            background-color: #f8d7da !important;
+                            color: #842029 !important;
+                            border-left: 4px solid #dc3545 !important;
+                        }
+
+                        .flash-messages .btn-close {
+                            position: absolute;
+                            top: 8px;
+                            right: 12px;
+                            opacity: 0.7;
+                            font-size: 16px;
+                        }
+
+                        .flash-messages .btn-close:hover {
+                            opacity: 1;
+                        }
+                    </style>
+
+                    <div class="flash-messages mb-4">
+                        {% for message in messages %}
+                        {% if "✅" in message or "successfully" in message.lower() %}
+                        <!-- Success Message - Green -->
+                        <div class="alert alert-success alert-dismissible fade show" role="alert"
+                            style="background-color: #d1e7dd; border-color: #badbcc; color: #0f5132; border-radius: 8px; margin-bottom: 10px;">
+                            <i class="fas fa-check-circle me-2"></i>{{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% elif "recommendations" in message.lower() or "⚠️" in message %}
+                        <!-- Warning Message - Orange -->
+                        <div class="alert alert-warning alert-dismissible fade show" role="alert"
+                            style="background-color: #fff3cd; border-color: #ffecb5; color: #664d03; border-radius: 8px; margin-bottom: 10px;">
+                            <i class="fas fa-exclamation-triangle me-2"></i>{{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% else %}
+                        <!-- Error/Info Message - Pink like your screenshot -->
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert"
+                            style="background-color: #f8d7da; border-color: #f5c2c7; color: #842029; border-radius: 8px; margin-bottom: 10px;">
+                            {% if "❌" in message %}
+                            <i class="fas fa-times-circle me-2"></i>
+                            {% else %}
+                            <i class="fas fa-info-circle me-2"></i>
+                            {% endif %}
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
                         {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                     {% endwith %}
                     {% if roleplay %}
                     <h1>Editing Roleplay</h1>
                     <form method="POST" action="/adminview" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                         <!-- Basic Information -->
                         <div class="card mb-4">
-                            <div class="card-header"><h5>Basic Information</h5></div>
+                            <div class="card-header">
+                                <h5>Basic Information</h5>
+                            </div>
                             <div class="card-body">
-                                <label for="id">Roleplay ID:</label><br>
-                                <input type="text" id="id" name="id" value="{{roleplay[0]}}" required><br>
-                                
-                                <label for="name">Roleplay Name:</label><br>
+                                <!-- Roleplay ID is hidden from frontend -->
+                                <input type="hidden" id="id" name="id" value="{{roleplay[0]}}">
+
+                                <label for="name">Roleplay Name: <span class="text-danger">*</span></label><br>
                                 <input type="text" id="name" name="name" value="{{roleplay[1]}}" required><br>
-                                
-                                <label for="person_name">Person Name:</label><br>
-                                <input type="text" id="person_name" name="person_name" value="{{roleplay[6]}}" required><br>
-                                
-                                <label for="scenario">Scenario (supports rich text formatting):</label><br>
+
+                                <label for="person_name">Person Name: <span class="text-danger">*</span></label><br>
+                                <input type="text" id="person_name" name="person_name" value="{{roleplay[6]}}"
+                                    required><br>
+
+                                <label for="scenario">Scenario (required): <span
+                                        class="text-danger">*</span></label><br>
                                 <div id="scenario-editor" style="height: 300px; background: white;"></div>
-                                <textarea type="text" id="scenario" name="scenario" class="tinymce-editor" style="display:none;" required>{{roleplay[5]}}</textarea><br>
+                                <textarea type="text" id="scenario" name="scenario" class="tinymce-editor"
+                                    style="display:none;" required>{{roleplay[5]}}</textarea><br>
                             </div>
                         </div>
 
                         <!-- File Uploads -->
                         <div class="card mb-4">
-                            <div class="card-header"><h5>File Uploads</h5></div>
+                            <div class="card-header">
+                                <h5>File Uploads</h5>
+                            </div>
                             <div class="card-body">
-                                <label for="roleplay_file">Select a <b>new</b> roleplay excel sheet (.xls file):</label><br>
+                                <label for="roleplay_file">Select a <b>new</b> roleplay excel sheet (.xls
+                                    file):</label><br>
                                 {% if roleplay|length > 11 and roleplay[11] %}
                                 <p style="color: #28a745; font-size: 14px; margin: 5px 0;">
-                                    <i class="fas fa-file-excel"></i> <strong>Current file:</strong> {{ roleplay[11] }}
+                                    <i class="fas fa-file-excel"></i> <strong>Current file:</strong> {{
+                                    roleplay[11]|basename }}
                                 </p>
                                 {% endif %}
-                                <p><input type="file" name="roleplay_file" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"></p>
+                                <p><input type="file" name="roleplay_file"
+                                        accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel">
+                                </p>
 
                                 <label for="image_file">Select a <b>new</b> image file (.xls file):</label><br>
                                 {% if roleplay|length > 12 and roleplay[12] %}
                                 <p style="color: #28a745; font-size: 14px; margin: 5px 0;">
-                                    <i class="fas fa-file-excel"></i> <strong>Current file:</strong> {{ roleplay[12] }}
+                                    <i class="fas fa-file-excel"></i> <strong>Current file:</strong> {{
+                                    roleplay[12]|basename }}
                                 </p>
                                 {% endif %}
-                                <p><input type="file" name="image_file" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"></p>
+                                <p><input type="file" name="image_file"
+                                        accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel">
+                                </p>
 
-                                <label for="comp_file">Select the metacompetency file (.xlsx, add only if needed):</label><br>
+                                <label for="comp_file">Select the metacompetency file (.xlsx):</label><br>
                                 {% if roleplay|length > 13 and roleplay[13] %}
                                 <p style="color: #28a745; font-size: 14px; margin: 5px 0;">
-                                    <i class="fas fa-file-excel"></i> <strong>Current file:</strong> {{ roleplay[13] }}
+                                    <i class="fas fa-file-excel"></i> <strong>Current file:</strong> {{
+                                    roleplay[13]|basename }}
                                 </p>
+                                <p><input type="file" name="comp_file"
+                                        accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel">
+                                </p>
+                                {% else %}
+                                <p><input type="file" name="comp_file"
+                                        accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                                        required></p>
                                 {% endif %}
-                                <p><input type="file" name="comp_file" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"></p>
-                                
-                                <label for="scenario_file">Optional Scenario File (for users to download):</label><br>
+
+                                <label for="scenario_file">Optional Scenario File(.pdf, .doc, .docx, .txt,
+                                    .xls,.xlsx,.ppt,.pptx):</label><br>
                                 {% if roleplay|length > 14 and roleplay[14] %}
                                 <p style="color: #28a745; font-size: 14px; margin: 5px 0;">
-                                    <i class="fas fa-file"></i> <strong>Current file:</strong> {{ roleplay[14] }}
+                                    <i class="fas fa-file"></i> <strong>Current file:</strong> {{ roleplay[14]|basename
+                                    }}
                                 </p>
                                 {% endif %}
-                                <p><input type="file" name="scenario_file" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx"></p>
-                                
-                                <label for="roleplay_logo">Roleplay Logo (displayed on tile):</label><br>
+                                <p><input type="file" name="scenario_file"
+                                        accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation">
+                                </p>
+
+                                <label for="roleplay_logo">Optional Roleplay Logo:</label><br>
                                 {% if roleplay|length > 15 and roleplay[15] %}
                                 <p style="color: #28a745; font-size: 14px; margin: 5px 0;">
-                                    <i class="fas fa-image"></i> <strong>Current logo:</strong> {{ roleplay[15] }}
+                                    <i class="fas fa-image"></i> <strong>Current logo:</strong> {{ roleplay[15]|basename
+                                    }}
                                 </p>
                                 {% endif %}
                                 <p><input type="file" name="roleplay_logo" accept="image/*"></p>
@@ -253,56 +351,69 @@
 
                         <!-- Input Configuration -->
                         <div class="card mb-4">
-                            <div class="card-header"><h5>Input Configuration</h5></div>
+                            <div class="card-header">
+                                <h5>Input Configuration</h5>
+                            </div>
                             <div class="card-body">
                                 <label for="input_type">Input Type:</label><br>
-                                <select id="input_type" name="input_type" style="width:100%;margin-bottom: 15px;" onchange="toggleAudioOptions()">
-                                    <option value="text" {% if config and config[2] == 'audio' %}{% else %}selected{% endif %}>Text-based</option>
-                                    <option value="audio" {% if config and config[2] == 'audio' %}selected{% endif %}>Audio-based</option>
+                                <select id="input_type" name="input_type" style="width:100%;margin-bottom: 15px;"
+                                    onchange="toggleAudioOptions()">
+                                    <option value="text" {% if config and config[2]=='audio' %}{% else %}selected{%
+                                        endif %}>Text-based</option>
+                                    <option value="audio" {% if config and config[2]=='audio' %}selected{% endif %}>
+                                        Audio-based</option>
                                 </select>
 
-                                <div id="audio_options" style="display: {% if config and config[2] == 'audio' %}block{% else %}none{% endif %};">
+                                <div id="audio_options"
+                                    style="display: {% if config and config[2] == 'audio' %}block{% else %}none{% endif %};">
                                     <label for="audio_rerecord_attempts">Audio Re-record Attempts (Max 3):</label><br>
-                                    <input type="number" id="audio_rerecord_attempts" name="audio_rerecord_attempts" min="1" max="3" value="{{config[3] if config and config[3] else 3}}" style="margin-bottom: 15px;"><br>
+                                    <input type="number" id="audio_rerecord_attempts" name="audio_rerecord_attempts"
+                                        min="1" max="3" value="{{config[3] if config and config[3] else 3}}"
+                                        style="margin-bottom: 15px;"><br>
 
                                     <label>Available Languages:</label><br>
-                                    {% if config and config[4] %}
-                                        {% set selected_languages = config[4]|safe %}
-                                        {% set lang_list = selected_languages|replace('[', '')|replace(']', '')|replace('"', '')|split(',') %}
-                                    {% else %}
-                                        {% set lang_list = [] %}
-                                    {% endif %}
-                                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 20px; margin-bottom: 15px;">
+                                    {% set raw_langs = config[4]|default('')|string %}
+                                    <!-- DEBUG: raw_langs = '{{ raw_langs }}' -->
+                                    <div class="lang-grid" style="margin-bottom: 15px;">
                                         <label style="display: flex; align-items: center; gap: 8px;">
-                                            <input type="checkbox" name="lang_english" {% if 'English' in lang_list %}checked{% endif %} style="margin: 0;">
+                                            <input type="checkbox" name="lang_english" {% if 'English' in raw_langs or
+                                                not raw_langs or raw_langs=='[]' %}checked{% endif %}
+                                                style="margin: 0;">
                                             <span>English</span>
                                         </label>
                                         <label style="display: flex; align-items: center; gap: 8px;">
-                                            <input type="checkbox" name="lang_hindi" {% if 'Hindi' in lang_list %}checked{% endif %} style="margin: 0;">
+                                            <input type="checkbox" name="lang_hindi" {% if 'Hindi' in raw_langs
+                                                %}checked{% endif %} style="margin: 0;">
                                             <span>Hindi</span>
                                         </label>
                                         <label style="display: flex; align-items: center; gap: 8px;">
-                                            <input type="checkbox" name="lang_tamil" {% if 'Tamil' in lang_list %}checked{% endif %} style="margin: 0;">
+                                            <input type="checkbox" name="lang_tamil" {% if 'Tamil' in raw_langs
+                                                %}checked{% endif %} style="margin: 0;">
                                             <span>Tamil</span>
                                         </label>
                                         <label style="display: flex; align-items: center; gap: 8px;">
-                                            <input type="checkbox" name="lang_telugu" {% if 'Telugu' in lang_list %}checked{% endif %} style="margin: 0;">
+                                            <input type="checkbox" name="lang_telugu" {% if 'Telugu' in raw_langs
+                                                %}checked{% endif %} style="margin: 0;">
                                             <span>Telugu</span>
                                         </label>
                                         <label style="display: flex; align-items: center; gap: 8px;">
-                                            <input type="checkbox" name="lang_kannada" {% if 'Kannada' in lang_list %}checked{% endif %} style="margin: 0;">
+                                            <input type="checkbox" name="lang_kannada" {% if 'Kannada' in raw_langs
+                                                %}checked{% endif %} style="margin: 0;">
                                             <span>Kannada</span>
                                         </label>
                                         <label style="display: flex; align-items: center; gap: 8px;">
-                                            <input type="checkbox" name="lang_malayalam" {% if 'Malayalam' in lang_list %}checked{% endif %} style="margin: 0;">
+                                            <input type="checkbox" name="lang_malayalam" {% if 'Malayalam' in raw_langs
+                                                %}checked{% endif %} style="margin: 0;">
                                             <span>Malayalam</span>
                                         </label>
                                         <label style="display: flex; align-items: center; gap: 8px;">
-                                            <input type="checkbox" name="lang_bengali" {% if 'Bengali' in lang_list %}checked{% endif %} style="margin: 0;">
+                                            <input type="checkbox" name="lang_bengali" {% if 'Bengali' in raw_langs
+                                                %}checked{% endif %} style="margin: 0;">
                                             <span>Bengali</span>
                                         </label>
                                         <label style="display: flex; align-items: center; gap: 8px;">
-                                            <input type="checkbox" name="lang_marathi" {% if 'Marathi' in lang_list %}checked{% endif %} style="margin: 0;">
+                                            <input type="checkbox" name="lang_marathi" {% if 'Marathi' in raw_langs
+                                                %}checked{% endif %} style="margin: 0;">
                                             <span>Marathi</span>
                                         </label>
                                     </div>
@@ -312,42 +423,59 @@
 
                         <!-- Time Configuration -->
                         <div class="card mb-4">
-                            <div class="card-header"><h5>Time Configuration</h5></div>
+                            <div class="card-header">
+                                <h5>Time Configuration</h5>
+                            </div>
                             <div class="card-body">
                                 <label for="max_interaction_time">Max Time for 1 Interaction (minutes):</label><br>
-                                <input type="number" id="max_interaction_time" name="max_interaction_time" min="1" step="0.5" value="{{(config[5] / 60)|round(1) if config and config[5] else 5}}" style="margin-bottom: 15px;"><br>
+                                <input type="number" id="max_interaction_time" name="max_interaction_time" min="1"
+                                    step="0.5" value="{{(config[5] / 60)|round(1) if config and config[5] else 5}}"
+                                    style="margin-bottom: 15px;"><br>
 
                                 <label for="max_total_time">Max Total Roleplay Time (minutes):</label><br>
-                                <input type="number" id="max_total_time" name="max_total_time" min="1" step="0.5" value="{{(config[6] / 60)|round(1) if config and config[6] else 30}}" style="margin-bottom: 15px;"><br>
+                                <input type="number" id="max_total_time" name="max_total_time" min="1" step="0.5"
+                                    value="{{(config[6] / 60)|round(1) if config and config[6] else 30}}"
+                                    style="margin-bottom: 15px;"><br>
 
                                 <label for="repeat_attempts_allowed">Number of Repeat Attempts Allowed:</label><br>
-                                <input type="number" id="repeat_attempts_allowed" name="repeat_attempts_allowed" min="1" value="{{config[7] if config and config[7] else 1}}" style="margin-bottom: 15px;"><br>
+                                <input type="number" id="repeat_attempts_allowed" name="repeat_attempts_allowed" min="1"
+                                    value="{{config[7] if config and config[7] else 1}}"
+                                    style="margin-bottom: 15px;"><br>
                             </div>
                         </div>
 
                         <!-- Scoring Configuration -->
                         <div class="card mb-4">
-                            <div class="card-header"><h5>Scoring Configuration</h5></div>
+                            <div class="card-header">
+                                <h5>Scoring Configuration</h5>
+                            </div>
                             <div class="card-body">
                                 <label for="score_type">Score to be Used:</label><br>
                                 <select id="score_type" name="score_type" style="width:100%;margin-bottom: 15px;">
-                                    <option value="best" {% if config and config[8] == 'best' %}selected{% endif %}>Best for each competency</option>
-                                    <option value="last" {% if not config or config[8] == 'last' %}selected{% endif %}>Last played result</option>
+                                    <option value="best" {% if config and config[8]=='best' %}selected{% endif %}>Best
+                                        for each competency</option>
+                                    <option value="last" {% if not config or config[8]=='last' %}selected{% endif %}>
+                                        Last played result</option>
                                 </select>
                             </div>
                         </div>
 
                         <!-- Video Configuration -->
                         <div class="card mb-4">
-                            <div class="card-header"><h5>Ideal Roleplay Video</h5></div>
+                            <div class="card-header">
+                                <h5>Ideal Roleplay Video (Training only)</h5>
+                            </div>
                             <div class="card-body">
-                                <label><input type="checkbox" name="show_ideal_video" {% if config and config[9] %}checked{% endif %} onchange="toggleVideoUpload()"> Show Ideal Roleplay Video</label><br><br>
-                                
-                                <div id="video_upload" style="display: {% if config and config[9] %}block{% else %}none{% endif %};">
+                                <label><input type="checkbox" name="show_ideal_video" {% if config and config[9]
+                                        %}checked{% endif %} onchange="toggleVideoUpload()"> Show Ideal Roleplay
+                                    Video</label><br><br>
+
+                                <div id="video_upload"
+                                    style="display: {% if config and config[9] %}block{% else %}none{% endif %};">
                                     <label for="ideal_video">Upload Ideal Roleplay Video:</label><br>
                                     <p><input type="file" name="ideal_video" accept=".mp4,.avi,.mov,.wmv"></p>
                                     {% if config and config[10] %}
-                                    <p><em>Current video: {{config[10]}}</em></p>
+                                    <p><em>Current video: {{config[10]|basename}}</em></p>
                                     {% endif %}
                                 </div>
                             </div>
@@ -355,45 +483,69 @@
 
                         <!-- Assessment Configuration -->
                         <div class="card mb-4">
-                            <div class="card-header"><h5>Assessment Configuration</h5></div>
+                            <div class="card-header">
+                                <h5>Assessment Configuration</h5>
+                            </div>
                             <div class="card-body">
                                 <label for="difficulty_level">Difficulty Level:</label><br>
-                                <select id="difficulty_level" name="difficulty_level" style="width:100%;margin-bottom: 15px;">
-                                    <option value="easy" {% if config and config[12] == 'easy' %}selected{% endif %}>Easy</option>
-                                    <option value="medium" {% if config and config[12] == 'medium' %}selected{% endif %}>Medium</option>
-                                    <option value="hard" {% if config and config[12] == 'hard' %}selected{% endif %}>Hard</option>
+                                <select id="difficulty_level" name="difficulty_level"
+                                    style="width:100%;margin-bottom: 15px;">
+                                    <option value="easy" {% if config and config[12]=='easy' %}selected{% endif %}>Easy
+                                    </option>
+                                    <option value="medium" {% if config and config[12]=='medium' %}selected{% endif %}>
+                                        Medium</option>
+                                    <option value="hard" {% if config and config[12]=='hard' %}selected{% endif %}>Hard
+                                    </option>
                                 </select>
                             </div>
                         </div>
 
                         <!-- 16PF Voice Analysis Configuration -->
                         <div class="card mb-4">
-                            <div class="card-header"><h5>16PF Voice Personality Analysis</h5></div>
+                            <div class="card-header">
+                                <h5>16PF Voice Personality Analysis</h5>
+                            </div>
                             <div class="card-body">
-                                <p class="text-muted small">Analyze user's voice recordings to generate 16 Personality Factor (16PF) scores using AI-powered voice analysis.</p>
-                                
-                                <label><input type="checkbox" name="enable_16pf_analysis" {% if config and config[13] %}checked{% endif %} onchange="toggle16PFOptions()"> Enable 16PF Voice Analysis</label><br><br>
-                                
-                                <div id="pf16_options" style="display: {% if config and config[13] %}block{% else %}none{% endif %};">
+                                <p class="text-muted small">Analyze user's voice recordings to generate 16 Personality
+                                    Factor (16PF) scores using AI-powered voice analysis.</p>
+
+                                <label><input type="checkbox" name="enable_16pf_analysis" {% if config and config[13]
+                                        %}checked{% endif %} {% if not config or config[2] !='audio' %}disabled{% endif
+                                        %} onchange="toggle16PFOptions()"> Enable 16PF Voice Analysis</label><br><br>
+
+                                <div id="pf16_options"
+                                    style="display: {% if config and config[2] == 'audio' and config[13] %}block{% else %}none{% endif %};">
                                     <label for="pf16_analysis_source">Analysis Source:</label><br>
-                                    <select id="pf16_analysis_source" name="pf16_analysis_source" style="width:100%;margin-bottom: 15px;">
-                                        <option value="none" {% if not config or config[14] == 'none' %}selected{% endif %}>None (Disabled)</option>
-                                        <option value="persona360" {% if config and config[14] == 'persona360' %}selected{% endif %}>Persona360 API</option>
-                                        <option value="third_party" {% if config and config[14] == 'third_party' %}selected{% endif %}>Third Party Plugin</option>
+                                    <select id="pf16_analysis_source" name="pf16_analysis_source"
+                                        style="width:100%;margin-bottom: 15px;">
+                                        <option value="none" {% if not config or config[14]=='none' %}selected{% endif
+                                            %}>None (Disabled)</option>
+                                        <option value="persona360" {% if config and config[14]=='persona360'
+                                            %}selected{% endif %}>Persona360 API</option>
+                                        <option value="third_party" {% if config and config[14]=='third_party'
+                                            %}selected{% endif %}>Third Party Plugin</option>
                                     </select>
-                                    
+
                                     <div class="mt-3">
-                                        <label><input type="checkbox" name="pf16_user_age_required" {% if not config or config[15] != 0 %}checked{% endif %}> Require User Age for Analysis</label><br>
-                                        <label><input type="checkbox" name="pf16_user_gender_required" {% if not config or config[16] != 0 %}checked{% endif %}> Require User Gender for Analysis</label><br>
-                                        <label><input type="checkbox" name="pf16_send_audio_for_analysis" {% if not config or config[18] != 0 %}checked{% endif %}> Send Audio for Analysis (Persona360)</label>
+                                        <label><input type="checkbox" name="pf16_user_age_required" {% if not config or
+                                                config[15] !=0 %}checked{% endif %}> Require User Age for
+                                            Analysis</label><br>
+                                        <label><input type="checkbox" name="pf16_user_gender_required" {% if not config
+                                                or config[16] !=0 %}checked{% endif %}> Require User Gender for
+                                            Analysis</label>
                                     </div>
-                                    
-                                    <label for="pf16_default_age" style="margin-top: 15px;">Default Age (if not provided):</label><br>
-                                    <input type="number" id="pf16_default_age" name="pf16_default_age" min="18" max="100" value="{{config[17] if config and config[17] else 30}}" style="margin-bottom: 15px;"><br>
-                                    
+
+                                    <label for="pf16_default_age" style="margin-top: 15px;">Default Age (if not
+                                        provided):</label><br>
+                                    <input type="number" id="pf16_default_age" name="pf16_default_age" min="18"
+                                        max="100" value="{{config[17] if config and config[17] else 30}}"
+                                        style="margin-bottom: 15px;"><br>
+
                                     <div class="alert alert-info small mt-2">
-                                        <strong>Note:</strong> 16PF analysis will be performed after the roleplay session completes. 
-                                        The user's recorded audio will be sent to the selected analysis provider for personality assessment.
+                                        <strong>Note:</strong> 16PF analysis will be performed after the roleplay
+                                        session completes.
+                                        The user's recorded audio will be sent to the selected analysis provider for
+                                        personality assessment.
                                     </div>
                                 </div>
                             </div>
@@ -405,91 +557,113 @@
                     {% if not roleplay %}
                     <h1>Create New Roleplay</h1>
                     <form method="POST" action="/adminview" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                         <!-- Basic Information -->
                         <div class="card mb-4">
-                            <div class="card-header"><h5>Basic Information</h5></div>
+                            <div class="card-header">
+                                <h5>Basic Information</h5>
+                            </div>
                             <div class="card-body">
                                 <!-- Roleplay ID is auto-generated -->
                                 <input type="hidden" id="id" name="id" value="">
-                                
-                                <label for="name">Roleplay Name:</label><br>
+
+                                <label for="name">Roleplay Name: <span class="text-danger">*</span></label><br>
                                 <input type="text" id="name" name="name" required><br>
-                                
-                                <label for="person_name">Person Name:</label><br>
+
+                                <label for="person_name">Person Name: <span class="text-danger">*</span></label><br>
                                 <input type="text" id="person_name" name="person_name" required><br>
-                                
-                                <label for="scenario">Scenario (supports rich text formatting):</label><br>
+
+                                <label for="scenario">Scenario (required): <span
+                                        class="text-danger">*</span></label><br>
                                 <div id="scenario-editor-new" style="height: 300px; background: white;"></div>
-                                <textarea type="text" id="scenario" name="scenario" class="tinymce-editor" style="display:none;" required></textarea><br>
+                                <textarea type="text" id="scenario" name="scenario" class="tinymce-editor"
+                                    style="display:none;" required></textarea><br>
 
-                                <label for="scenario_file">Optional Scenario File (for users to download):</label><br>
-                                <input type="file" name="scenario_file" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx"><br>
+                                <label for="scenario_file">Optional Scenario File(.pdf, .doc, .docx, .txt, .xls, .xlsx,
+                                    .ppt, .pptx):</label><br>
+                                <input type="file" name="scenario_file"
+                                    accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"><br>
 
-                                <label for="roleplay_logo">Roleplay Logo (displayed on tile):</label><br>
+                                <label for="roleplay_logo">Optional Roleplay Logo:</label><br>
                                 <input type="file" name="roleplay_logo" accept="image/*"><br>
                             </div>
                         </div>
 
                         <!-- File Uploads -->
                         <div class="card mb-4">
-                            <div class="card-header"><h5>File Uploads</h5></div>
+                            <div class="card-header">
+                                <h5>File Uploads</h5>
+                            </div>
                             <div class="card-body">
-                                <label for="roleplay_file">Select the roleplay excel sheet (.xls file):</label><br>
-                                <p><input type="file" name="roleplay_file" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" required></p>
-                                
-                                <label for="image_file">Select the image file (.xls file):</label><br>
-                                <p><input type="file" name="image_file" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" required></p>
-                                
-                                <label for="comp_file">Select the metacompetency file (.xlsx, add only if needed):</label><br>
-                                <p><input type="file" name="comp_file" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"></p>
+                                <label for="roleplay_file">Select the roleplay excel sheet (.xls file): <span
+                                        class="text-danger">*</span></label><br>
+                                <p><input type="file" name="roleplay_file"
+                                        accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                                        required></p>
+
+                                <label for="image_file">Select the image file (.xls file): <span
+                                        class="text-danger">*</span></label><br>
+                                <p><input type="file" name="image_file"
+                                        accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                                        required></p>
+
+                                <label for="comp_file">Select the metacompetency file (.xlsx file): <span
+                                        class="text-danger">*</span></label><br>
+                                <p><input type="file" name="comp_file"
+                                        accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                                        required></p>
                             </div>
                         </div>
 
                         <!-- Input Configuration -->
                         <div class="card mb-4">
-                            <div class="card-header"><h5>Input Configuration</h5></div>
+                            <div class="card-header">
+                                <h5>Input Configuration</h5>
+                            </div>
                             <div class="card-body">
                                 <label for="input_type">Input Type:</label><br>
-                                <select id="input_type" name="input_type" style="width:100%;margin-bottom: 15px;" onchange="toggleAudioOptions()">
+                                <select id="input_type" name="input_type" style="width:100%;margin-bottom: 15px;"
+                                    onchange="toggleAudioOptions()">
                                     <option value="text" selected>Text-based</option>
                                     <option value="audio">Audio-based</option>
                                 </select>
 
                                 <div id="audio_options" style="display: none;">
                                     <label for="audio_rerecord_attempts">Audio Re-record Attempts (Max 3):</label><br>
-                                    <input type="number" id="audio_rerecord_attempts" name="audio_rerecord_attempts" min="1" max="3" value="3" style="margin-bottom: 15px;"><br>
+                                    <input type="number" id="audio_rerecord_attempts" name="audio_rerecord_attempts"
+                                        min="1" max="3" value="3" style="margin-bottom: 15px;"><br>
 
                                     <label>Available Languages:</label><br>
-                                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 20px; margin-bottom: 15px;">
-                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                    <div class="lang-grid" style="margin-bottom: 15px;">
+                                        <label style="display: flex; align-items: center; gap: 2px;">
                                             <input type="checkbox" name="lang_english" checked style="margin: 0;">
                                             <span>English</span>
                                         </label>
-                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                        <label style="display: flex; align-items: center; gap: 2px;">
                                             <input type="checkbox" name="lang_hindi" style="margin: 0;">
                                             <span>Hindi</span>
                                         </label>
-                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                        <label style="display: flex; align-items: center; gap: 2px;">
                                             <input type="checkbox" name="lang_tamil" style="margin: 0;">
                                             <span>Tamil</span>
                                         </label>
-                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                        <label style="display: flex; align-items: center; gap: 2px;">
                                             <input type="checkbox" name="lang_telugu" style="margin: 0;">
                                             <span>Telugu</span>
                                         </label>
-                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                        <label style="display: flex; align-items: center; gap: 2px;">
                                             <input type="checkbox" name="lang_kannada" style="margin: 0;">
                                             <span>Kannada</span>
                                         </label>
-                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                        <label style="display: flex; align-items: center; gap: 2px;">
                                             <input type="checkbox" name="lang_malayalam" style="margin: 0;">
                                             <span>Malayalam</span>
                                         </label>
-                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                        <label style="display: flex; align-items: center; gap: 2px;">
                                             <input type="checkbox" name="lang_bengali" style="margin: 0;">
                                             <span>Bengali</span>
                                         </label>
-                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                        <label style="display: flex; align-items: center; gap: 2px;">
                                             <input type="checkbox" name="lang_marathi" style="margin: 0;">
                                             <span>Marathi</span>
                                         </label>
@@ -500,22 +674,29 @@
 
                         <!-- Time Configuration -->
                         <div class="card mb-4">
-                            <div class="card-header"><h5>Time Configuration</h5></div>
+                            <div class="card-header">
+                                <h5>Time Configuration</h5>
+                            </div>
                             <div class="card-body">
                                 <label for="max_interaction_time">Max Time for 1 Interaction (minutes):</label><br>
-                                <input type="number" id="max_interaction_time" name="max_interaction_time" min="1" step="0.5" value="5" style="margin-bottom: 15px;"><br>
+                                <input type="number" id="max_interaction_time" name="max_interaction_time" min="1"
+                                    step="0.5" value="5" style="margin-bottom: 15px;"><br>
 
                                 <label for="max_total_time">Max Total Roleplay Time (minutes):</label><br>
-                                <input type="number" id="max_total_time" name="max_total_time" min="1" step="0.5" value="30" style="margin-bottom: 15px;"><br>
+                                <input type="number" id="max_total_time" name="max_total_time" min="1" step="0.5"
+                                    value="30" style="margin-bottom: 15px;"><br>
 
                                 <label for="repeat_attempts_allowed">Number of Repeat Attempts Allowed:</label><br>
-                                <input type="number" id="repeat_attempts_allowed" name="repeat_attempts_allowed" min="1" value="1" style="margin-bottom: 15px;"><br>
+                                <input type="number" id="repeat_attempts_allowed" name="repeat_attempts_allowed" min="1"
+                                    value="1" style="margin-bottom: 15px;"><br>
                             </div>
                         </div>
 
                         <!-- Scoring Configuration -->
                         <div class="card mb-4">
-                            <div class="card-header"><h5>Scoring Configuration</h5></div>
+                            <div class="card-header">
+                                <h5>Scoring Configuration</h5>
+                            </div>
                             <div class="card-body">
                                 <label for="score_type">Score to be Used:</label><br>
                                 <select id="score_type" name="score_type" style="width:100%;margin-bottom: 15px;">
@@ -527,10 +708,13 @@
 
                         <!-- Video Configuration -->
                         <div class="card mb-4">
-                            <div class="card-header"><h5>Ideal Roleplay Video</h5></div>
+                            <div class="card-header">
+                                <h5>Ideal Roleplay Video (Training Only)</h5>
+                            </div>
                             <div class="card-body">
-                                <label><input type="checkbox" name="show_ideal_video" onchange="toggleVideoUpload()"> Show Ideal Roleplay Video</label><br><br>
-                                
+                                <label><input type="checkbox" name="show_ideal_video" onchange="toggleVideoUpload()">
+                                    Show Ideal Roleplay Video</label><br><br>
+
                                 <div id="video_upload" style="display: none;">
                                     <label for="ideal_video">Upload Ideal Roleplay Video:</label><br>
                                     <p><input type="file" name="ideal_video" accept=".mp4,.avi,.mov,.wmv"></p>
@@ -540,10 +724,13 @@
 
                         <!-- Assessment Configuration -->
                         <div class="card mb-4">
-                            <div class="card-header"><h5>Assessment Configuration</h5></div>
+                            <div class="card-header">
+                                <h5>Assessment Configuration</h5>
+                            </div>
                             <div class="card-body">
                                 <label for="difficulty_level">Difficulty Level:</label><br>
-                                <select id="difficulty_level" name="difficulty_level" style="width:100%;margin-bottom: 15px;">
+                                <select id="difficulty_level" name="difficulty_level"
+                                    style="width:100%;margin-bottom: 15px;">
                                     <option value="easy" selected>Easy</option>
                                     <option value="medium">Medium</option>
                                     <option value="hard">Hard</option>
@@ -553,38 +740,48 @@
 
                         <!-- 16PF Voice Analysis Configuration (New Roleplay) -->
                         <div class="card mb-4">
-                            <div class="card-header"><h5>16PF Voice Personality Analysis</h5></div>
+                            <div class="card-header">
+                                <h5>16PF Voice Personality Analysis</h5>
+                            </div>
                             <div class="card-body">
-                                <p class="text-muted small">Analyze user's voice recordings to generate 16 Personality Factor (16PF) scores using AI-powered voice analysis.</p>
-                                
-                                <label><input type="checkbox" name="enable_16pf_analysis" onchange="toggle16PFOptionsNew()"> Enable 16PF Voice Analysis</label><br><br>
-                                
+                                <p class="text-muted small">Analyze user's voice recordings to generate 16 Personality
+                                    Factor (16PF) scores using AI-powered voice analysis.</p>
+
+                                <label><input type="checkbox" name="enable_16pf_analysis" disabled
+                                        onchange="toggle16PFOptionsNew()"> Enable 16PF Voice Analysis</label><br><br>
+
                                 <div id="pf16_options_new" style="display: none;">
                                     <label for="pf16_analysis_source_new">Analysis Source:</label><br>
-                                    <select id="pf16_analysis_source_new" name="pf16_analysis_source" style="width:100%;margin-bottom: 15px;">
-                                        <option value="none" selected>None (Disabled)</option>
-                                        <option value="persona360">Persona360 API</option>
-                                        <option value="third_party">Third Party Plugin</option>
+                                    <select id="pf16_analysis_source_new" name="pf16_analysis_source"
+                                        style="width:100%;margin-bottom: 15px;">
+
+                                        <option value="persona360" selected>Persona360 API</option>
+
                                     </select>
-                                    
+
                                     <div class="mt-3">
-                                        <label><input type="checkbox" name="pf16_user_age_required" checked> Require User Age for Analysis</label><br>
-                                        <label><input type="checkbox" name="pf16_user_gender_required" checked> Require User Gender for Analysis</label><br>
-                                        <label><input type="checkbox" name="pf16_send_audio_for_analysis" checked> Send Audio for Analysis (Persona360)</label>
-                                    </div>
-                                    
-                                    <label for="pf16_default_age_new" style="margin-top: 15px;">Default Age (if not provided):</label><br>
-                                    <input type="number" id="pf16_default_age_new" name="pf16_default_age" min="18" max="100" value="30" style="margin-bottom: 15px;"><br>
-                                    
-                                    <div class="alert alert-info small mt-2">
-                                        <strong>Note:</strong> 16PF analysis will be performed after the roleplay session completes. 
-                                        The user's recorded audio will be sent to the selected analysis provider for personality assessment.
+                                        <label><input type="checkbox" name="pf16_user_age_required" checked> Require
+                                            User Age for Analysis</label><br>
+                                        <label><input type="checkbox" name="pf16_user_gender_required" checked> Require
+                                            User Gender for Analysis</label><br>
+
+
+                                        <label for="pf16_default_age_new" style="margin-top: 15px;">Default Age (if not
+                                            provided):</label><br>
+                                        <input type="number" id="pf16_default_age_new" name="pf16_default_age" min="18"
+                                            max="100" value="30" style="margin-bottom: 15px;"><br>
+
+                                        <div class="alert alert-info small mt-2">
+                                            <strong>Note:</strong> 16PF analysis will be performed after the roleplay
+                                            session completes.
+                                            The user's recorded audio will be sent to the selected analysis provider for
+                                            personality assessment.
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <p><input type="submit" value="Create Roleplay" class="btn btn-success"></p>
+                            <p><input type="submit" value="Create Roleplay" class="btn btn-success"></p>
                     </form>
                     {% endif %}
                 </div>
@@ -599,41 +796,67 @@
 <script src="{{url_for('static', filename='js/bootstrap.min.js')}}"></script>
 <script type="text/javascript">
 
-$(document).ready(function () {
-    $('#loading').hide();
+    $(document).ready(function () {
+        $('#loading').hide();
 
-    window.setTimeout(function() {
-        $(".alert").fadeTo(1000, 0).slideUp(1000, function(){
-            $(this).remove(); 
-        });
+        window.setTimeout(function () {
+            $(".alert").fadeTo(1000, 0).slideUp(1000, function () {
+                $(this).remove();
+            });
         }, 5000);
 
-    $('form').submit(function (e) {
-        // Convert minutes to seconds before submitting
-        // Use 'this' to target the specific form being submitted
-        const form = this;
-        const maxInteractionTimeInput = form.querySelector('[name="max_interaction_time"]');
-        const maxTotalTimeInput = form.querySelector('[name="max_total_time"]');
-        
-        if (maxInteractionTimeInput && maxInteractionTimeInput.value) {
-            maxInteractionTimeInput.value = Math.round(parseFloat(maxInteractionTimeInput.value) * 60);
-        }
-        
-        if (maxTotalTimeInput && maxTotalTimeInput.value) {
-            maxTotalTimeInput.value = Math.round(parseFloat(maxTotalTimeInput.value) * 60);
-        }
-        
-        $('#loading').show();
+        $('form').submit(function (e) {
+            // Convert minutes to seconds before submitting
+            // Use 'this' to target the specific form being submitted
+            const form = this;
+
+            // Validate scenario field before submission
+            const scenarioField = form.querySelector('[name="scenario"]');
+            if (scenarioField) {
+                // Check if scenario has actual content (not just HTML tags or whitespace)
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = scenarioField.value;
+                const textContent = tempDiv.textContent || tempDiv.innerText || '';
+
+                if (!textContent.trim()) {
+                    e.preventDefault();
+                    alert('⚠️ Scenario field is required!\n\nPlease enter a scenario description before submitting the form.');
+                    // Scroll to scenario field
+                    const scenarioEditor = form.querySelector('#scenario-editor, #scenario-editor-new');
+                    if (scenarioEditor) {
+                        scenarioEditor.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        scenarioEditor.style.border = '2px solid #dc3545';
+                        setTimeout(function () {
+                            scenarioEditor.style.border = '';
+                        }, 3000);
+                    }
+                    $('#loading').hide();
+                    return false;
+                }
+            }
+
+            const maxInteractionTimeInput = form.querySelector('[name="max_interaction_time"]');
+            const maxTotalTimeInput = form.querySelector('[name="max_total_time"]');
+
+            if (maxInteractionTimeInput && maxInteractionTimeInput.value) {
+                maxInteractionTimeInput.value = Math.round(parseFloat(maxInteractionTimeInput.value) * 60);
+            }
+
+            if (maxTotalTimeInput && maxTotalTimeInput.value) {
+                maxTotalTimeInput.value = Math.round(parseFloat(maxTotalTimeInput.value) * 60);
+            }
+
+            $('#loading').show();
+        });
     });
-});
 </script>
 
 <script type="text/javascript">
     // Initialize Quill editor for scenario field
     var quillEditor = null;
     var quillEditorNew = null;
-    
-    document.addEventListener('DOMContentLoaded', function() {
+
+    document.addEventListener('DOMContentLoaded', function () {
         // Initialize for edit form
         if (document.getElementById('scenario-editor')) {
             quillEditor = new Quill('#scenario-editor', {
@@ -644,32 +867,32 @@ $(document).ready(function () {
                         ['bold', 'italic', 'underline', 'strike'],
                         [{ 'color': [] }, { 'background': [] }],
                         [{ 'align': [] }],
-                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
                         ['clean']
                     ]
                 }
             });
-            
+
             // Load initial content
             var scenarioField = document.getElementById('scenario');
             if (scenarioField && scenarioField.value) {
                 quillEditor.root.innerHTML = scenarioField.value;
             }
-            
+
             // Update hidden textarea when content changes
-            quillEditor.on('text-change', function() {
+            quillEditor.on('text-change', function () {
                 scenarioField.value = quillEditor.root.innerHTML;
             });
-            
+
             // Update before form submission
             var editForm = scenarioField.closest('form');
             if (editForm) {
-                editForm.addEventListener('submit', function() {
+                editForm.addEventListener('submit', function () {
                     scenarioField.value = quillEditor.root.innerHTML;
                 });
             }
         }
-        
+
         // Initialize for new form
         if (document.getElementById('scenario-editor-new')) {
             quillEditorNew = new Quill('#scenario-editor-new', {
@@ -680,23 +903,23 @@ $(document).ready(function () {
                         ['bold', 'italic', 'underline', 'strike'],
                         [{ 'color': [] }, { 'background': [] }],
                         [{ 'align': [] }],
-                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
                         ['clean']
                     ]
                 }
             });
-            
+
             var scenarioFieldNew = document.getElementById('scenario');
-            
+
             // Update hidden textarea when content changes
-            quillEditorNew.on('text-change', function() {
+            quillEditorNew.on('text-change', function () {
                 scenarioFieldNew.value = quillEditorNew.root.innerHTML;
             });
-            
+
             // Update before form submission
             var newForm = scenarioFieldNew.closest('form');
             if (newForm) {
-                newForm.addEventListener('submit', function() {
+                newForm.addEventListener('submit', function () {
                     scenarioFieldNew.value = quillEditorNew.root.innerHTML;
                 });
             }
@@ -715,20 +938,36 @@ $(document).ready(function () {
     }
 
     function toggleAudioOptions() {
-        const inputType = document.getElementById('input_type').value;
+        const inputTypeElem = document.getElementById('input_type');
+        if (!inputTypeElem) return;
+        const inputType = inputTypeElem.value;
         const audioOptions = document.getElementById('audio_options');
-        
+        const pfCheckbox = document.querySelector('input[name="enable_16pf_analysis"]');
+        const pfOptions = document.getElementById('pf16_options');
+
         if (inputType === 'audio') {
-            audioOptions.style.display = 'block';
+            if (audioOptions) audioOptions.style.display = 'block';
+            // allow 16PF checkbox to be used
+            if (pfCheckbox) pfCheckbox.disabled = false;
+            // only show pf options if checkbox is checked
+            if (pfCheckbox && pfCheckbox.checked) {
+                if (pfOptions) pfOptions.style.display = 'block';
+            }
         } else {
-            audioOptions.style.display = 'none';
+            if (audioOptions) audioOptions.style.display = 'none';
+            // hide and uncheck 16PF options when input type is text
+            if (pfCheckbox) {
+                try { pfCheckbox.checked = false; } catch (e) { }
+                pfCheckbox.disabled = true;
+            }
+            if (pfOptions) pfOptions.style.display = 'none';
         }
     }
 
     function toggleVideoUpload() {
         const showVideo = document.querySelector('input[name="show_ideal_video"]').checked;
         const videoUpload = document.getElementById('video_upload');
-        
+
         if (showVideo) {
             videoUpload.style.display = 'block';
         } else {
@@ -738,26 +977,31 @@ $(document).ready(function () {
 
     // 16PF Options toggle for Edit form
     function toggle16PFOptions() {
-        const enabled = document.querySelector('input[name="enable_16pf_analysis"]').checked;
+        const checkbox = document.querySelector('input[name="enable_16pf_analysis"]');
+        const enabled = checkbox ? checkbox.checked : false;
         const options = document.getElementById('pf16_options');
-        
-        if (enabled) {
-            options.style.display = 'block';
+        const inputTypeElem = document.getElementById('input_type');
+        const inputType = inputTypeElem ? inputTypeElem.value : 'text';
+
+        // Only allow showing 16PF options when input type is audio
+        if (enabled && inputType === 'audio') {
+            if (options) options.style.display = 'block';
         } else {
-            options.style.display = 'none';
+            if (options) options.style.display = 'none';
         }
     }
 
     // 16PF Options toggle for New form
     function toggle16PFOptionsNew() {
         const checkboxes = document.querySelectorAll('input[name="enable_16pf_analysis"]');
-        // Get the checkbox in the new form (second one if exists)
         let checkbox = checkboxes.length > 1 ? checkboxes[1] : checkboxes[0];
         const enabled = checkbox ? checkbox.checked : false;
         const options = document.getElementById('pf16_options_new');
-        
+        const inputTypeElem = document.getElementById('input_type');
+        const inputType = inputTypeElem ? inputTypeElem.value : 'text';
+
         if (options) {
-            if (enabled) {
+            if (enabled && inputType === 'audio') {
                 options.style.display = 'block';
             } else {
                 options.style.display = 'none';
@@ -771,3 +1015,16 @@ $(document).ready(function () {
 <script src="{{url_for('static', filename='js/bootstrap.min.js')}}"></script>
 
 {% endblock %}
+
+<script>
+    // Initialize toggles on page load to enforce input-type rules
+    document.addEventListener('DOMContentLoaded', function () {
+        try {
+            if (typeof toggleAudioOptions === 'function') toggleAudioOptions();
+            if (typeof toggle16PFOptions === 'function') toggle16PFOptions();
+            if (typeof toggle16PFOptionsNew === 'function') toggle16PFOptionsNew();
+        } catch (e) {
+            console.warn('Init toggles failed', e);
+        }
+    });
+</script>
